@@ -1,0 +1,35 @@
+{
+  "name": "corsen-context-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Universal AI Context Layer — MCP Adapter + Enhanced llms.txt + Smart Sitemap",
+  "author": "Corsen AI <contact@corsen.ai>",
+  "license": "MIT",
+  "homepage": "https://github.com/CorsenAI/corsen-context",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CorsenAI/corsen-context.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CorsenAI/corsen-context/issues"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
