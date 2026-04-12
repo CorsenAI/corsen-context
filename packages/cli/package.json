@@ -1,0 +1,40 @@
+{
+  "name": "@corsenai/corsen-context-cli",
+  "version": "1.1.0",
+  "description": "CLI for Corsen Context — init, generate, and validate your AI context layer",
+  "author": "Corsen AI <contact@corsen.ai>",
+  "license": "MIT",
+  "homepage": "https://github.com/CorsenAI/corsen-context",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CorsenAI/corsen-context.git",
+    "directory": "packages/cli"
+  },
+  "keywords": ["mcp", "llms-txt", "ai", "cli", "corsen"],
+  "bin": {
+    "corsen-context": "./dist/index.js"
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@corsenai/corsen-context": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/CorsenAI/corsen-context/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
