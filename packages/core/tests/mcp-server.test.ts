@@ -205,4 +205,22 @@ describe('MCP Server', () => {
     expect(headers['X-Powered-By']).toBe('Corsen Context / Corsen AI');
     expect(headers['Cache-Control']).toBe('no-store');
   });
+
+  it('does not emit CORS headers by default', () => {
+    expect(server.getCorsHeaders('https://evil.com')).toEqual({});
+  });
+
+  it('emits CORS headers for allowlisted origins', () => {
+    const allowlistedServer = new MCPServer(
+      resolveConfig({
+        siteUrl: 'https://example.com',
+        security: { allowedOrigins: ['https://app.example.com'] },
+      }),
+      mockProvider,
+    );
+
+    const headers = allowlistedServer.getCorsHeaders('https://app.example.com');
+    expect(headers['Access-Control-Allow-Origin']).toBe('https://app.example.com');
+    expect(headers['Access-Control-Allow-Methods']).toBe('POST, OPTIONS');
+  });
 });

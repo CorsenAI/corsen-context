@@ -1,9 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseSitemap, discoverSitemap } from '../src/sitemap.js';
+import { safeFetch } from '../src/security.js';
 
-// Mock fetch for controlled testing
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+vi.mock('../src/security.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/security.js')>();
+  return {
+    ...actual,
+    safeFetch: vi.fn(),
+  };
+});
+
+const mockSafeFetch = vi.mocked(safeFetch);
 
 const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -19,10 +26,7 @@ const SITEMAP_INDEX_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('parseSitemap', () => {
   it('parses a standard sitemap XML', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => SITEMAP_XML,
-    });
+    mockSafeFetch.mockResolvedValueOnce(new Response(SITEMAP_XML));
 
     const entries = await parseSitemap('https://example.com/sitemap.xml');
     expect(entries).toHaveLength(3);
@@ -32,10 +36,7 @@ describe('parseSitemap', () => {
   });
 
   it('respects maxPages limit', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => SITEMAP_XML,
-    });
+    mockSafeFetch.mockResolvedValueOnce(new Response(SITEMAP_XML));
 
     const entries = await parseSitemap('https://example.com/sitemap.xml', 2);
     expect(entries).toHaveLength(2);
@@ -47,22 +48,14 @@ describe('parseSitemap', () => {
   });
 
   it('returns empty on non-ok response', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    mockSafeFetch.mockResolvedValueOnce(new Response('', { status: 404 }));
     const entries = await parseSitemap('https://example.com/sitemap.xml');
     expect(entries).toHaveLength(0);
   });
 
   it('follows sitemap index to child sitemaps', async () => {
-    // First call: sitemap index
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => SITEMAP_INDEX_XML,
-    });
-    // Second call: child sitemap
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => SITEMAP_XML,
-    });
+    mockSafeFetch.mockResolvedValueOnce(new Response(SITEMAP_INDEX_XML));
+    mockSafeFetch.mockResolvedValueOnce(new Response(SITEMAP_XML));
 
     const entries = await parseSitemap('https://example.com/sitemap_index.xml');
     expect(entries.length).toBeGreaterThan(0);
@@ -72,38 +65,27 @@ describe('parseSitemap', () => {
 
 describe('discoverSitemap', () => {
   it('discovers sitemap from robots.txt', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => 'User-agent: *\nSitemap: https://example.com/sitemap.xml',
-    });
+    mockSafeFetch.mockResolvedValueOnce(
+      new Response('User-agent: *\nSitemap: https://example.com/sitemap.xml'),
+    );
 
     const url = await discoverSitemap('https://example.com');
     expect(url).toBe('https://example.com/sitemap.xml');
   });
 
   it('falls back to common paths when robots.txt has no sitemap', async () => {
-    // robots.txt — no sitemap line
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => 'User-agent: *\nDisallow: /admin',
-    });
-    // HEAD /sitemap.xml — found
-    mockFetch.mockResolvedValueOnce({ ok: true });
+    mockSafeFetch.mockResolvedValueOnce(new Response('User-agent: *\nDisallow: /admin'));
+    mockSafeFetch.mockResolvedValueOnce(new Response(''));
 
     const url = await discoverSitemap('https://example.com');
     expect(url).toBe('https://example.com/sitemap.xml');
   });
 
   it('returns null when nothing found', async () => {
-    // robots.txt — no sitemap
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: async () => 'User-agent: *',
-    });
-    // All candidates fail
-    mockFetch.mockResolvedValueOnce({ ok: false });
-    mockFetch.mockResolvedValueOnce({ ok: false });
-    mockFetch.mockResolvedValueOnce({ ok: false });
+    mockSafeFetch.mockResolvedValueOnce(new Response('User-agent: *'));
+    mockSafeFetch.mockResolvedValueOnce(new Response('', { status: 404 }));
+    mockSafeFetch.mockResolvedValueOnce(new Response('', { status: 404 }));
+    mockSafeFetch.mockResolvedValueOnce(new Response('', { status: 404 }));
 
     const url = await discoverSitemap('https://example.com');
     expect(url).toBeNull();

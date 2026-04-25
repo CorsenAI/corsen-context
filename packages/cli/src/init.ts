@@ -171,14 +171,6 @@ const config = {
 export const GET = createLlmsFullTxtHandler(config, siteProvider);
 `;
 
-const NEXTJS_CONFIG_WRAPPER = `// Add this to your next.config.mjs:
-// import { withCorsenContext } from '@corsenai/corsen-context-nextjs';
-//
-// export default withCorsenContext({
-//   siteUrl: 'https://your-site.com',
-// })(yourExistingConfig);
-`;
-
 // --- Next.js Pages Router Templates ---
 
 const NEXTJS_PAGES_MCP_ROUTE = `import type { NextApiRequest, NextApiResponse } from 'next';
@@ -466,7 +458,7 @@ function scaffoldAstro(cwd: string): void {
   console.log('  3. Edit the provider in src/pages/api/mcp.ts');
 }
 
-function scaffoldStatic(cwd: string): void {
+function scaffoldStatic(_cwd: string): void {
   console.log('\n  Static site detected. Options:');
   console.log('  1. Generate llms.txt from your live site:');
   console.log('     npx @corsenai/corsen-context-cli generate --url https://your-site.com');
@@ -477,7 +469,7 @@ function scaffoldStatic(cwd: string): void {
   console.log('     - Cloudflare Workers: use the core library directly');
 }
 
-function scaffoldHugo(cwd: string): void {
+function scaffoldHugo(_cwd: string): void {
   console.log('\n  Hugo detected. Options:');
   console.log('  1. Generate llms.txt from your live site:');
   console.log('     npx @corsenai/corsen-context-cli generate --url https://your-site.com');

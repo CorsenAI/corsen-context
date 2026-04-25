@@ -1,6 +1,6 @@
 {
   "name": "corsen-context-monorepo",
-  "version": "0.0.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Universal AI Context Layer — MCP Adapter + Enhanced llms.txt + Smart Sitemap",
   "author": "Corsen AI <contact@corsen.ai>",
@@ -14,11 +14,11 @@
     "url": "https://github.com/CorsenAI/corsen-context/issues"
   },
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "lint": "turbo run lint",
-    "clean": "turbo run clean",
-    "typecheck": "turbo run typecheck"
+    "build": "corepack pnpm --filter @corsenai/corsen-context build && corepack pnpm --filter @corsenai/corsen-context-nextjs build && corepack pnpm --filter @corsenai/corsen-context-cli build",
+    "test": "corepack pnpm --filter @corsenai/corsen-context test",
+    "lint": "corepack pnpm --filter @corsenai/corsen-context lint && corepack pnpm --filter @corsenai/corsen-context-nextjs lint && corepack pnpm --filter @corsenai/corsen-context-cli lint",
+    "clean": "corepack pnpm --filter @corsenai/corsen-context clean && corepack pnpm --filter @corsenai/corsen-context-nextjs clean && corepack pnpm --filter @corsenai/corsen-context-cli clean",
+    "typecheck": "corepack pnpm --filter @corsenai/corsen-context typecheck && corepack pnpm --filter @corsenai/corsen-context build && corepack pnpm --filter @corsenai/corsen-context-nextjs typecheck && corepack pnpm --filter @corsenai/corsen-context-cli typecheck"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",

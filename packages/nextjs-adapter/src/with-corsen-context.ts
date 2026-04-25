@@ -1,7 +1,18 @@
 import type { CorsenContextConfig } from '@corsenai/corsen-context';
 
+interface NextRewrite {
+  source: string;
+  destination: string;
+}
+
+interface NextRewritesObject {
+  beforeFiles?: NextRewrite[];
+  afterFiles?: NextRewrite[];
+  fallback?: NextRewrite[];
+}
+
 interface NextConfig {
-  rewrites?: () => Promise<any[] | { beforeFiles?: any[]; afterFiles?: any[]; fallback?: any[] }>;
+  rewrites?: () => Promise<NextRewrite[] | NextRewritesObject>;
   [key: string]: unknown;
 }
 
@@ -19,7 +30,7 @@ interface NextConfig {
  * });
  * ```
  */
-export function withCorsenContext(corsenConfig: CorsenContextConfig) {
+export function withCorsenContext(_corsenConfig: CorsenContextConfig) {
   return function wrapNextConfig(nextConfig: NextConfig = {}): NextConfig {
     const existingRewrites = nextConfig.rewrites;
 
@@ -49,12 +60,6 @@ export function withCorsenContext(corsenConfig: CorsenContextConfig) {
         }
 
         return corsenRewrites;
-      },
-
-      // Store config for runtime handlers
-      env: {
-        ...(nextConfig.env as Record<string, string> | undefined),
-        CORSEN_CONTEXT_CONFIG: JSON.stringify(corsenConfig),
       },
     };
   };

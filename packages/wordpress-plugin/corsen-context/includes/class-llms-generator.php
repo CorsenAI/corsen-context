@@ -156,6 +156,7 @@ class Corsen_Context_Llms_Generator {
 		$args = array(
 			'post_type'      => $post_type,
 			'post_status'    => 'publish',
+			'has_password'   => false,
 			'posts_per_page' => $max_pages,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
@@ -165,17 +166,30 @@ class Corsen_Context_Llms_Generator {
 		$query = new \WP_Query( $args );
 		$posts = $query->posts;
 
-		if ( ! empty( $exclude ) ) {
-			$posts = array_filter( $posts, function ( $post ) use ( $exclude ) {
-				$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
-				foreach ( $exclude as $ex ) {
-					if ( str_starts_with( $path, $ex ) ) {
-						return false;
-					}
+		$posts = array_filter( $posts, function ( $post ) use ( $exclude ) {
+			if ( ! $post instanceof \WP_Post || ! empty( $post->post_password ) ) {
+				return false;
+			}
+
+			$permalink = get_permalink( $post );
+			if ( ! is_string( $permalink ) ) {
+				return false;
+			}
+
+			$path = wp_parse_url( $permalink, PHP_URL_PATH );
+			if ( ! is_string( $path ) ) {
+				return false;
+			}
+
+			foreach ( $exclude as $ex ) {
+				$ex = '/' === substr( $ex, 0, 1 ) ? $ex : '/' . $ex;
+				if ( str_starts_with( $path, $ex ) ) {
+					return false;
 				}
-				return true;
-			} );
-		}
+			}
+
+			return true;
+		} );
 
 		return array_values( $posts );
 	}

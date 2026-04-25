@@ -5,15 +5,6 @@ import {
   type ContentProvider,
 } from '@corsenai/corsen-context';
 
-let cachedInstance: CorsenContext | null = null;
-
-function getInstance(config: CorsenContextConfig, provider: ContentProvider): CorsenContext {
-  if (!cachedInstance) {
-    cachedInstance = new CorsenContext(config, provider);
-  }
-  return cachedInstance;
-}
-
 function getClientIp(request: Request): string {
   // Cloudflare (most reliable when behind CF).
   const cfIp = request.headers.get('cf-connecting-ip');
@@ -76,8 +67,9 @@ export function createMCPHandler(
   config: CorsenContextConfig,
   provider: ContentProvider,
 ): { POST: (request: Request) => Promise<Response>; OPTIONS: (request: Request) => Promise<Response> } {
+  const instance = new CorsenContext(config, provider);
+
   async function POST(request: Request): Promise<Response> {
-    const instance = getInstance(config, provider);
     const server = instance.createMCPServer();
 
     // Security headers
@@ -149,7 +141,6 @@ export function createMCPHandler(
   }
 
   async function OPTIONS(request: Request): Promise<Response> {
-    const instance = getInstance(config, provider);
     const server = instance.createMCPServer();
 
     const headers = new Headers();
@@ -225,8 +216,9 @@ export function createSSEHandler(config: CorsenContextConfig) {
  * Creates a handler that serves /llms.txt
  */
 export function createLlmsTxtHandler(config: CorsenContextConfig, provider: ContentProvider) {
+  const instance = new CorsenContext(config, provider);
+
   return async function GET(): Promise<Response> {
-    const instance = getInstance(config, provider);
     const text = await instance.generateLlmsTxt();
 
     const headers = new Headers(SECURITY_HEADERS);
@@ -241,8 +233,9 @@ export function createLlmsTxtHandler(config: CorsenContextConfig, provider: Cont
  * Creates a handler that serves /llms-full.txt
  */
 export function createLlmsFullTxtHandler(config: CorsenContextConfig, provider: ContentProvider) {
+  const instance = new CorsenContext(config, provider);
+
   return async function GET(): Promise<Response> {
-    const instance = getInstance(config, provider);
     const text = await instance.generateLlmsFullTxt();
 
     const headers = new Headers(SECURITY_HEADERS);

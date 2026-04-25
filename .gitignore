@@ -17,3 +17,7 @@ coverage/
 .turbo/
 *.tsbuildinfo
 *.zip
+*.bak*
+.local/
+*.local.md
+*-local.md

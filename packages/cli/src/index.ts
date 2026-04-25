@@ -6,7 +6,7 @@ import { CREDIT_LINE } from '@corsenai/corsen-context';
 const args = process.argv.slice(2);
 const command = args[0];
 
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 
 function printHelp() {
   console.log(`

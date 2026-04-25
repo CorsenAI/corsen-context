@@ -175,12 +175,7 @@ class Corsen_Context_MCP_Server {
 		$resources  = array();
 
 		foreach ( $post_types as $pt ) {
-			$posts = get_posts( array(
-				'post_type'      => $pt,
-				'post_status'    => 'publish',
-				'posts_per_page' => $max_pages,
-				'no_found_rows'  => true,
-			) );
+			$posts = $this->get_public_posts( $pt, $max_pages );
 
 			foreach ( $posts as $post ) {
 				$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
@@ -209,7 +204,7 @@ class Corsen_Context_MCP_Server {
 		}
 
 		$post_obj = get_post( $post );
-		if ( ! $post_obj || 'publish' !== $post_obj->post_status ) {
+		if ( ! $this->is_public_post( $post_obj ) ) {
 			return $this->error_response( $id, -32002, 'Resource not found' );
 		}
 
@@ -244,6 +239,80 @@ class Corsen_Context_MCP_Server {
 		return intval( $settings['max_pages'] ?? 500 );
 	}
 
+	/**
+	 * Get excluded URL paths from settings.
+	 *
+	 * @return string[]
+	 */
+	private function get_exclude_paths(): array {
+		$settings = get_option( 'corsen_context_settings', array() );
+		$raw      = array_filter( array_map( 'trim', explode( "\n", $settings['exclude_paths'] ?? '' ) ) );
+
+		return array_values( array_map( static function ( string $path ): string {
+			$path = sanitize_text_field( $path );
+			return '/' === substr( $path, 0, 1 ) ? $path : '/' . $path;
+		}, $raw ) );
+	}
+
+	/**
+	 * Check whether a URL path is excluded by settings.
+	 */
+	private function is_excluded_url( string $url ): bool {
+		$path = wp_parse_url( $url, PHP_URL_PATH );
+		if ( ! is_string( $path ) ) {
+			return true;
+		}
+
+		foreach ( $this->get_exclude_paths() as $excluded ) {
+			if ( '' !== $excluded && str_starts_with( $path, $excluded ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Verify a post is published, public, not password-protected, and not excluded.
+	 */
+	private function is_public_post( $post ): bool {
+		if ( ! $post instanceof \WP_Post ) {
+			return false;
+		}
+
+		if ( 'publish' !== $post->post_status || ! empty( $post->post_password ) ) {
+			return false;
+		}
+
+		if ( ! in_array( $post->post_type, $this->get_allowed_post_types(), true ) ) {
+			return false;
+		}
+
+		$permalink = get_permalink( $post );
+		if ( ! is_string( $permalink ) ) {
+			return false;
+		}
+
+		return ! $this->is_excluded_url( $permalink );
+	}
+
+	/**
+	 * Query public posts and apply all content ACL filters.
+	 *
+	 * @return \WP_Post[]
+	 */
+	private function get_public_posts( string $post_type, int $limit, array $extra_args = array() ): array {
+		$posts = get_posts( array_merge( array(
+			'post_type'      => $post_type,
+			'post_status'    => 'publish',
+			'has_password'   => false,
+			'posts_per_page' => $limit,
+			'no_found_rows'  => true,
+		), $extra_args ) );
+
+		return array_values( array_filter( $posts, array( $this, 'is_public_post' ) ) );
+	}
+
 	// --- Tool Implementations ---
 
 	private function search_site( string $query, int $limit ): array {
@@ -252,10 +321,12 @@ class Corsen_Context_MCP_Server {
 		$posts = get_posts( array(
 			'post_type'      => $this->get_allowed_post_types(),
 			'post_status'    => 'publish',
+			'has_password'   => false,
 			's'              => $query,
-			'posts_per_page' => $limit,
+			'posts_per_page' => min( $this->get_max_pages(), max( $limit * 3, $limit ) ),
 			'no_found_rows'  => true,
 		) );
+		$posts = array_slice( array_values( array_filter( $posts, array( $this, 'is_public_post' ) ) ), 0, $limit );
 
 		foreach ( $posts as $post ) {
 			$meta = Corsen_Context_Content_Converter::get_post_metadata( $post );
@@ -289,7 +360,7 @@ class Corsen_Context_MCP_Server {
 		}
 
 		$post = get_post( $post_id );
-		if ( ! $post || 'publish' !== $post->post_status ) {
+		if ( ! $this->is_public_post( $post ) ) {
 			return null;
 		}
 
@@ -313,15 +384,15 @@ class Corsen_Context_MCP_Server {
 			$type = $allowed[0] ?? 'page';
 		}
 
-		$query = new \WP_Query( array(
-			'post_type'      => $type,
-			'post_status'    => 'publish',
-			'posts_per_page' => $limit,
-			'paged'          => $page,
+		$all_items = $this->get_public_posts( $type, $this->get_max_pages(), array(
+			'orderby' => 'date',
+			'order'   => 'DESC',
 		) );
+		$total     = count( $all_items );
+		$posts     = array_slice( $all_items, ( $page - 1 ) * $limit, $limit );
 
 		$items = array();
-		foreach ( $query->posts as $post ) {
+		foreach ( $posts as $post ) {
 			$meta    = Corsen_Context_Content_Converter::get_post_metadata( $post );
 			$items[] = array(
 				'url'          => $meta['url'],
@@ -334,10 +405,10 @@ class Corsen_Context_MCP_Server {
 
 		return array(
 			'items'   => $items,
-			'total'   => intval( $query->found_posts ),
+			'total'   => $total,
 			'page'    => $page,
 			'limit'   => $limit,
-			'hasMore' => ( $page * $limit ) < intval( $query->found_posts ),
+			'hasMore' => ( $page * $limit ) < $total,
 		);
 	}
 
@@ -347,12 +418,7 @@ class Corsen_Context_MCP_Server {
 		$sitemap    = array();
 
 		foreach ( $post_types as $pt ) {
-			$posts = get_posts( array(
-				'post_type'      => $pt,
-				'post_status'    => 'publish',
-				'posts_per_page' => $max_pages,
-				'no_found_rows'  => true,
-			) );
+			$posts = $this->get_public_posts( $pt, $max_pages );
 
 			foreach ( $posts as $post ) {
 				$sitemap[] = array(

@@ -8,12 +8,12 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-4ade80)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/tests-88%20passed-4ade80)]()
+[![Tests](https://img.shields.io/badge/tests-90%20passed-4ade80)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org/)
 
 AI agents can't read your website. HTML is noise. Corsen Context fixes that.
 
-Give Claude, ChatGPT, Cursor, and Grok clean, structured access to your content — no scraping, no parsing, no guessing.
+Give ChatGPT, Cursor, Grok, and MCP-compatible AI agents clean, structured access to your content — no scraping, no parsing, no guessing.
 
 [Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [WordPress](#-wordpress-30-seconds) · [Next.js](#-nextjs-2-minutes) · [CLI](#-cli) · [Docs](#-documentation)
 
@@ -50,7 +50,7 @@ They need this:
 Corsen Context creates two layers that AI agents can discover and use:
 
 ```
-AI Agent (Claude, ChatGPT, Cursor, Grok)
+AI Agent (ChatGPT, Cursor, Grok, MCP clients)
     │
     ├─── GET /llms.txt              ← Static: instant overview of your site
     ├─── GET /llms-full.txt         ← Static: full markdown of all pages
@@ -249,7 +249,7 @@ export default {
 
   security: {
     rateLimit: 100,          // requests per minute per IP
-    allowedOrigins: [],      // CORS whitelist (empty = allow all origins)
+    allowedOrigins: [],      // CORS whitelist (empty = no CORS headers)
     // apiKey via CORSEN_CONTEXT_API_KEY env var
   },
 
@@ -379,7 +379,7 @@ corsen-context/
 │   │   │   ├── logger.ts         # Pino structured logging
 │   │   │   ├── config.ts         # Zod config schema
 │   │   │   └── types.ts          # All TypeScript types
-│   │   └── tests/                # 88 tests (vitest)
+│   │   └── tests/                # 90 tests (vitest)
 │   │
 │   ├── nextjs-adapter/       # @corsenai/corsen-context-nextjs
 │   │   └── src/

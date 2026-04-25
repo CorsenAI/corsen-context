@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Make your WordPress site AI-native. Generates llms.txt and exposes a full MCP server for AI agents.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.1.0' );
+define( 'CORSEN_CONTEXT_VERSION', '1.1.1' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );

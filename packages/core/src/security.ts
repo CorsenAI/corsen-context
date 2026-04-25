@@ -1,5 +1,8 @@
-import { timingSafeEqual, createHash, randomBytes } from 'node:crypto';
+﻿import { timingSafeEqual, createHash, randomBytes } from 'node:crypto';
 import dns from 'node:dns/promises';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import type { LookupFunction } from 'node:net';
 import { z } from 'zod';
 import type { RateLimitResult, JSONRPCRequest, RateLimitStore, ApiKeyRecord } from './types.js';
 
@@ -7,7 +10,7 @@ import type { RateLimitResult, JSONRPCRequest, RateLimitStore, ApiKeyRecord } fr
 
 /**
  * Check if an IP address is private/internal.
- * Sync function — works on resolved IPs, not hostnames.
+ * Sync function â€” works on resolved IPs, not hostnames.
  */
 export function isPrivateIp(ip: string): boolean {
   // IPv4 simple prefixes
@@ -52,9 +55,9 @@ export function isPrivateIp(ip: string): boolean {
 
 /**
  * Check if a URL points to a private/internal address.
- * ASYNC — resolves DNS to prevent DNS rebinding attacks (OWASP SSRF 2026).
+ * ASYNC â€” resolves DNS to prevent DNS rebinding attacks (OWASP SSRF 2026).
  *
- * Flow: parse URL → check hostname literally → resolve DNS → check resolved IPs.
+ * Flow: parse URL â†’ check hostname literally â†’ resolve DNS â†’ check resolved IPs.
  */
 export async function isPrivateUrl(url: string): Promise<boolean> {
   try {
@@ -66,7 +69,7 @@ export async function isPrivateUrl(url: string): Promise<boolean> {
       return true;
     }
 
-    // Resolve DNS to get the actual IP — this defeats DNS rebinding
+    // Resolve DNS to get the actual IP â€” this defeats DNS rebinding
     try {
       const results = await dns.lookup(hostname, { all: true });
       for (const { address } of results) {
@@ -75,38 +78,41 @@ export async function isPrivateUrl(url: string): Promise<boolean> {
         }
       }
     } catch {
-      // DNS resolution failed — block by default (safe fail)
+      // DNS resolution failed â€” block by default (safe fail)
       return true;
     }
 
     return false;
   } catch {
-    // URL parsing failed — block by default
+    // URL parsing failed â€” block by default
     return true;
   }
 }
 
-// --- Safe Fetch (DNS-pinned, defeats DNS rebinding) ---
+// --- Safe Fetch (DNS-checked, redirect-blocking) ---
 
 /**
- * Fetch a URL with SSRF-safe DNS pinning.
+ * Fetch a URL after resolving and validating DNS.
  *
  * Flow:
- * 1. Parse URL → extract hostname
- * 2. Resolve DNS → get IP(s)
+ * 1. Parse URL â†’ extract hostname
+ * 2. Resolve DNS â†’ get IP(s)
  * 3. Check ALL resolved IPs are public
- * 4. Replace hostname with resolved IP in the URL
- * 5. Set Host header to original hostname (for TLS SNI + virtual hosts)
- * 6. Fetch using the IP-pinned URL
+ * 4. Use a pinned lookup result while preserving hostname and TLS SNI
+ * 5. Reject redirects and enforce timeout
  *
- * This defeats DNS rebinding because Node.js/undici cannot re-resolve
- * the hostname — it's already an IP literal in the URL.
+ * Keeping the original hostname preserves TLS SNI, while the custom lookup prevents
+ * a second DNS resolution from changing the target after validation.
  */
 export async function safeFetch(
   url: string,
   options?: RequestInit & { timeout?: number },
 ): Promise<Response> {
   const parsed = new URL(url);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('SSRF protection: only http and https URLs are allowed');
+  }
+
   const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
   // Quick check: literal IPs and localhost
@@ -115,37 +121,133 @@ export async function safeFetch(
   }
 
   // Resolve DNS once
-  let resolvedIp: string;
+  let resolved: { address: string; family: 4 | 6 };
   try {
     const results = await dns.lookup(hostname, { all: true });
+    if (results.length === 0) {
+      throw new Error('SSRF protection: DNS resolution returned no addresses');
+    }
     // Check ALL resolved IPs
     for (const { address } of results) {
       if (isPrivateIp(address)) {
         throw new Error('SSRF protection: DNS resolved to private IP');
       }
     }
-    // Use the first resolved IP for the fetch
-    resolvedIp = results[0].address;
+    // Use the first public address for the request, pinned via custom lookup.
+    resolved = {
+      address: results[0].address,
+      family: results[0].family === 6 ? 6 : 4,
+    };
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('SSRF')) throw err;
     throw new Error('SSRF protection: DNS resolution failed (fail-closed)');
   }
 
-  // Pin the IP: replace hostname in URL with the resolved IP
-  const pinnedUrl = new URL(url);
-  const isIpv6 = resolvedIp.includes(':');
-  pinnedUrl.hostname = isIpv6 ? `[${resolvedIp}]` : resolvedIp;
-
-  // Merge headers: preserve originals, add Host for virtual hosting / TLS SNI
   const headers = new Headers(options?.headers);
   headers.set('Host', parsed.host);
+  if (!headers.has('Accept-Encoding')) {
+    headers.set('Accept-Encoding', 'identity');
+  }
 
-  return fetch(pinnedUrl.toString(), {
-    ...options,
-    headers,
-    signal: options?.signal ?? AbortSignal.timeout(options?.timeout ?? 10000),
-    redirect: 'error',
+  const body = await normalizeRequestBody(options?.body);
+  const timeoutMs = options?.timeout ?? 10000;
+  const lookup = ((_host: string, optionsOrCallback: unknown, maybeCallback?: unknown) => {
+    const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
+    if (typeof callback !== 'function') {
+      throw new Error('SSRF protection: DNS lookup callback missing');
+    }
+    const wantsAll =
+      typeof optionsOrCallback === 'object' &&
+      optionsOrCallback !== null &&
+      'all' in optionsOrCallback &&
+      optionsOrCallback.all === true;
+    if (wantsAll) {
+      callback(null, [{ address: resolved.address, family: resolved.family }]);
+      return;
+    }
+    callback(null, resolved.address, resolved.family);
+  }) as LookupFunction;
+
+  return new Promise<Response>((resolve, reject) => {
+    const requestFn = parsed.protocol === 'https:' ? httpsRequest : httpRequest;
+    const req = requestFn(
+      {
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port,
+        path: `${parsed.pathname}${parsed.search}`,
+        method: options?.method || 'GET',
+        headers: Object.fromEntries(headers.entries()),
+        servername: parsed.hostname,
+        lookup,
+      },
+      (res) => {
+        if (
+          res.statusCode &&
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
+          res.resume();
+          reject(new Error('Redirects are not allowed'));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer | string) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        res.on('end', () => {
+          resolve(
+            new Response(Buffer.concat(chunks), {
+              status: res.statusCode || 0,
+              statusText: res.statusMessage,
+              headers: normalizeResponseHeaders(res.headers),
+            }),
+          );
+        });
+      },
+    );
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error('Request timed out'));
+    });
+    req.on('error', reject);
+
+    options?.signal?.addEventListener(
+      'abort',
+      () => {
+        req.destroy(new Error('Request aborted'));
+      },
+      { once: true },
+    );
+
+    if (body) {
+      req.write(body);
+    }
+    req.end();
   });
+}
+
+async function normalizeRequestBody(body: RequestInit['body']): Promise<string | Uint8Array | undefined> {
+  if (body == null) return undefined;
+  if (typeof body === 'string' || body instanceof Uint8Array) return body;
+  if (body instanceof ArrayBuffer) return new Uint8Array(body);
+  if (body instanceof URLSearchParams) return body.toString();
+  if (body instanceof Blob) return new Uint8Array(await body.arrayBuffer());
+  throw new Error('safeFetch only supports string, URLSearchParams, Blob, ArrayBuffer, or Uint8Array bodies');
+}
+
+function normalizeResponseHeaders(headers: Record<string, string | string[] | undefined>): Headers {
+  const normalized = new Headers();
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === 'string') {
+      normalized.set(key, value);
+    } else if (Array.isArray(value)) {
+      normalized.set(key, value.join(', '));
+    }
+  }
+  return normalized;
 }
 
 // --- Rate Limiting (sliding window) ---
@@ -323,7 +425,7 @@ export function validateJsonRpcRequest(body: unknown): JSONRPCRequest {
 // --- CORS ---
 
 export function validateOrigin(origin: string | undefined, allowed: string[]): boolean {
-  if (allowed.length === 0) return true;
+  if (allowed.length === 0) return false;
   if (!origin) return false;
   return allowed.includes(origin);
 }
@@ -414,7 +516,7 @@ export class ApiKeyManager {
       // Check expiry
       if (record.expiresAt && new Date(record.expiresAt) < new Date()) continue;
 
-      // Check key match — timing-safe comparison of hex hashes
+      // Check key match â€” timing-safe comparison of hex hashes
       const { hash } = hashApiKey(providedKey, record.keySalt);
       if (!timingSafeEqual(Buffer.from(hash), Buffer.from(record.keyHash))) continue;
 
@@ -457,7 +559,7 @@ export class ApiKeyManager {
    * List all keys (without secrets).
    */
   listKeys(): Omit<ApiKeyRecord, 'keyHash' | 'keySalt'>[] {
-    return Array.from(this.keys.values()).map(({ keyHash, keySalt, ...rest }) => rest);
+    return Array.from(this.keys.values()).map(({ keyHash: _keyHash, keySalt: _keySalt, ...rest }) => rest);
   }
 
   /**

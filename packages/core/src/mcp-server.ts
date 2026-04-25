@@ -88,14 +88,8 @@ export class MCPServer {
   getCorsHeaders(origin?: string): Record<string, string> {
     const headers: Record<string, string> = {};
 
-    // When no origins are configured, allow all origins (open API).
-    // When origins are configured, validate against the whitelist.
-    if (this.config.security.allowedOrigins.length === 0) {
-      headers['Access-Control-Allow-Origin'] = '*';
-      headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
-      headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-MCP-Key';
-      headers['Access-Control-Max-Age'] = '86400';
-    } else if (origin && validateOrigin(origin, this.config.security.allowedOrigins)) {
+    // Default is same-origin/no CORS. Add CORS headers only for explicit allowlist matches.
+    if (origin && validateOrigin(origin, this.config.security.allowedOrigins)) {
       headers['Access-Control-Allow-Origin'] = origin;
       headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
       headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-MCP-Key';
@@ -219,7 +213,7 @@ export class MCPServer {
       },
       serverInfo: {
         name: 'corsen-context',
-        version: '1.1.0',
+        version: '1.1.1',
       },
     });
   }

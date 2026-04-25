@@ -128,8 +128,9 @@ export async function doctor(args: string[]) {
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) {
-      const data = (await res.json()) as Record<string, any>;
-      const protocolVersion = data?.result?.protocolVersion;
+      const data = (await res.json()) as { result?: { protocolVersion?: unknown } };
+      const protocolVersion =
+        typeof data.result?.protocolVersion === 'string' ? data.result.protocolVersion : undefined;
       results.push({
         name: 'MCP Endpoint',
         status: protocolVersion ? 'pass' : 'warn',

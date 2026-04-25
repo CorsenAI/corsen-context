@@ -244,8 +244,8 @@ describe('Rate Limit Key Building', () => {
 });
 
 describe('CORS Validation', () => {
-  it('allows any origin when whitelist is empty', () => {
-    expect(validateOrigin('https://evil.com', [])).toBe(true);
+  it('rejects origins when whitelist is empty', () => {
+    expect(validateOrigin('https://evil.com', [])).toBe(false);
   });
 
   it('validates against whitelist', () => {

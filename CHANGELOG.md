@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.1] - 2026-04-25
+
+### Security
+- Fixed HTTPS sitemap discovery by preserving hostname, TLS SNI, and certificate validation while pinning DNS resolution against SSRF.
+- Closed MCP CORS by default unless origins are explicitly allowlisted.
+- Prevented Next.js config secrets from being injected into public runtime environment variables.
+- Isolated Next.js handler instances so configs and providers cannot leak across handlers.
+- Updated fast-xml-parser to the patched 5.7.x line.
+- Hardened WordPress MCP and llms.txt output to expose only published, public, non-password-protected content.
+
+### Maintenance
+- Added ESLint 9 flat config and package-level npm publish metadata files.
+- Cleaned public docs and package dry-run output to avoid local-only artifacts.
+
 ## [1.1.0] - 2026-04-12
 
 ### Security

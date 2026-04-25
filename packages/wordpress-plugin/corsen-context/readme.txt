@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -13,7 +13,7 @@ Make your WordPress site AI-native. Generates llms.txt and exposes a full MCP se
 
 == Description ==
 
-**Corsen Context** is the Universal AI Context Layer for WordPress. It turns your site into an AI-native platform that Claude, ChatGPT, Cursor, Grok, and any MCP-compatible AI agent can understand — instantly.
+**Corsen Context** is the Universal AI Context Layer for WordPress. It turns your site into an AI-native platform that ChatGPT, Cursor, Grok, and any MCP-compatible AI agent can understand — instantly.
 
 = What it does =
 
@@ -140,6 +140,15 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 
 == Changelog ==
 
+= 1.1.1 - 2026-04-25 =
+* Security: Fixed HTTPS sitemap discovery while preserving TLS validation and SSRF DNS pinning
+* Security: Closed MCP CORS by default unless origins are explicitly allowlisted
+* Security: Prevented Next.js config secrets from being exposed through public runtime environment variables
+* Security: Isolated Next.js handler instances to avoid cross-config provider reuse
+* Security: Updated fast-xml-parser to the patched 5.7.x line
+* Security: Exposes only published, public, non-password-protected WordPress content
+* Maintenance: Added ESLint 9 config and package dry-run hygiene checks
+
 = 1.1.0 - 2026-04-12 =
 * Security: SSRF protection now fails closed when DNS resolution fails
 * Security: Fixed PHP ReDoS crash on large HTML payloads (preg_replace null safety)
@@ -167,6 +176,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 * Clean uninstall (removes all options and transients)
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Security hardening update: fixes HTTPS sitemap fetches, closes default CORS, prevents config-secret exposure, isolates Next.js handlers, updates XML parsing dependency, and restricts WordPress output to public content only. Recommended for all users.
 
 = 1.1.0 =
 Security update: fixes SSRF fail-open, PHP crash on large content, rate limiter bugs. Adds WP-Cron cleanup and max_pages admin setting. Recommended for all users.
