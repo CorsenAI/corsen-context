@@ -33,6 +33,22 @@ describe('Config', () => {
     expect(config.credit).toBe(false);
   });
 
+
+  it('uses CORSEN_CONTEXT_API_KEY when security.apiKey is not provided', () => {
+    const previous = process.env.CORSEN_CONTEXT_API_KEY;
+    process.env.CORSEN_CONTEXT_API_KEY = 'env-secret';
+
+    const config = resolveConfig({ siteUrl: 'https://example.com' });
+
+    expect(config.security.apiKey).toBe('env-secret');
+
+    if (previous === undefined) {
+      delete process.env.CORSEN_CONTEXT_API_KEY;
+    } else {
+      process.env.CORSEN_CONTEXT_API_KEY = previous;
+    }
+  });
+
   it('rejects invalid siteUrl', () => {
     expect(() => resolveConfig({ siteUrl: 'not-a-url' })).toThrow();
   });

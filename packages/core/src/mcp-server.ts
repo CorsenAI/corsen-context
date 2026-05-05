@@ -155,6 +155,10 @@ export class MCPServer {
         }
       }
 
+      if (!this.checkAuth(apiKey)) {
+        return this.errorResponse(requestId, JSONRPC_ERRORS.INVALID_REQUEST.code, 'Unauthorized');
+      }
+
       // JSON-RPC 2.0: notification = no response
       const isNotification = !('id' in (body as Record<string, unknown>));
       if (isNotification) {

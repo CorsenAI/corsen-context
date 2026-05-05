@@ -56,6 +56,10 @@ export type ResolvedConfig = z.output<typeof corsenContextConfigSchema>;
 export function resolveConfig(input: CorsenContextConfig): ResolvedConfig {
   const config = corsenContextConfigSchema.parse(input);
 
+  if (!config.security.apiKey && process.env.CORSEN_CONTEXT_API_KEY) {
+    config.security.apiKey = process.env.CORSEN_CONTEXT_API_KEY;
+  }
+
   // Safety check: if Redis is selected but no REDIS_URL is set, warn loudly
   if (config.cache.driver === 'redis' && !process.env.REDIS_URL) {
     const isProduction = process.env.NODE_ENV === 'production';

@@ -205,4 +205,39 @@ describe('MCP Server', () => {
     expect(headers['X-Powered-By']).toBe('Corsen Context / Corsen AI');
     expect(headers['Cache-Control']).toBe('no-store');
   });
+
+  it('rejects unauthenticated requests when apiKey is configured', async () => {
+    const securedServer = new MCPServer(
+      resolveConfig({ siteUrl: 'https://example.com', security: { apiKey: 'secret' } }),
+      mockProvider,
+    );
+
+    const res = await securedServer.handleRequest({
+      jsonrpc: '2.0',
+      method: 'tools/list',
+      id: 9,
+    });
+
+    expect(res!.error).toBeDefined();
+    expect(res!.error!.message).toBe('Unauthorized');
+  });
+
+  it('accepts authenticated requests when apiKey is configured', async () => {
+    const securedServer = new MCPServer(
+      resolveConfig({ siteUrl: 'https://example.com', security: { apiKey: 'secret' } }),
+      mockProvider,
+    );
+
+    const res = await securedServer.handleRequest(
+      {
+        jsonrpc: '2.0',
+        method: 'tools/list',
+        id: 10,
+      },
+      undefined,
+      'secret',
+    );
+
+    expect(res!.error).toBeUndefined();
+  });
 });
