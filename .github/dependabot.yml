@@ -5,11 +5,11 @@ updates:
     schedule:
       interval: "daily"
     groups:
-      security:
-        applies-to: security-updates
+      security-updates:
         patterns:
           - "*"
-    security-updates-only: true
+        update-types:
+          - "security"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
