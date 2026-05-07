@@ -4,13 +4,16 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    security-updates-only: true
     groups:
-      security-updates:
+      security:
         patterns:
           - "*"
-        update-types:
-          - "security"
+    labels:
+      - "security"
+      - "dependencies"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    security-updates-only: true
