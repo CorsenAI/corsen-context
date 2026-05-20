@@ -1,17 +1,44 @@
 import {
   CorsenContext,
+  MAX_BODY_SIZE,
   SECURITY_HEADERS,
   type CorsenContextConfig,
   type ContentProvider,
 } from '@corsenai/corsen-context';
 
-let cachedInstance: CorsenContext | null = null;
+const cachedInstances = new WeakMap<ContentProvider, Map<string, CorsenContext>>();
 
 function getInstance(config: CorsenContextConfig, provider: ContentProvider): CorsenContext {
-  if (!cachedInstance) {
-    cachedInstance = new CorsenContext(config, provider);
+  let providerInstances = cachedInstances.get(provider);
+  if (!providerInstances) {
+    providerInstances = new Map<string, CorsenContext>();
+    cachedInstances.set(provider, providerInstances);
   }
-  return cachedInstance;
+
+  const configKey = stableStringify(config);
+  let instance = providerInstances.get(configKey);
+  if (!instance) {
+    instance = new CorsenContext(config, provider);
+    providerInstances.set(configKey, instance);
+  }
+
+  return instance;
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value) ?? 'undefined';
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(',')}}`;
 }
 
 function getClientIp(request: Request): string {
@@ -122,6 +149,18 @@ export function createMCPHandler(
           id: null,
         }),
         { status: 429, headers },
+      );
+    }
+
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && Number(contentLength) > MAX_BODY_SIZE) {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32600, message: 'Request body too large' },
+          id: null,
+        }),
+        { status: 400, headers },
       );
     }
 
