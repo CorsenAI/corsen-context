@@ -108,10 +108,43 @@ describe('generateLlmsTxt', () => {
       async getPageContent() { return null; },
       async searchContent() { return []; },
     };
-    const config = resolveConfig({ siteUrl: 'https://example.com' });
+    const config = resolveConfig({
+      siteUrl: 'https://example.com',
+      content: { postTypes: ['product'] },
+    });
     const txt = await generateLlmsTxt(config, productProvider);
     expect(txt).toContain('## Products / Services');
     expect(txt).toContain('[Widget]');
+  });
+
+  it('filters excluded paths, disallowed types, and cross-origin pages', async () => {
+    const provider: ContentProvider = {
+      async getPages() {
+        return [
+          { url: 'https://example.com/public', title: 'Public', description: 'ok', type: 'page' },
+          { url: 'https://example.com/private/roadmap', title: 'Private', description: 'no', type: 'page' },
+          { url: 'https://example.com/blog/post', title: 'Post', description: 'no', type: 'post' },
+          { url: 'https://other.example.com/leak', title: 'Other', description: 'no', type: 'page' },
+        ];
+      },
+      async getPageContent(url) {
+        return { url, title: 'Loaded', description: '', markdown: `# ${url}`, metadata: {} };
+      },
+      async searchContent() {
+        return [];
+      },
+    };
+
+    const config = resolveConfig({
+      siteUrl: 'https://example.com',
+      content: { postTypes: ['page'], excludePaths: ['/private'], maxPages: 10 },
+    });
+    const txt = await generateLlmsTxt(config, provider);
+
+    expect(txt).toContain('[Public](https://example.com/public)');
+    expect(txt).not.toContain('Private');
+    expect(txt).not.toContain('Post');
+    expect(txt).not.toContain('Other');
   });
 });
 
@@ -140,5 +173,30 @@ describe('generateLlmsFullTxt', () => {
     const config = resolveConfig({ siteUrl: 'https://example.com', credit: false });
     const txt = await generateLlmsFullTxt(config, mockProvider);
     expect(txt).not.toContain(CREDIT_LINE);
+  });
+
+  it('omits excluded full content', async () => {
+    const provider: ContentProvider = {
+      async getPages() {
+        return [
+          { url: 'https://example.com/public', title: 'Public', description: 'ok', type: 'page' },
+          { url: 'https://example.com/private/roadmap', title: 'Private', description: 'no', type: 'page' },
+        ];
+      },
+      async getPageContent(url) {
+        return { url, title: 'Loaded', description: '', markdown: `# ${url}`, metadata: {} };
+      },
+      async searchContent() {
+        return [];
+      },
+    };
+    const config = resolveConfig({
+      siteUrl: 'https://example.com',
+      content: { excludePaths: ['/private'] },
+    });
+    const txt = await generateLlmsFullTxt(config, provider);
+
+    expect(txt).toContain('# https://example.com/public');
+    expect(txt).not.toContain('private/roadmap');
   });
 });

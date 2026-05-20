@@ -22,6 +22,12 @@ import {
 } from './security.js';
 import { MemoryCache } from './cache.js';
 import { getLogger } from './logger.js';
+import {
+  filterPublicPages,
+  filterPublicSearchResults,
+  isPublicPageContent,
+  resolvePublicPageUrl,
+} from './content-policy.js';
 import type pino from 'pino';
 
 /** Current API version */
@@ -266,6 +272,9 @@ export class MCPServer {
         case 'get_page_content': {
           const parsed = getPageParamsSchema.parse(toolArgs);
           result = await this.getPageContent(parsed.uri);
+          if (!result) {
+            return this.errorResponse(id ?? null, -32002, 'Resource not found');
+          }
           break;
         }
         case 'list_content': {
@@ -296,7 +305,7 @@ export class MCPServer {
   }
 
   private async handleListResources(id?: string | number | null): Promise<JSONRPCResponse> {
-    const pages = await this.provider.getPages();
+    const pages = filterPublicPages(await this.provider.getPages(), this.config);
     const resources = pages.map((p) => {
       // Preserve full path + query params (e.g., /search?id=4)
       const parsed = new URL(p.url);
@@ -321,12 +330,13 @@ export class MCPServer {
     }
 
     const uri = params.uri as string;
-    const pathWithQuery = uri.replace('resource://', '');
-    const siteUrl = this.config.siteUrl.replace(/\/$/, '');
-    const pageUrl = `${siteUrl}/${pathWithQuery}`;
+    const pageUrl = resolvePublicPageUrl(uri, this.config);
+    if (!pageUrl) {
+      return this.errorResponse(id ?? null, -32002, 'Resource not found');
+    }
 
     const content = await this.provider.getPageContent(pageUrl);
-    if (!content) {
+    if (!content || !isPublicPageContent(content, this.config)) {
       return this.errorResponse(id ?? null, -32002, 'Resource not found');
     }
 
@@ -362,21 +372,29 @@ export class MCPServer {
     const cached = await this.cacheGet<unknown>(cacheKey);
     if (cached) return cached;
 
-    const results = await this.provider.searchContent(query, limit);
+    const results = filterPublicSearchResults(
+      await this.provider.searchContent(query, limit),
+      this.config,
+      limit,
+    );
     await this.cacheSet(cacheKey, results);
     return results;
   }
 
   async getPageContent(uri: string) {
-    const cacheKey = `page:${uri}`;
+    const pageUrl = resolvePublicPageUrl(uri, this.config);
+    if (!pageUrl) return null;
+
+    const cacheKey = `page:${pageUrl}`;
     const cached = await this.cacheGet<unknown>(cacheKey);
     if (cached) return cached;
 
-    const content = await this.provider.getPageContent(uri);
-    if (content) {
+    const content = await this.provider.getPageContent(pageUrl);
+    if (content && isPublicPageContent(content, this.config)) {
       await this.cacheSet(cacheKey, content);
+      return content;
     }
-    return content;
+    return null;
   }
 
   async listContent(type: string, page: number = 1, limit: number = 20) {
@@ -384,7 +402,7 @@ export class MCPServer {
     const cached = await this.cacheGet<unknown>(cacheKey);
     if (cached) return cached;
 
-    const allPages = await this.provider.getPages();
+    const allPages = filterPublicPages(await this.provider.getPages(), this.config);
     const filtered = allPages.filter((p) => p.type === type);
     const total = filtered.length;
     const start = (page - 1) * limit;
@@ -407,7 +425,7 @@ export class MCPServer {
     const cached = await this.cacheGet<unknown>(cacheKey);
     if (cached) return cached;
 
-    const pages = await this.provider.getPages();
+    const pages = filterPublicPages(await this.provider.getPages(), this.config);
     const sitemap = pages.map((p) => ({
       url: p.url,
       title: p.title,

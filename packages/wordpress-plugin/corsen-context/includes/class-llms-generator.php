@@ -49,7 +49,7 @@ class Corsen_Context_Llms_Generator {
 
 		// Get posts by type.
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
-		$exclude    = array_filter( array_map( 'trim', explode( "\n", $settings['exclude_paths'] ?? '' ) ) );
+		$exclude    = $this->get_exclude_paths( $settings['exclude_paths'] ?? '' );
 
 		foreach ( $post_types as $pt ) {
 			$posts = $this->get_published_posts( $pt, $exclude );
@@ -101,7 +101,7 @@ class Corsen_Context_Llms_Generator {
 		$settings   = get_option( 'corsen_context_settings', array() );
 		$site_name  = get_bloginfo( 'name' );
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
-		$exclude    = array_filter( array_map( 'trim', explode( "\n", $settings['exclude_paths'] ?? '' ) ) );
+		$exclude    = $this->get_exclude_paths( $settings['exclude_paths'] ?? '' );
 
 		$sections = array();
 		$sections[] = '# ' . $site_name . ' — Full Content';
@@ -156,6 +156,7 @@ class Corsen_Context_Llms_Generator {
 		$args = array(
 			'post_type'      => $post_type,
 			'post_status'    => 'publish',
+			'has_password'   => false,
 			'posts_per_page' => $max_pages,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
@@ -169,7 +170,11 @@ class Corsen_Context_Llms_Generator {
 			$posts = array_filter( $posts, function ( $post ) use ( $exclude ) {
 				$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
 				foreach ( $exclude as $ex ) {
-					if ( str_starts_with( $path, $ex ) ) {
+					$normalized_path = $this->normalize_path( is_string( $path ) ? $path : '' );
+					if (
+						null !== $normalized_path &&
+						( $normalized_path === $ex || str_starts_with( $normalized_path, trailingslashit( $ex ) ) )
+					) {
 						return false;
 					}
 				}
@@ -178,6 +183,44 @@ class Corsen_Context_Llms_Generator {
 		}
 
 		return array_values( $posts );
+	}
+
+	/**
+	 * Normalize configured exclude paths.
+	 *
+	 * @param string|array $raw Raw paths from settings.
+	 * @return string[]
+	 */
+	private function get_exclude_paths( $raw ): array {
+		$lines = is_array( $raw ) ? $raw : explode( "\n", $raw );
+		$paths = array();
+
+		foreach ( $lines as $line ) {
+			$path = $this->normalize_path( (string) $line );
+			if ( null !== $path && '/' !== $path ) {
+				$paths[] = $path;
+			}
+		}
+
+		return array_values( array_unique( $paths ) );
+	}
+
+	/**
+	 * Normalize a path or URL to a leading-slash path.
+	 */
+	private function normalize_path( string $path ): ?string {
+		$path = trim( $path );
+		if ( '' === $path ) {
+			return null;
+		}
+
+		$parsed_path = wp_parse_url( $path, PHP_URL_PATH );
+		if ( is_string( $parsed_path ) && '' !== $parsed_path ) {
+			$path = $parsed_path;
+		}
+
+		$path = '/' . ltrim( $path, '/' );
+		return untrailingslashit( $path );
 	}
 
 	/**

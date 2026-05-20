@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 class Corsen_Context_MCP_Server {
 
+	private const MAX_BODY_SIZE  = 102400;
+	private const MAX_JSON_DEPTH = 10;
+
 	/**
 	 * Handle incoming MCP JSON-RPC request.
 	 *
@@ -38,7 +41,19 @@ class Corsen_Context_MCP_Server {
 			return $response;
 		}
 
+		$raw_body = $request->get_body();
+		if ( strlen( $raw_body ) > self::MAX_BODY_SIZE ) {
+			return $this->error_response( null, -32600, 'Request body too large' );
+		}
+
 		$body = $request->get_json_params();
+		if ( ! is_array( $body ) ) {
+			return $this->error_response( null, -32700, 'Parse error' );
+		}
+
+		if ( $this->is_json_too_deep( $body ) ) {
+			return $this->error_response( null, -32600, 'JSON nesting too deep' );
+		}
 
 		// Validate JSON-RPC structure.
 		if ( empty( $body['jsonrpc'] ) || '2.0' !== $body['jsonrpc'] || empty( $body['method'] ) ) {
@@ -178,11 +193,15 @@ class Corsen_Context_MCP_Server {
 			$posts = get_posts( array(
 				'post_type'      => $pt,
 				'post_status'    => 'publish',
+				'has_password'   => false,
 				'posts_per_page' => $max_pages,
 				'no_found_rows'  => true,
 			) );
 
 			foreach ( $posts as $post ) {
+				if ( ! $this->is_post_exposable( $post ) ) {
+					continue;
+				}
 				$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
 				$resources[] = array(
 					'uri'         => 'resource://' . ltrim( $path, '/' ),
@@ -209,7 +228,7 @@ class Corsen_Context_MCP_Server {
 		}
 
 		$post_obj = get_post( $post );
-		if ( ! $post_obj || 'publish' !== $post_obj->post_status ) {
+		if ( ! $post_obj || ! $this->is_post_exposable( $post_obj ) ) {
 			return $this->error_response( $id, -32002, 'Resource not found' );
 		}
 
@@ -237,11 +256,114 @@ class Corsen_Context_MCP_Server {
 	}
 
 	/**
+	 * Get configured exclude paths.
+	 *
+	 * @return string[]
+	 */
+	private function get_exclude_paths(): array {
+		$settings = get_option( 'corsen_context_settings', array() );
+		$raw      = $settings['exclude_paths'] ?? '';
+		$lines    = is_array( $raw ) ? $raw : explode( "\n", $raw );
+
+		$paths = array();
+		foreach ( $lines as $line ) {
+			$path = $this->normalize_path( (string) $line );
+			if ( null !== $path && '/' !== $path ) {
+				$paths[] = $path;
+			}
+		}
+
+		return array_values( array_unique( $paths ) );
+	}
+
+	/**
 	 * Get max pages setting for queries.
 	 */
 	private function get_max_pages(): int {
 		$settings = get_option( 'corsen_context_settings', array() );
 		return intval( $settings['max_pages'] ?? 500 );
+	}
+
+	/**
+	 * Check whether a JSON value exceeds the configured nesting limit.
+	 *
+	 * @param mixed $value JSON-decoded value.
+	 * @param int   $depth Current depth.
+	 */
+	private function is_json_too_deep( $value, int $depth = 0 ): bool {
+		if ( $depth > self::MAX_JSON_DEPTH ) {
+			return true;
+		}
+
+		if ( is_array( $value ) ) {
+			foreach ( $value as $child ) {
+				if ( $this->is_json_too_deep( $child, $depth + 1 ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Normalize a path or URL to a leading-slash path.
+	 */
+	private function normalize_path( string $path ): ?string {
+		$path = trim( $path );
+		if ( '' === $path ) {
+			return null;
+		}
+
+		$parsed_path = wp_parse_url( $path, PHP_URL_PATH );
+		if ( is_string( $parsed_path ) && '' !== $parsed_path ) {
+			$path = $parsed_path;
+		}
+
+		$path = '/' . ltrim( $path, '/' );
+		return untrailingslashit( $path );
+	}
+
+	/**
+	 * Check whether a path matches configured exclusions.
+	 */
+	private function is_path_excluded( string $path ): bool {
+		$path = $this->normalize_path( $path );
+		if ( null === $path ) {
+			return false;
+		}
+
+		foreach ( $this->get_exclude_paths() as $exclude ) {
+			if ( $path === $exclude || str_starts_with( $path, trailingslashit( $exclude ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether a post is allowed to be exposed through public endpoints.
+	 */
+	private function is_post_exposable( \WP_Post $post ): bool {
+		if ( 'publish' !== $post->post_status ) {
+			return false;
+		}
+
+		if ( ! empty( $post->post_password ) ) {
+			return false;
+		}
+
+		if ( ! in_array( $post->post_type, $this->get_allowed_post_types(), true ) ) {
+			return false;
+		}
+
+		$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
+		if ( is_string( $path ) && $this->is_path_excluded( $path ) ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	// --- Tool Implementations ---
@@ -252,12 +374,19 @@ class Corsen_Context_MCP_Server {
 		$posts = get_posts( array(
 			'post_type'      => $this->get_allowed_post_types(),
 			'post_status'    => 'publish',
+			'has_password'   => false,
 			's'              => $query,
-			'posts_per_page' => $limit,
+			'posts_per_page' => $this->get_max_pages(),
 			'no_found_rows'  => true,
 		) );
 
 		foreach ( $posts as $post ) {
+			if ( count( $results ) >= $limit ) {
+				break;
+			}
+			if ( ! $this->is_post_exposable( $post ) ) {
+				continue;
+			}
 			$meta = Corsen_Context_Content_Converter::get_post_metadata( $post );
 			$content = wp_strip_all_tags( $post->post_content );
 			$snippet = '';
@@ -289,7 +418,7 @@ class Corsen_Context_MCP_Server {
 		}
 
 		$post = get_post( $post_id );
-		if ( ! $post || 'publish' !== $post->post_status ) {
+		if ( ! $post || ! $this->is_post_exposable( $post ) ) {
 			return null;
 		}
 
@@ -316,12 +445,16 @@ class Corsen_Context_MCP_Server {
 		$query = new \WP_Query( array(
 			'post_type'      => $type,
 			'post_status'    => 'publish',
-			'posts_per_page' => $limit,
-			'paged'          => $page,
+			'has_password'   => false,
+			'posts_per_page' => $this->get_max_pages(),
+			'no_found_rows'  => true,
 		) );
 
-		$items = array();
-		foreach ( $query->posts as $post ) {
+		$posts  = array_values( array_filter( $query->posts, array( $this, 'is_post_exposable' ) ) );
+		$total  = count( $posts );
+		$offset = ( $page - 1 ) * $limit;
+		$items  = array();
+		foreach ( array_slice( $posts, $offset, $limit ) as $post ) {
 			$meta    = Corsen_Context_Content_Converter::get_post_metadata( $post );
 			$items[] = array(
 				'url'          => $meta['url'],
@@ -334,10 +467,10 @@ class Corsen_Context_MCP_Server {
 
 		return array(
 			'items'   => $items,
-			'total'   => intval( $query->found_posts ),
+			'total'   => $total,
 			'page'    => $page,
 			'limit'   => $limit,
-			'hasMore' => ( $page * $limit ) < intval( $query->found_posts ),
+			'hasMore' => ( $page * $limit ) < $total,
 		);
 	}
 
@@ -350,11 +483,15 @@ class Corsen_Context_MCP_Server {
 			$posts = get_posts( array(
 				'post_type'      => $pt,
 				'post_status'    => 'publish',
+				'has_password'   => false,
 				'posts_per_page' => $max_pages,
 				'no_found_rows'  => true,
 			) );
 
 			foreach ( $posts as $post ) {
+				if ( ! $this->is_post_exposable( $post ) ) {
+					continue;
+				}
 				$sitemap[] = array(
 					'url'          => get_permalink( $post ),
 					'title'        => get_the_title( $post ),
