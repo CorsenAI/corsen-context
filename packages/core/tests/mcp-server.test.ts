@@ -240,4 +240,77 @@ describe('MCP Server', () => {
 
     expect(res!.error).toBeUndefined();
   });
+
+  it('filters excluded paths, disallowed types, and cross-origin pages', async () => {
+    const provider: ContentProvider = {
+      async getPages() {
+        return [
+          { url: 'https://example.com/public', title: 'Public', description: 'ok', type: 'page' },
+          { url: 'https://example.com/private/roadmap', title: 'Private', description: 'no', type: 'page' },
+          { url: 'https://example.com/blog/post', title: 'Post', description: 'no', type: 'post' },
+          { url: 'https://other.example.com/leak', title: 'Other', description: 'no', type: 'page' },
+        ];
+      },
+      async getPageContent(url: string): Promise<PageContent | null> {
+        return {
+          url,
+          title: 'Loaded',
+          description: '',
+          markdown: `# ${url}`,
+          metadata: {},
+        };
+      },
+      async searchContent(_query: string, _limit: number): Promise<SearchResult[]> {
+        return [
+          { url: 'https://example.com/public', title: 'Public', description: 'ok', snippet: 'ok', score: 1 },
+          { url: 'https://example.com/private/roadmap', title: 'Private', description: 'no', snippet: 'no', score: 1 },
+          { url: 'https://other.example.com/leak', title: 'Other', description: 'no', snippet: 'no', score: 1 },
+        ];
+      },
+    };
+    const filteredServer = new MCPServer(
+      resolveConfig({
+        siteUrl: 'https://example.com',
+        content: { postTypes: ['page'], excludePaths: ['/private'], maxPages: 10 },
+      }),
+      provider,
+    );
+
+    const resources = await filteredServer.handleRequest({
+      jsonrpc: '2.0',
+      method: 'resources/list',
+      id: 11,
+    });
+    expect((resources!.result as any).resources.map((r: any) => r.name)).toEqual(['Public']);
+
+    const sitemap = await filteredServer.handleRequest({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'get_sitemap', arguments: {} },
+      id: 12,
+    });
+    expect(JSON.parse((sitemap!.result as any).content[0].text).map((p: any) => p.url)).toEqual([
+      'https://example.com/public',
+    ]);
+
+    const search = await filteredServer.handleRequest({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'search_site', arguments: { query: 'anything', limit: 10 } },
+      id: 13,
+    });
+    expect(JSON.parse((search!.result as any).content[0].text).map((p: any) => p.url)).toEqual([
+      'https://example.com/public',
+    ]);
+
+    const excluded = await filteredServer.handleRequest({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'get_page_content', arguments: { uri: 'resource://private/roadmap' } },
+      id: 14,
+    });
+    expect(excluded!.error?.code).toBe(-32002);
+
+    await expect(filteredServer.getPageContent('https://other.example.com/leak')).resolves.toBeNull();
+  });
 });

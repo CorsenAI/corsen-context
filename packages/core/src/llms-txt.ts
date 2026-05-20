@@ -1,12 +1,17 @@
 import type { ContentListItem, ContentProvider } from './types.js';
 import type { ResolvedConfig } from './config.js';
 import { CREDIT_LINE } from './types.js';
+import {
+  filterPublicPages,
+  isPublicPageContent,
+  resolvePublicPageUrl,
+} from './content-policy.js';
 
 export async function generateLlmsTxt(
   config: ResolvedConfig,
   provider: ContentProvider,
 ): Promise<string> {
-  const pages = await provider.getPages();
+  const pages = filterPublicPages(await provider.getPages(), config);
   const siteUrl = config.siteUrl.replace(/\/$/, '');
   const mcpEndpoint = config.mcp.enabled ? `${siteUrl}${config.mcp.endpoint}` : null;
 
@@ -91,7 +96,7 @@ export async function generateLlmsFullTxt(
   config: ResolvedConfig,
   provider: ContentProvider,
 ): Promise<string> {
-  const pages = await provider.getPages();
+  const pages = filterPublicPages(await provider.getPages(), config);
   const sections: string[] = [];
 
   sections.push(`# ${config.siteName || new URL(config.siteUrl).hostname} — Full Content`);
@@ -102,8 +107,11 @@ export async function generateLlmsFullTxt(
   sections.push('');
 
   for (const page of pages) {
-    const content = await provider.getPageContent(page.url);
-    if (!content) continue;
+    const pageUrl = resolvePublicPageUrl(page.url, config);
+    if (!pageUrl) continue;
+
+    const content = await provider.getPageContent(pageUrl);
+    if (!content || !isPublicPageContent(content, config)) continue;
 
     sections.push('---');
     sections.push('');
