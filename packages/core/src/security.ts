@@ -1,4 +1,4 @@
-import { timingSafeEqual, createHash, randomBytes } from 'node:crypto';
+import { timingSafeEqual, createHash, createHmac, randomBytes } from 'node:crypto';
 import dns from 'node:dns/promises';
 import { z } from 'zod';
 import type { RateLimitResult, JSONRPCRequest, RateLimitStore, ApiKeyRecord } from './types.js';
@@ -430,13 +430,20 @@ export function extractClientIp(
 
 // --- Rate Limit Key ---
 
+/** Fixed (non-secret) label for deriving rate-limit bucket ids. */
+const RATE_LIMIT_KEY_LABEL = 'corsen-context:ratelimit-bucket';
+
 /**
  * Build rate limit key. Uses API key if present (more accurate), falls back to IP.
+ *
+ * The API key is run through a keyed hash (HMAC) purely to derive a stable,
+ * non-reversible bucket id — it is a store/log key, not credential storage.
+ * The fixed label keeps the id deterministic across instances so a distributed
+ * (Redis) limiter shares state for the same key.
  */
 export function buildRateLimitKey(clientIp: string, apiKey?: string): string {
   if (apiKey) {
-    // Hash the API key for privacy in logs/stores
-    return `key:${createHash('sha256').update(apiKey).digest('hex').slice(0, 16)}`;
+    return `key:${createHmac('sha256', RATE_LIMIT_KEY_LABEL).update(apiKey).digest('hex').slice(0, 16)}`;
   }
   return `ip:${clientIp}`;
 }
@@ -499,19 +506,22 @@ export function hashApiKey(key: string, salt?: string): { hash: string; salt: st
 }
 
 /**
- * Simple timing-safe API key validation.
- * Compares SHA-256 hashes to avoid leaking key length via timing.
+ * Timing-safe API key validation via the double-HMAC compare pattern.
+ *
+ * Both keys are HMAC'd with a fresh per-call random key, yielding fixed-length
+ * digests that are compared with timingSafeEqual. This leaks neither key length
+ * nor content through timing, and (unlike a bare hash) an attacker cannot
+ * precompute the digests.
  */
 export function validateApiKey(provided: string | undefined, expected: string | undefined): boolean {
   if (!expected) return true; // No key configured = public
   if (!provided) return false;
 
-  // Hash both keys so we always compare fixed-length strings (64 hex chars).
-  // This prevents timing leaks on key length differences.
-  const hashA = createHash('sha256').update(provided).digest();
-  const hashB = createHash('sha256').update(expected).digest();
+  const compareKey = randomBytes(32);
+  const a = createHmac('sha256', compareKey).update(provided).digest();
+  const b = createHmac('sha256', compareKey).update(expected).digest();
 
-  return timingSafeEqual(hashA, hashB);
+  return timingSafeEqual(a, b);
 }
 
 /**
