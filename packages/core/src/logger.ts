@@ -1,5 +1,8 @@
 import pino from 'pino';
 
+/** Structured logger type used across Corsen Context (Pino). */
+export type Logger = pino.Logger;
+
 export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
 
 export interface LoggerOptions {

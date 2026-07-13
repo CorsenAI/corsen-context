@@ -3,6 +3,7 @@ import {
   isPrivateUrl,
   isPrivateIp,
   RateLimiter,
+  MemoryRateLimitStore,
   validateApiKey,
   validateOrigin,
   validateHost,
@@ -201,16 +202,48 @@ describe('API Key Hashing', () => {
 });
 
 describe('Client IP Extraction', () => {
-  it('extracts from CF-Connecting-IP', () => {
-    expect(extractClientIp({ 'cf-connecting-ip': '1.2.3.4' })).toBe('1.2.3.4');
+  // With trustProxy=true (behind a reverse proxy that sets forwarding headers).
+  it('extracts from CF-Connecting-IP when proxy is trusted', () => {
+    expect(extractClientIp({ 'cf-connecting-ip': '1.2.3.4' }, undefined, true)).toBe('1.2.3.4');
   });
 
-  it('extracts from X-Real-IP', () => {
-    expect(extractClientIp({ 'x-real-ip': '5.6.7.8' })).toBe('5.6.7.8');
+  it('extracts from X-Real-IP when proxy is trusted', () => {
+    expect(extractClientIp({ 'x-real-ip': '5.6.7.8' }, undefined, true)).toBe('5.6.7.8');
   });
 
-  it('extracts first IP from X-Forwarded-For', () => {
-    expect(extractClientIp({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2, 3.3.3.3' })).toBe('1.1.1.1');
+  it('extracts first IP from X-Forwarded-For when proxy is trusted', () => {
+    expect(
+      extractClientIp({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2, 3.3.3.3' }, undefined, true),
+    ).toBe('1.1.1.1');
+  });
+
+  it('prioritizes CF > X-Real-IP > XFF > socket when proxy is trusted', () => {
+    expect(
+      extractClientIp(
+        {
+          'cf-connecting-ip': '1.1.1.1',
+          'x-real-ip': '2.2.2.2',
+          'x-forwarded-for': '3.3.3.3',
+        },
+        '4.4.4.4',
+        true,
+      ),
+    ).toBe('1.1.1.1');
+  });
+
+  // Default (trustProxy=false): forwarding headers are attacker-controllable and
+  // must be ignored, keying on the socket IP instead.
+  it('ignores forwarding headers by default and uses the socket IP', () => {
+    expect(
+      extractClientIp(
+        {
+          'cf-connecting-ip': '1.1.1.1',
+          'x-real-ip': '2.2.2.2',
+          'x-forwarded-for': '3.3.3.3',
+        },
+        '4.4.4.4',
+      ),
+    ).toBe('4.4.4.4');
   });
 
   it('falls back to socket IP', () => {
@@ -219,16 +252,6 @@ describe('Client IP Extraction', () => {
 
   it('returns unknown when nothing available', () => {
     expect(extractClientIp({})).toBe('unknown');
-  });
-
-  it('prioritizes CF > X-Real-IP > XFF > socket', () => {
-    expect(
-      extractClientIp({
-        'cf-connecting-ip': '1.1.1.1',
-        'x-real-ip': '2.2.2.2',
-        'x-forwarded-for': '3.3.3.3',
-      }, '4.4.4.4'),
-    ).toBe('1.1.1.1');
   });
 });
 
@@ -270,5 +293,100 @@ describe('Host Validation', () => {
 
   it('rejects missing host', () => {
     expect(validateHost(undefined, 'https://example.com')).toBe(false);
+  });
+});
+
+describe('SSRF — IPv6 and encoded IPv4', () => {
+  it('detects IPv6 loopback, ULA, and link-local (full fe80::/10)', () => {
+    expect(isPrivateIp('::1')).toBe(true);
+    expect(isPrivateIp('fc00::1')).toBe(true);
+    expect(isPrivateIp('fd12:3456::1')).toBe(true);
+    expect(isPrivateIp('fe80::1')).toBe(true);
+    expect(isPrivateIp('feaf::1')).toBe(true); // still link-local (fe80::/10)
+    expect(isPrivateIp('2606:4700:4700::1111')).toBe(false); // public
+  });
+
+  it('detects IPv4-mapped and IPv4-embedded IPv6 pointing at private space', () => {
+    expect(isPrivateIp('::ffff:127.0.0.1')).toBe(true);
+    expect(isPrivateIp('::ffff:169.254.169.254')).toBe(true);
+  });
+
+  it('blocks IPv6 literal loopback/link-local via isPrivateUrl', async () => {
+    // IPv6 literals need no DNS, so these are deterministic across environments.
+    expect(await isPrivateUrl('http://[::1]/')).toBe(true);
+    expect(await isPrivateUrl('http://[::ffff:169.254.169.254]/')).toBe(true);
+    expect(await isPrivateUrl('http://localhost/')).toBe(true);
+    expect(await isPrivateUrl('http://127.0.0.1/')).toBe(true);
+  });
+
+  // Note: decimal/hex/octal-encoded IPv4 (e.g. http://2130706433/) is blocked at
+  // runtime because safeFetch/isPrivateUrl resolve via getaddrinfo, which
+  // normalizes them to 127.0.0.1 — but that normalization is OS-resolver
+  // dependent, so it isn't asserted here to keep the suite deterministic.
+});
+
+describe('ApiKeyManager — quota', () => {
+  it('blocks once the daily quota is reached', () => {
+    const mgr = new ApiKeyManager();
+    const { plainKey } = mgr.generateKey({ name: 'q', quotaPerDay: 2 });
+    expect(mgr.validate(plainKey)).not.toBeNull(); // 1
+    expect(mgr.validate(plainKey)).not.toBeNull(); // 2
+    expect(mgr.validate(plainKey)).toBeNull(); // over quota
+  });
+
+  it('rejects revoked and expired keys', () => {
+    const mgr = new ApiKeyManager();
+    const { plainKey, record } = mgr.generateKey({ name: 'r' });
+    expect(mgr.validate(plainKey)).not.toBeNull();
+    mgr.revoke(record.id);
+    expect(mgr.validate(plainKey)).toBeNull();
+
+    const expired = mgr.generateKey({ name: 'e', expiresAt: new Date(Date.now() - 1000) });
+    expect(mgr.validate(expired.plainKey)).toBeNull();
+  });
+
+  it('enforces scopes', () => {
+    const mgr = new ApiKeyManager();
+    const { plainKey } = mgr.generateKey({ name: 's', scopes: ['read'] });
+    expect(mgr.validate(plainKey, 'read')).not.toBeNull();
+    expect(mgr.validate(plainKey, 'write')).toBeNull();
+  });
+});
+
+describe('RateLimiter — window and burst boundaries', () => {
+  it('allows up to the per-minute limit then blocks (memory atomic hit path)', async () => {
+    const limiter = new RateLimiter(3, 100);
+    const results: boolean[] = [];
+    for (let i = 0; i < 5; i++) results.push((await limiter.check('ip:a')).allowed);
+    expect(results).toEqual([true, true, true, false, false]);
+  });
+
+  it('enforces the burst limit within a second', async () => {
+    const limiter = new RateLimiter(1000, 2);
+    const results: boolean[] = [];
+    for (let i = 0; i < 4; i++) results.push((await limiter.check('ip:b')).allowed);
+    expect(results[0]).toBe(true);
+    expect(results[1]).toBe(true);
+    expect(results[2]).toBe(false); // 3rd within 1s exceeds burst=2
+  });
+
+  it('reports remaining count in the result', async () => {
+    const limiter = new RateLimiter(5, 100);
+    const first = await limiter.check('ip:c');
+    expect(first.allowed).toBe(true);
+    expect(first.remaining).toBe(4);
+  });
+});
+
+describe('MemoryRateLimitStore — bounded growth', () => {
+  it('caps the number of tracked keys (evicts oldest)', async () => {
+    const store = new MemoryRateLimitStore({ maxKeys: 10, autoCleanup: false });
+    const limiter = new RateLimiter(100, 100, store);
+    // Simulate an attacker rotating the key so each request is a new bucket.
+    for (let i = 0; i < 100; i++) {
+      await limiter.check(`key:${i}`);
+    }
+    expect(store.size).toBeLessThanOrEqual(10);
+    store.destroy();
   });
 });

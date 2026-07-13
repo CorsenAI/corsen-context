@@ -36,15 +36,34 @@ export function isPrivateIp(ip: string): boolean {
 
   // IPv6
   const lower = ip.toLowerCase();
-  if (
-    lower === '::1' ||
-    lower === '::' ||
-    lower.startsWith('fc') || // ULA fc00::/7
-    lower.startsWith('fd') || // ULA fc00::/7
-    lower.startsWith('fe80') || // link-local
-    lower.startsWith('::ffff:') // IPv4-mapped
-  ) {
+  if (lower === '::1' || lower === '::') {
     return true;
+  }
+  if (lower.startsWith('fc') || lower.startsWith('fd')) {
+    // Unique local addresses fc00::/7
+    return true;
+  }
+  // Link-local fe80::/10 — the first hextet is fe80–febf (top 2 bits of the
+  // 3rd nibble are 10), not just the literal "fe80" prefix.
+  const firstHextet = lower.split(':')[0];
+  if (/^fe[89ab][0-9a-f]?$/.test(firstHextet)) {
+    return true;
+  }
+  // IPv4-mapped in dotted form (::ffff:a.b.c.d) and IPv4-embedded (::a.b.c.d)
+  // — recurse on the trailing dotted-quad so the IPv4 rules above apply.
+  const embeddedIpv4 = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (embeddedIpv4 && lower.includes(':')) {
+    return isPrivateIp(embeddedIpv4[1]);
+  }
+
+  // IPv4-mapped in canonical hex form (::ffff:a9fe:a9fe) — the form Node's URL
+  // parser normalizes ::ffff:169.254.169.254 to. Decode the last two hextets.
+  const mappedHex = lower.match(/::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (mappedHex) {
+    const hi = parseInt(mappedHex[1], 16);
+    const lo = parseInt(mappedHex[2], 16);
+    const dotted = `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+    return isPrivateIp(dotted);
   }
 
   return false;
@@ -88,19 +107,48 @@ export async function isPrivateUrl(url: string): Promise<boolean> {
 
 // --- Safe Fetch (DNS-pinned, defeats DNS rebinding) ---
 
+// Lazily-loaded undici Agent factory. When undici is available, safeFetch pins
+// the socket to a pre-vetted IP while keeping the real hostname for TLS/SNI —
+// which defeats DNS rebinding without breaking certificate validation. When it
+// is not available, safeFetch still resolves + verifies every IP is public
+// (fail-closed) before fetching the original URL.
+let undiciAgentFactory: ((ip: string, family: number) => unknown) | null | undefined;
+
+async function getUndiciAgentFactory(): Promise<((ip: string, family: number) => unknown) | null> {
+  if (undiciAgentFactory !== undefined) return undiciAgentFactory;
+  try {
+    // Variable specifier: undici is an optional peer, so avoid a static import
+    // that would require its type declarations at build time or bundle it in.
+    const undiciModule = 'undici';
+    const undici = (await import(undiciModule)) as {
+      Agent: new (opts: unknown) => unknown;
+    };
+    undiciAgentFactory = (ip: string, family: number) =>
+      new undici.Agent({
+        connect: {
+          // Force every connection for this request to the vetted IP.
+          lookup(_hostname: string, opts: { all?: boolean }, cb: CallableFunction) {
+            if (opts && opts.all) cb(null, [{ address: ip, family }]);
+            else cb(null, ip, family);
+          },
+        },
+      });
+  } catch {
+    undiciAgentFactory = null;
+  }
+  return undiciAgentFactory;
+}
+
 /**
- * Fetch a URL with SSRF-safe DNS pinning.
+ * Fetch a URL with SSRF protection.
  *
- * Flow:
- * 1. Parse URL → extract hostname
- * 2. Resolve DNS → get IP(s)
- * 3. Check ALL resolved IPs are public
- * 4. Replace hostname with resolved IP in the URL
- * 5. Set Host header to original hostname (for TLS SNI + virtual hosts)
- * 6. Fetch using the IP-pinned URL
- *
- * This defeats DNS rebinding because Node.js/undici cannot re-resolve
- * the hostname — it's already an IP literal in the URL.
+ * 1. Parse URL, reject literal localhost / private IPs.
+ * 2. Resolve DNS and verify EVERY resolved IP is public (fail-closed).
+ * 3. If undici is available, pin the connection to the vetted IP at the socket
+ *    level (keeping the hostname for TLS/SNI) so a rebind can't redirect the
+ *    request. Otherwise fetch the original URL — TLS still validates against the
+ *    real hostname, with a narrow residual rebinding window.
+ * 4. Never follow redirects (`redirect: 'error'`).
  */
 export async function safeFetch(
   url: string,
@@ -109,43 +157,42 @@ export async function safeFetch(
   const parsed = new URL(url);
   const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('SSRF protection: only http(s) URLs are allowed');
+  }
+
   // Quick check: literal IPs and localhost
   if (hostname === 'localhost' || isPrivateIp(hostname)) {
     throw new Error('SSRF protection: cannot fetch private/internal URLs');
   }
 
-  // Resolve DNS once
+  // Resolve DNS once and verify every resolved IP is public.
   let resolvedIp: string;
   try {
     const results = await dns.lookup(hostname, { all: true });
-    // Check ALL resolved IPs
     for (const { address } of results) {
       if (isPrivateIp(address)) {
         throw new Error('SSRF protection: DNS resolved to private IP');
       }
     }
-    // Use the first resolved IP for the fetch
     resolvedIp = results[0].address;
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('SSRF')) throw err;
     throw new Error('SSRF protection: DNS resolution failed (fail-closed)');
   }
 
-  // Pin the IP: replace hostname in URL with the resolved IP
-  const pinnedUrl = new URL(url);
-  const isIpv6 = resolvedIp.includes(':');
-  pinnedUrl.hostname = isIpv6 ? `[${resolvedIp}]` : resolvedIp;
+  const family = resolvedIp.includes(':') ? 6 : 4;
+  const agentFactory = await getUndiciAgentFactory();
+  const dispatcher = agentFactory ? agentFactory(resolvedIp, family) : undefined;
 
-  // Merge headers: preserve originals, add Host for virtual hosting / TLS SNI
-  const headers = new Headers(options?.headers);
-  headers.set('Host', parsed.host);
-
-  return fetch(pinnedUrl.toString(), {
+  // Fetch the ORIGINAL url so TLS/SNI and cert validation use the real
+  // hostname. The dispatcher (when present) pins the socket to the vetted IP.
+  return fetch(url, {
     ...options,
-    headers,
+    ...(dispatcher ? { dispatcher } : {}),
     signal: options?.signal ?? AbortSignal.timeout(options?.timeout ?? 10000),
     redirect: 'error',
-  });
+  } as RequestInit);
 }
 
 // --- Rate Limiting (sliding window) ---
@@ -157,9 +204,50 @@ interface RateLimitEntry {
 /**
  * In-memory rate limit store. Default for development / single-instance.
  * For production multi-instance, use RedisRateLimitStore.
+ *
+ * The store is long-lived (shared across requests), so it self-bounds: expired
+ * keys are pruned on a periodic timer and the key count is capped (oldest-first
+ * eviction). This prevents an attacker who rotates the rate-limit key — e.g. a
+ * fresh Authorization header per request — from growing the Map without bound.
  */
 export class MemoryRateLimitStore implements RateLimitStore {
   private store = new Map<string, RateLimitEntry>();
+  private readonly maxKeys: number;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(options?: { maxKeys?: number; autoCleanup?: boolean }) {
+    this.maxKeys = options?.maxKeys ?? 100_000;
+    if (options?.autoCleanup !== false) {
+      this.cleanupTimer = setInterval(() => this.cleanup(), 60_000);
+      if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+        this.cleanupTimer.unref();
+      }
+    }
+  }
+
+  /** Number of tracked keys. */
+  get size(): number {
+    return this.store.size;
+  }
+
+  /** Stop the cleanup timer (for graceful shutdown or tests). */
+  destroy(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
+
+  /** Evict the oldest-inserted keys until under the cap (after a prune pass). */
+  private enforceCap(): void {
+    if (this.store.size < this.maxKeys) return;
+    this.cleanup();
+    while (this.store.size >= this.maxKeys) {
+      const oldest = this.store.keys().next().value;
+      if (oldest === undefined) break;
+      this.store.delete(oldest);
+    }
+  }
 
   async getTimestamps(key: string, windowStart: number): Promise<number[]> {
     const entry = this.store.get(key);
@@ -176,10 +264,36 @@ export class MemoryRateLimitStore implements RateLimitStore {
   async addTimestamp(key: string, timestamp: number): Promise<void> {
     let entry = this.store.get(key);
     if (!entry) {
+      this.enforceCap();
       entry = { timestamps: [] };
       this.store.set(key, entry);
     }
     entry.timestamps.push(timestamp);
+  }
+
+  /**
+   * Atomic prune + record + count. Runs synchronously (no await between the
+   * prune and the append), so concurrent requests on the same tick cannot
+   * interleave a check between another request's read and write — the TOCTOU
+   * race the split getTimestamps()/addTimestamp() path has.
+   */
+  async hit(
+    key: string,
+    windowStart: number,
+    burstWindowStart: number,
+    now: number,
+  ): Promise<{ windowCount: number; burstCount: number }> {
+    let entry = this.store.get(key);
+    if (!entry) {
+      this.enforceCap();
+      entry = { timestamps: [] };
+      this.store.set(key, entry);
+    }
+    entry.timestamps = entry.timestamps.filter((t) => t > windowStart);
+    entry.timestamps.push(now);
+    const windowCount = entry.timestamps.length;
+    const burstCount = entry.timestamps.filter((t) => t > burstWindowStart).length;
+    return { windowCount, burstCount };
   }
 
   async cleanup(): Promise<void> {
@@ -215,6 +329,34 @@ export class RateLimiter {
     const now = Date.now();
     const windowStart = now - this.windowMs;
     const burstWindowStart = now - 1000;
+
+    // Prefer the atomic combined path when the store provides it (defeats the
+    // check-then-add TOCTOU race). Fall back to the two-step API otherwise.
+    if (this.store.hit) {
+      const { windowCount, burstCount } = await this.store.hit(
+        key,
+        windowStart,
+        burstWindowStart,
+        now,
+      );
+      // Counts already include the current request.
+      if (burstCount > this.burstLimit) {
+        return { allowed: false, remaining: 0, resetAt: burstWindowStart + 1000, retryAfter: 1 };
+      }
+      if (windowCount > this.maxRequests) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: now + this.windowMs,
+          retryAfter: Math.max(1, Math.ceil(this.windowMs / 1000)),
+        };
+      }
+      return {
+        allowed: true,
+        remaining: Math.max(0, this.maxRequests - windowCount),
+        resetAt: now + this.windowMs,
+      };
+    }
 
     const timestamps = await this.store.getTimestamps(key, windowStart);
 
@@ -253,27 +395,34 @@ export class RateLimiter {
 // --- Client IP Extraction ---
 
 /**
- * Extract real client IP from request headers.
- * Handles X-Forwarded-For, X-Real-IP, CF-Connecting-IP (Cloudflare).
- * Falls back to provided socket IP.
+ * Extract the real client IP from request headers.
+ *
+ * Forwarding headers (CF-Connecting-IP, X-Real-IP, X-Forwarded-For) are only
+ * honored when `trustProxy` is true — i.e. the server sits behind a reverse
+ * proxy that sets them. Otherwise they are attacker-controllable: a client can
+ * send a fresh spoofed value per request and land in a new rate-limit bucket
+ * every time, defeating the limiter. When untrusted, we key on the socket IP.
  */
 export function extractClientIp(
   headers: Record<string, string | string[] | undefined>,
   socketIp?: string,
+  trustProxy: boolean = false,
 ): string {
-  // Cloudflare
-  const cfIp = headers['cf-connecting-ip'];
-  if (typeof cfIp === 'string' && cfIp) return cfIp.trim();
+  if (trustProxy) {
+    // Cloudflare
+    const cfIp = headers['cf-connecting-ip'];
+    if (typeof cfIp === 'string' && cfIp) return cfIp.trim();
 
-  // X-Real-IP (nginx)
-  const realIp = headers['x-real-ip'];
-  if (typeof realIp === 'string' && realIp) return realIp.trim();
+    // X-Real-IP (nginx)
+    const realIp = headers['x-real-ip'];
+    if (typeof realIp === 'string' && realIp) return realIp.trim();
 
-  // X-Forwarded-For (first = original client)
-  const xff = headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
+    // X-Forwarded-For (first = original client, set by the trusted proxy)
+    const xff = headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff) {
+      const first = xff.split(',')[0]?.trim();
+      if (first) return first;
+    }
   }
 
   return socketIp || 'unknown';

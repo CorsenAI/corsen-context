@@ -107,13 +107,31 @@ export interface RateLimitStore {
   getTimestamps(key: string, windowStart: number): Promise<number[]>;
   addTimestamp(key: string, timestamp: number): Promise<void>;
   cleanup(): Promise<void>;
+  /**
+   * Optional atomic prune + record + count. When present, the RateLimiter uses
+   * this instead of the getTimestamps()/addTimestamp() pair to avoid the
+   * check-then-add race. Returns counts that INCLUDE the current request.
+   */
+  hit?(
+    key: string,
+    windowStart: number,
+    burstWindowStart: number,
+    now: number,
+  ): Promise<{ windowCount: number; burstCount: number }>;
 }
 
 // --- Redis Client Interface (compatible with ioredis, @upstash/redis, etc.) ---
 
 export interface RedisClient {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string, options?: { ex?: number }): Promise<unknown>;
+  // Supports both the @upstash/redis object form (`{ ex }`) and the ioredis
+  // variadic form (`'EX', seconds`) so TTLs are honored on either client.
+  set(
+    key: string,
+    value: string,
+    options?: { ex?: number } | 'EX',
+    ttlSeconds?: number,
+  ): Promise<unknown>;
   del(...keys: string[]): Promise<number>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<number | boolean>;
@@ -150,6 +168,11 @@ export const JSONRPC_ERRORS = {
   METHOD_NOT_FOUND: { code: -32601, message: 'Method not found' },
   INVALID_PARAMS: { code: -32602, message: 'Invalid params' },
   INTERNAL_ERROR: { code: -32603, message: 'Internal error' },
+  // Server-defined error (JSON-RPC reserves -32000..-32099 for implementations).
+  // Used for auth failures and rate limiting across all adapters.
+  UNAUTHORIZED: { code: -32000, message: 'Unauthorized' },
+  RATE_LIMITED: { code: -32000, message: 'Rate limit exceeded' },
+  RESOURCE_NOT_FOUND: { code: -32002, message: 'Resource not found' },
 } as const;
 
 export const SECURITY_HEADERS: Record<string, string> = {
