@@ -90,12 +90,17 @@ app.post('/v1/mcp', async (req, res) => {
     res.set(key, value);
   }
 
-  // Rate limit
-  const clientIp =
-    req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
-    req.socket.remoteAddress ||
-    'unknown';
-  const rateLimit = await server.checkRateLimit(clientIp);
+  // Use the socket address by default. Only trust X-Forwarded-For behind a
+  // proxy you control, otherwise it is spoofable and defeats rate limiting.
+  const clientIp = req.socket.remoteAddress || 'unknown';
+
+  // Forward the API key so CORSEN_CONTEXT_API_KEY auth works.
+  const apiKey =
+    req.headers['x-mcp-key']?.toString() ||
+    req.headers['authorization']?.toString().replace('Bearer ', '') ||
+    undefined;
+
+  const rateLimit = await server.checkRateLimit(clientIp, apiKey);
   for (const [key, value] of Object.entries(rateLimit.headers)) {
     res.set(key, value);
   }
@@ -105,7 +110,8 @@ app.post('/v1/mcp', async (req, res) => {
       .json({ jsonrpc: '2.0', error: { code: -32000, message: 'Rate limit exceeded' }, id: null });
   }
 
-  const result = await server.handleRequest(req.body, clientIp);
+  // skipRateLimit: we already ran the limiter above (don't double-count).
+  const result = await server.handleRequest(req.body, clientIp, apiKey, { skipRateLimit: true });
 
   // Notification (no id) — 204 No Content
   if (result === null) {

@@ -5,4 +5,11 @@ export {
   createLlmsTxtHandler,
   createLlmsFullTxtHandler,
 } from './handlers.js';
-export type { CorsenContextConfig, ContentProvider } from '@corsenai/corsen-context';
+export type { HandlerOptions } from './handlers.js';
+export type {
+  CorsenContextConfig,
+  ContentProvider,
+  CacheDriver,
+  RateLimitStore,
+  Logger,
+} from '@corsenai/corsen-context';

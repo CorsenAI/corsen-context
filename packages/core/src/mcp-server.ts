@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type {
   ContentProvider,
@@ -9,6 +10,7 @@ import type {
   RateLimitStore,
 } from './types.js';
 import { JSONRPC_ERRORS, SECURITY_HEADERS } from './types.js';
+import { CORSEN_CONTEXT_VERSION, MCP_PROTOCOL_VERSION } from './version.js';
 import type { ResolvedConfig } from './config.js';
 import {
   RateLimiter,
@@ -25,6 +27,7 @@ import { getLogger } from './logger.js';
 import {
   filterPublicPages,
   filterPublicSearchResults,
+  isPublicListItem,
   isPublicPageContent,
   resolvePublicPageUrl,
 } from './content-policy.js';
@@ -106,6 +109,9 @@ export class MCPServer {
       headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
       headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-MCP-Key';
       headers['Access-Control-Max-Age'] = '86400';
+      // The response body depends on the request Origin — signal shared caches
+      // so they don't serve one origin's CORS headers to another.
+      headers['Vary'] = 'Origin';
     }
     return headers;
   }
@@ -122,7 +128,9 @@ export class MCPServer {
       'X-RateLimit-Reset': String(Math.ceil(result.resetAt / 1000)),
     };
     if (!result.allowed) {
-      this.log.warn({ key: key.replace(/:.+/, ':***'), ip: clientIp }, 'rate_limit_exceeded');
+      // Log a hashed IP for correlation without storing raw client addresses.
+      const ipHash = createHash('sha256').update(clientIp).digest('hex').slice(0, 12);
+      this.log.warn({ key: key.replace(/:.+/, ':***'), ipHash }, 'rate_limit_exceeded');
       if (result.retryAfter) {
         headers['Retry-After'] = String(result.retryAfter);
       }
@@ -162,7 +170,7 @@ export class MCPServer {
       }
 
       if (!this.checkAuth(apiKey)) {
-        return this.errorResponse(requestId, JSONRPC_ERRORS.INVALID_REQUEST.code, 'Unauthorized');
+        return this.errorResponse(requestId, JSONRPC_ERRORS.UNAUTHORIZED.code, 'Unauthorized');
       }
 
       // JSON-RPC 2.0: notification = no response
@@ -197,7 +205,7 @@ export class MCPServer {
 
     switch (method) {
       case 'initialize':
-        return this.handleInitialize(id);
+        return this.handleInitialize(params, id);
       case 'notifications/initialized':
         return this.successResponse(id ?? null, {});
       case 'ping':
@@ -207,7 +215,7 @@ export class MCPServer {
       case 'tools/call':
         return this.handleCallTool(params, id);
       case 'resources/list':
-        return this.handleListResources(id);
+        return this.handleListResources(params, id);
       case 'resources/read':
         return this.handleReadResource(params, id);
       default:
@@ -219,17 +227,28 @@ export class MCPServer {
     }
   }
 
-  private handleInitialize(id?: string | number | null): JSONRPCResponse {
+  private handleInitialize(
+    params: Record<string, unknown> | undefined,
+    id?: string | number | null,
+  ): JSONRPCResponse {
     this.log.info('mcp_initialized');
+    // Version negotiation: echo the client's requested protocol version when we
+    // support it, otherwise fall back to ours (MCP lets the client decide
+    // whether to proceed after seeing the server's version).
+    const requested = typeof params?.protocolVersion === 'string' ? params.protocolVersion : null;
+    const protocolVersion =
+      requested === MCP_PROTOCOL_VERSION ? requested : MCP_PROTOCOL_VERSION;
+
     return this.successResponse(id ?? null, {
-      protocolVersion: '2025-11-25',
+      protocolVersion,
       capabilities: {
         tools: {},
         resources: {},
       },
       serverInfo: {
         name: 'corsen-context',
-        version: '1.1.0',
+        // Omit the exact version when fingerprinting is disabled.
+        ...(this.config.security.exposeVersion ? { version: CORSEN_CONTEXT_VERSION } : {}),
       },
     });
   }
@@ -304,21 +323,53 @@ export class MCPServer {
     }
   }
 
-  private async handleListResources(id?: string | number | null): Promise<JSONRPCResponse> {
+  /** Page size for resources/list cursor pagination. */
+  private static readonly RESOURCES_PAGE_SIZE = 100;
+
+  private async handleListResources(
+    params: Record<string, unknown> | undefined,
+    id?: string | number | null,
+  ): Promise<JSONRPCResponse> {
     const pages = filterPublicPages(await this.provider.getPages(), this.config);
-    const resources = pages.map((p) => {
+
+    const all = pages.flatMap((p) => {
+      let parsed: URL;
+      try {
+        // Base against siteUrl so providers may return relative URLs (e.g. "/about")
+        // without throwing — the content policy already accepts them.
+        parsed = new URL(p.url, this.config.siteUrl);
+      } catch {
+        return []; // Skip an unparseable item rather than failing the whole call.
+      }
       // Preserve full path + query params (e.g., /search?id=4)
-      const parsed = new URL(p.url);
       const pathWithQuery = parsed.pathname + parsed.search;
-      return {
-        uri: `resource://${pathWithQuery.replace(/^\//, '')}`,
-        name: p.title,
-        description: p.description,
-        mimeType: 'text/markdown',
-      };
+      return [
+        {
+          uri: `resource://${pathWithQuery.replace(/^\//, '')}`,
+          name: p.title,
+          description: p.description,
+          mimeType: 'text/markdown',
+        },
+      ];
     });
 
-    return this.successResponse(id ?? null, { resources });
+    // Cursor pagination (MCP): cursor is an opaque base64 offset.
+    const pageSize = MCPServer.RESOURCES_PAGE_SIZE;
+    const offset = this.decodeCursor(params?.cursor);
+    const slice = all.slice(offset, offset + pageSize);
+    const nextOffset = offset + pageSize;
+    const result: { resources: typeof slice; nextCursor?: string } = { resources: slice };
+    if (nextOffset < all.length) {
+      result.nextCursor = Buffer.from(String(nextOffset)).toString('base64');
+    }
+
+    return this.successResponse(id ?? null, result);
+  }
+
+  private decodeCursor(cursor: unknown): number {
+    if (typeof cursor !== 'string' || !cursor) return 0;
+    const decoded = Number.parseInt(Buffer.from(cursor, 'base64').toString('utf8'), 10);
+    return Number.isInteger(decoded) && decoded >= 0 ? decoded : 0;
   }
 
   private async handleReadResource(
@@ -367,10 +418,29 @@ export class MCPServer {
     await this.cache.set(key, value, this.config.cache.ttl);
   }
 
+  /**
+   * Drop the cached body for a single page URL. Call this from your CMS's
+   * publish/update/delete hooks so edits and unpublishes propagate before the
+   * TTL expires (otherwise stale content can be served for up to cache.ttl).
+   */
+  async invalidatePage(url: string): Promise<void> {
+    const pageUrl = resolvePublicPageUrl(url, this.config);
+    if (pageUrl) await this.cache.delete(`page:${pageUrl}`);
+  }
+
+  /**
+   * Clear all cached MCP responses (search, page, list, sitemap). Call after
+   * bulk content changes. No-op for cache drivers without prefix enumeration
+   * (see RedisCache.clear notes).
+   */
+  async clearCache(): Promise<void> {
+    await this.cache.clear();
+  }
+
   async searchSite(query: string, limit: number = 10) {
     const cacheKey = `search:${query}:${limit}`;
     const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached) return cached;
+    if (cached !== null) return cached;
 
     const results = filterPublicSearchResults(
       await this.provider.searchContent(query, limit),
@@ -387,7 +457,7 @@ export class MCPServer {
 
     const cacheKey = `page:${pageUrl}`;
     const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached) return cached;
+    if (cached !== null) return cached;
 
     const content = await this.provider.getPageContent(pageUrl);
     if (content && isPublicPageContent(content, this.config)) {
@@ -400,10 +470,15 @@ export class MCPServer {
   async listContent(type: string, page: number = 1, limit: number = 20) {
     const cacheKey = `list:${type}:${page}:${limit}`;
     const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached) return cached;
+    if (cached !== null) return cached;
 
-    const allPages = filterPublicPages(await this.provider.getPages(), this.config);
-    const filtered = allPages.filter((p) => p.type === type);
+    // Filter by type BEFORE the maxPages cap so `total`/`hasMore` reflect the
+    // full type-filtered set — otherwise a site whose combined content exceeds
+    // maxPages would undercount and permanently hide items past the cap.
+    const publicPages = (await this.provider.getPages()).filter((p) =>
+      isPublicListItem(p, this.config),
+    );
+    const filtered = publicPages.filter((p) => p.type === type);
     const total = filtered.length;
     const start = (page - 1) * limit;
     const items = filtered.slice(start, start + limit);
@@ -423,7 +498,7 @@ export class MCPServer {
   async getSitemap() {
     const cacheKey = 'sitemap';
     const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached) return cached;
+    if (cached !== null) return cached;
 
     const pages = filterPublicPages(await this.provider.getPages(), this.config);
     const sitemap = pages.map((p) => ({

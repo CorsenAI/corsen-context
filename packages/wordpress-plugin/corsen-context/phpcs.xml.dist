@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<ruleset name="Corsen Context">
+	<description>Coding standards for the Corsen Context WordPress plugin.</description>
+
+	<file>.</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+
+	<!-- WordPress coding standards, minus a few noise rules. -->
+	<rule ref="WordPress">
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<config name="minimum_supported_wp_version" value="6.0"/>
+	<config name="testVersion" value="8.0-"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="corsen-context"/>
+			</property>
+		</properties>
+	</rule>
+</ruleset>

@@ -34,7 +34,14 @@ export class RedisCache implements CacheDriver {
 
   async set<T>(key: string, value: T, ttl: number): Promise<void> {
     const serialized = JSON.stringify(value);
-    await this.redis.set(`${this.prefix}${key}`, serialized, { ex: ttl });
+    const redisKey = `${this.prefix}${key}`;
+    // Set + EXPIRE rather than SET ... EX: the `{ ex }` option is honored by
+    // @upstash/redis but silently ignored by ioredis (which wants `'EX', ttl`),
+    // whereas EXPIRE works identically on both clients.
+    await this.redis.set(redisKey, serialized);
+    if (ttl > 0) {
+      await this.redis.expire(redisKey, ttl);
+    }
   }
 
   async delete(key: string): Promise<void> {

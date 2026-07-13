@@ -1,0 +1,8 @@
+# Default owners for everything in the repo.
+* @CorsenAI
+
+# Security-sensitive surfaces require maintainer review.
+/packages/core/src/security.ts        @CorsenAI
+/packages/core/src/content-policy.ts  @CorsenAI
+/packages/wordpress-plugin/           @CorsenAI
+/SECURITY.md                          @CorsenAI

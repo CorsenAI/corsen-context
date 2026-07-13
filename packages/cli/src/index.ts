@@ -1,12 +1,12 @@
 import { init } from './init.js';
 import { generate } from './generate.js';
 import { doctor } from './doctor.js';
-import { CREDIT_LINE } from '@corsenai/corsen-context';
+import { CREDIT_LINE, CORSEN_CONTEXT_VERSION } from '@corsenai/corsen-context';
 
 const args = process.argv.slice(2);
 const command = args[0];
 
-const VERSION = '1.1.0';
+const VERSION = CORSEN_CONTEXT_VERSION;
 
 function printHelp() {
   console.log(`

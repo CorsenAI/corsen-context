@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The dev toolchain (ESLint 9 ecosystem) requires Node >=20; published
+        # packages still declare runtime support for Node >=18.
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+  php:
+    name: WordPress plugin (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.2', '8.3']
+    defaults:
+      run:
+        working-directory: packages/wordpress-plugin/corsen-context
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer
+
+      - name: Lint PHP files (syntax)
+        run: |
+          find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 -P4 php -l
+
+      - name: Install PHP dev tooling
+        if: matrix.php == '8.2'
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: PHP CodeSniffer (WordPress standards)
+        if: matrix.php == '8.2'
+        continue-on-error: true
+        run: composer run lint

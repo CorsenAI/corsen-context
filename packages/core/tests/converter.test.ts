@@ -47,6 +47,55 @@ describe('HTML to Markdown Converter', () => {
     expect(md).toMatch(/- +One/);
     expect(md).toMatch(/- +Two/);
   });
+
+  it('preserves an in-article <header> holding the H1/title', () => {
+    const html = `
+      <html><body>
+        <article>
+          <header><h1>Real Title</h1></header>
+          <p>Body</p>
+        </article>
+      </body></html>
+    `;
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('# Real Title');
+    expect(md).toContain('Body');
+  });
+
+  it('still strips site-level chrome (body > header/footer)', () => {
+    const html = `
+      <html><body>
+        <header>Site Nav</header>
+        <main><h1>Page</h1><p>Text</p></main>
+        <footer>Copyright</footer>
+      </body></html>
+    `;
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('# Page');
+    expect(md).not.toContain('Site Nav');
+    expect(md).not.toContain('Copyright');
+  });
+
+  it('falls through an empty <main> to the real content container', () => {
+    const html = `
+      <html><body>
+        <main>   </main>
+        <article><h1>Article H1</h1><p>Article body</p></article>
+      </body></html>
+    `;
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('Article H1');
+    expect(md).toContain('Article body');
+  });
+
+  it('neutralizes javascript: and other dangerous link schemes', () => {
+    const html =
+      '<html><body><main><p><a href="javascript:alert(1)">x</a> <a href="https://ok.com">ok</a></p></main></body></html>';
+    const md = htmlToMarkdown(html);
+    expect(md).not.toContain('javascript:');
+    expect(md).toContain('[x](#)');
+    expect(md).toContain('[ok](https://ok.com)');
+  });
 });
 
 describe('Metadata Extraction', () => {
