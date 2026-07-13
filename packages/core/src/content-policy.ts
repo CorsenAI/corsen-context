@@ -5,8 +5,25 @@ function siteOrigin(config: ResolvedConfig): string {
   return new URL(config.siteUrl).origin;
 }
 
+function percentDecode(value: string): string {
+  // Decode repeatedly (capped) so double-encoding like %2561 -> %61 -> a can't
+  // slip an excluded path past the denylist comparison.
+  let current = value;
+  for (let i = 0; i < 3; i++) {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(current);
+    } catch {
+      return current; // malformed escape — stop decoding
+    }
+    if (decoded === current) break;
+    current = decoded;
+  }
+  return current;
+}
+
 function normalizePath(path: string): string | null {
-  const trimmed = path.trim();
+  const trimmed = percentDecode(path.trim());
   if (!trimmed) return null;
   const withSlash = `/${trimmed.replace(/^\/+/, '')}`;
   const withoutTrailing = withSlash.replace(/\/+$/, '');
@@ -26,10 +43,14 @@ function isExcludedPath(pathname: string, config: ResolvedConfig): boolean {
   const path = normalizePath(pathname);
   if (!path) return false;
 
+  // Denylist match is case-insensitive so an excluded /admin can't be reached
+  // as /ADMIN on servers that treat paths case-insensitively.
+  const lowerPath = path.toLowerCase();
   return config.content.excludePaths.some((exclude) => {
     const excluded = pathFromUrlOrPath(exclude, config);
     if (!excluded || excluded === '/') return false;
-    return path === excluded || path.startsWith(`${excluded}/`);
+    const lowerExcluded = excluded.toLowerCase();
+    return lowerPath === lowerExcluded || lowerPath.startsWith(`${lowerExcluded}/`);
   });
 }
 

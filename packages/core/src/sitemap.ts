@@ -20,6 +20,9 @@ interface SitemapXmlIndex {
   lastmod?: string;
 }
 
+/** XML bomb protection: hard cap on sitemap response body (5 MB). */
+const MAX_SITEMAP_SIZE = 5 * 1024 * 1024;
+
 export async function parseSitemap(
   sitemapUrl: string,
   maxPages: number = 500,
@@ -29,13 +32,67 @@ export async function parseSitemap(
   }
 
   const entries: SitemapEntry[] = [];
-  await fetchAndParseSitemap(sitemapUrl, entries, maxPages, 0);
+  const seen = new Set<string>();
+  await fetchAndParseSitemap(sitemapUrl, entries, seen, maxPages, 0);
   return entries.slice(0, maxPages);
+}
+
+/**
+ * Read a response body but abort once MAX_SITEMAP_SIZE bytes have been
+ * consumed, so a chunked (Content-Length-less) response can't be buffered
+ * unbounded. Returns null when the cap is exceeded.
+ */
+async function readBounded(response: Response): Promise<string | null> {
+  const contentLength = response.headers?.get?.('content-length');
+  if (contentLength && parseInt(contentLength, 10) > MAX_SITEMAP_SIZE) {
+    return null;
+  }
+
+  const body = response.body;
+  if (!body || typeof body.getReader !== 'function') {
+    // No stream available (e.g. a mocked Response) — fall back to text() with a
+    // post-read length guard.
+    const text = await response.text();
+    return text.length > MAX_SITEMAP_SIZE ? null : text;
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        total += value.byteLength;
+        if (total > MAX_SITEMAP_SIZE) {
+          await reader.cancel();
+          return null;
+        }
+        chunks.push(value);
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return new TextDecoder().decode(concatChunks(chunks, total));
+}
+
+function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
 }
 
 async function fetchAndParseSitemap(
   url: string,
   entries: SitemapEntry[],
+  seen: Set<string>,
   maxPages: number,
   depth: number,
 ): Promise<void> {
@@ -53,17 +110,8 @@ async function fetchAndParseSitemap(
 
   if (!response.ok) return;
 
-  // XML bomb protection: limit response body to 5 MB.
-  const MAX_SITEMAP_SIZE = 5 * 1024 * 1024;
-  const contentLength = response.headers?.get?.('content-length');
-  if (contentLength && parseInt(contentLength, 10) > MAX_SITEMAP_SIZE) {
-    return;
-  }
-
-  const xml = await response.text();
-  if (xml.length > MAX_SITEMAP_SIZE) {
-    return;
-  }
+  const xml = await readBounded(response);
+  if (xml === null) return;
   const parsed = parser.parse(xml);
 
   // Sitemap index (contains other sitemaps)
@@ -75,7 +123,7 @@ async function fetchAndParseSitemap(
     for (const sm of sitemaps) {
       if (entries.length >= maxPages) break;
       if (sm.loc) {
-        await fetchAndParseSitemap(sm.loc, entries, maxPages, depth + 1);
+        await fetchAndParseSitemap(sm.loc, entries, seen, maxPages, depth + 1);
       }
     }
     return;
@@ -89,14 +137,18 @@ async function fetchAndParseSitemap(
 
     for (const u of urls) {
       if (entries.length >= maxPages) break;
-      if (u.loc && !(await isPrivateUrl(u.loc))) {
-        entries.push({
-          url: u.loc,
-          lastmod: u.lastmod,
-          changefreq: u.changefreq,
-          priority: typeof u.priority === 'string' ? parseFloat(u.priority) : u.priority,
-        });
-      }
+      if (!u.loc || seen.has(u.loc)) continue;
+      if (await isPrivateUrl(u.loc)) continue;
+
+      seen.add(u.loc);
+      const priority =
+        typeof u.priority === 'string' ? parseFloat(u.priority) : u.priority;
+      entries.push({
+        url: u.loc,
+        lastmod: u.lastmod,
+        changefreq: u.changefreq,
+        priority: typeof priority === 'number' && Number.isFinite(priority) ? priority : undefined,
+      });
     }
   }
 }

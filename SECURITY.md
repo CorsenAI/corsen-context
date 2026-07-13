@@ -7,9 +7,9 @@ Based on MCP Official Best Practices 2026 + OWASP Top 10.
 
 ## 1. Transport Security
 
-- **HTTPS only** — All MCP endpoints MUST be served over HTTPS
-- **No HTTP fallback** — Reject plain HTTP requests to MCP endpoints
+- **HTTPS only** — All MCP endpoints SHOULD be served over HTTPS. TLS termination and any HTTP→HTTPS redirect are handled at your deployment/proxy layer (Vercel, nginx, Cloudflare, WordPress host), not by the library.
 - **TLS 1.2+** minimum
+- Outbound fetches (sitemap/content discovery) validate the certificate against the real hostname and never follow redirects.
 
 ## 2. Rate Limiting
 
@@ -29,10 +29,9 @@ Based on MCP Official Best Practices 2026 + OWASP Top 10.
 
 ## 4. CORS (Cross-Origin Resource Sharing)
 
-- Default: **no CORS** (same-origin only)
-- Configurable: `security.allowedOrigins` whitelist
-- Never use `Access-Control-Allow-Origin: *` in production
-- Validate `Origin` header against whitelist
+- Corsen Context serves a **public read-only content API** with no cookies or ambient credentials, so the default is `Access-Control-Allow-Origin: *` when no origins are configured. This is safe here because there is nothing credentialed to leak cross-origin.
+- To restrict access, set `security.allowedOrigins` — the server then reflects only whitelisted origins and adds `Vary: Origin`.
+- Combine with `security.apiKey` when the content should not be world-readable.
 
 ## 5. SSRF Protection (Server-Side Request Forgery)
 
@@ -42,8 +41,13 @@ Block ALL requests to private/internal IP ranges:
 - `192.168.0.0/16`
 - `127.0.0.0/8` (localhost)
 - `169.254.0.0/16` (link-local)
+- `100.64.0.0/10` (carrier-grade NAT)
 - `::1` (IPv6 localhost)
-- `fc00::/7` (IPv6 private)
+- `fc00::/7` (IPv6 unique-local)
+- `fe80::/10` (IPv6 link-local)
+- IPv4-mapped / embedded IPv6 forms (`::ffff:a.b.c.d`, incl. the canonical hex form)
+
+Enforcement (`safeFetch`): resolve DNS, verify **every** resolved IP is public (fail-closed on resolution failure), then fetch the original URL so TLS validates against the real hostname. When the optional `undici` package is present, the connection is additionally pinned to the vetted IP at the socket level, which fully defeats DNS rebinding. Redirects are never followed.
 
 This applies to:
 - Sitemap fetching
@@ -68,9 +72,8 @@ This applies to:
 
 ## 8. Host & Origin Validation
 
-- Validate `Host` header matches expected hostname
-- Reject requests with mismatched `Host` (DNS rebinding protection)
-- Validate `Origin` header on POST requests
+- A `validateHost(hostHeader, expectedHost)` helper is exported for deployments that want to reject mismatched `Host` headers (browser-side DNS rebinding protection). It is opt-in, not enforced by the core pipeline, because the correct expected host depends on your deployment.
+- `Origin` is validated against `security.allowedOrigins` when configured (see §4).
 
 ## 9. Security Headers
 
@@ -92,10 +95,10 @@ Cache-Control: no-store (for MCP responses)
 
 ## 11. Logging
 
-- Log: timestamp, method, IP (hashed), response status, response time
+- Log: timestamp, method, response status, response time, and a **hashed** client IP (raw IPs are never logged)
 - **NEVER log**: request body content, API keys, user data, page content
-- Anonymous analytics only: count of AI queries per day (no content, no IPs)
-- Configurable: can be disabled entirely
+- Sensitive fields (`apiKey`, `authorization`, `password`, `secret`, `token`) are automatically redacted by the Pino logger
+- Configurable: set `LOG_LEVEL=silent` to disable
 
 ## 12. Error Handling
 

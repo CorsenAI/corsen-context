@@ -3,9 +3,9 @@ Contributors: corsenai
 Donate link: https://corsen.ai
 Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 6.8
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -139,6 +139,18 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 4. MCP endpoint — JSON-RPC response with tools and resources
 
 == Changelog ==
+
+= 1.2.0 - 2026-07-13 =
+* Security: Rate limiter now uses REMOTE_ADDR by default; forwarding headers (X-Forwarded-For/X-Real-IP) are only trusted behind a proxy you opt into via CORSEN_CONTEXT_TRUST_PROXY. Closes a spoofable rate-limit bypass.
+* Security: Rate limiter uses the object cache's atomic INCR when a persistent cache (Redis/Memcached) is present, preventing burst overshoot.
+* Security: Rate limiting now runs before authentication, so the API key can't be brute-forced unthrottled.
+* Security: resources/read and get_page_content now validate the URI resolves to a same-site, non-excluded, http(s) URL before returning content.
+* Security: Settings sanitization restricts post types to publicly-registered types.
+* Performance: MCP tool responses are cached (transients) and invalidated when content changes — bounds compute on the public endpoint.
+* Fix: resources/list preserves query strings in resource URIs (parity with the core library).
+* Improvement: Configurable enabled tool set via the corsen_context_enabled_tools filter.
+* Improvement: Loads the plugin text domain so strings are translatable.
+* Improvement: Uninstall now also clears cached MCP response transients.
 
 = 1.1.0 - 2026-04-12 =
 * Security: SSRF protection now fails closed when DNS resolution fails

@@ -23,15 +23,8 @@ class Corsen_Context_MCP_Server {
 		// Security headers.
 		Corsen_Context_Security::send_security_headers();
 
-		// API key check.
-		if ( ! Corsen_Context_Security::validate_api_key( $request ) ) {
-			return new \WP_REST_Response(
-				array( 'jsonrpc' => '2.0', 'error' => array( 'code' => -32000, 'message' => 'Unauthorized' ), 'id' => null ),
-				401
-			);
-		}
-
-		// Rate limit check.
+		// Rate limit BEFORE auth so unauthenticated clients cannot brute-force
+		// the API key or hammer the endpoint unthrottled.
 		if ( ! Corsen_Context_Security::check_rate_limit() ) {
 			$response = new \WP_REST_Response(
 				array( 'jsonrpc' => '2.0', 'error' => array( 'code' => -32000, 'message' => 'Rate limit exceeded' ), 'id' => null ),
@@ -39,6 +32,14 @@ class Corsen_Context_MCP_Server {
 			);
 			$response->header( 'Retry-After', '60' );
 			return $response;
+		}
+
+		// API key check.
+		if ( ! Corsen_Context_Security::validate_api_key( $request ) ) {
+			return new \WP_REST_Response(
+				array( 'jsonrpc' => '2.0', 'error' => array( 'code' => -32000, 'message' => 'Unauthorized' ), 'id' => null ),
+				401
+			);
 		}
 
 		$raw_body = $request->get_body();
@@ -133,7 +134,28 @@ class Corsen_Context_MCP_Server {
 	 */
 	private function handle_call_tool( array $params, $id ): \WP_REST_Response {
 		$tool_name = sanitize_text_field( $params['name'] ?? '' );
-		$arguments = $params['arguments'] ?? array();
+		$arguments = is_array( $params['arguments'] ?? null ) ? $params['arguments'] : array();
+
+		if ( '' === $tool_name ) {
+			return $this->error_response( $id, -32602, 'Missing tool name' );
+		}
+
+		// Honor the configured tool set (parity with the core config.mcp.tools).
+		if ( ! in_array( $tool_name, $this->get_enabled_tools(), true ) ) {
+			return $this->error_response( $id, -32601, 'Tool not found: ' . $tool_name );
+		}
+
+		// Cache the low-cardinality tool outputs. search_site is excluded: its
+		// free-form query would let a caller mint an unbounded number of
+		// transients (wp_options bloat).
+		$cacheable = ! in_array( $tool_name, array( 'search_site' ), true );
+		$cache_key = $cacheable ? $this->tool_cache_key( $tool_name, $arguments ) : '';
+		if ( $cacheable ) {
+			$cached = get_transient( $cache_key );
+			if ( is_array( $cached ) && array_key_exists( 'result', $cached ) ) {
+				return $this->tool_result_response( $id, $cached['result'] );
+			}
+		}
 
 		switch ( $tool_name ) {
 			case 'search_site':
@@ -146,8 +168,8 @@ class Corsen_Context_MCP_Server {
 				break;
 
 			case 'get_page_content':
-				$uri = esc_url_raw( $arguments['uri'] ?? '' );
-				if ( empty( $uri ) ) {
+				$uri = sanitize_text_field( $arguments['uri'] ?? '' );
+				if ( '' === $uri ) {
 					return $this->error_response( $id, -32602, 'Missing required parameter: uri' );
 				}
 				$result = $this->get_page_content( $uri );
@@ -171,6 +193,25 @@ class Corsen_Context_MCP_Server {
 				return $this->error_response( $id, -32601, 'Tool not found: ' . $tool_name );
 		}
 
+		if ( $cacheable ) {
+			$ttl = intval( get_option( 'corsen_context_settings', array() )['cache_ttl'] ?? 3600 );
+			set_transient( $cache_key, array( 'result' => $result ), $ttl );
+		}
+
+		return $this->tool_result_response( $id, $result );
+	}
+
+	/**
+	 * Build the cache key for a tool call. Includes a bumpable cache version so
+	 * publishing/updating a post invalidates all cached MCP responses at once.
+	 */
+	private function tool_cache_key( string $tool_name, array $arguments ): string {
+		$version = intval( get_option( 'corsen_context_cache_version', 1 ) );
+		return 'corsen_mcp_' . md5( $version . '|' . $tool_name . '|' . wp_json_encode( $arguments ) );
+	}
+
+	/** Wrap a tool result in the standard MCP content envelope. */
+	private function tool_result_response( $id, $result ): \WP_REST_Response {
 		return $this->success_response( $id, array(
 			'content' => array(
 				array(
@@ -202,7 +243,12 @@ class Corsen_Context_MCP_Server {
 				if ( ! $this->is_post_exposable( $post ) ) {
 					continue;
 				}
-				$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
+				$parts = wp_parse_url( get_permalink( $post ) );
+				$path  = $parts['path'] ?? '/';
+				if ( ! empty( $parts['query'] ) ) {
+					// Preserve query params (e.g. /?p=4) for parity with the core.
+					$path .= '?' . $parts['query'];
+				}
 				$resources[] = array(
 					'uri'         => 'resource://' . ltrim( $path, '/' ),
 					'name'        => get_the_title( $post ),
@@ -219,10 +265,13 @@ class Corsen_Context_MCP_Server {
 	 * Handle resources/read.
 	 */
 	private function handle_read_resource( array $params, $id ): \WP_REST_Response {
-		$uri  = sanitize_text_field( $params['uri'] ?? '' );
-		$path = str_replace( 'resource://', '/', $uri );
-		$post = url_to_postid( home_url( $path ) );
+		$uri      = sanitize_text_field( $params['uri'] ?? '' );
+		$resolved = $this->resolve_public_url( $uri );
+		if ( null === $resolved ) {
+			return $this->error_response( $id, -32002, 'Resource not found' );
+		}
 
+		$post = url_to_postid( $resolved );
 		if ( ! $post ) {
 			return $this->error_response( $id, -32002, 'Resource not found' );
 		}
@@ -253,6 +302,74 @@ class Corsen_Context_MCP_Server {
 	private function get_allowed_post_types(): array {
 		$settings = get_option( 'corsen_context_settings', array() );
 		return $settings['post_types'] ?? array( 'post', 'page' );
+	}
+
+	/**
+	 * Get the enabled MCP tools (parity with the core config.mcp.tools).
+	 * Defaults to all four; override via the corsen_context_enabled_tools filter.
+	 *
+	 * @return string[]
+	 */
+	private function get_enabled_tools(): array {
+		$all      = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
+		$settings = get_option( 'corsen_context_settings', array() );
+		$enabled  = ( isset( $settings['enabled_tools'] ) && is_array( $settings['enabled_tools'] ) )
+			? array_values( array_intersect( $all, $settings['enabled_tools'] ) )
+			: $all;
+		/** Filter the set of exposed MCP tools. */
+		$enabled = (array) apply_filters( 'corsen_context_enabled_tools', $enabled );
+		return empty( $enabled ) ? $all : $enabled;
+	}
+
+	/**
+	 * Resolve a resource:// URI or URL to a same-site, non-excluded permalink.
+	 * Mirrors the TypeScript content-policy resolvePublicPageUrl: rejects
+	 * cross-origin hosts, non-http(s) schemes, and excluded paths.
+	 *
+	 * @param string $uri Incoming URI (resource://path, /path, or full URL).
+	 * @return string|null Absolute same-site URL, or null if not permitted.
+	 */
+	private function resolve_public_url( string $uri ): ?string {
+		$raw = trim( $uri );
+		if ( '' === $raw ) {
+			return null;
+		}
+
+		// Strip a single resource:// prefix, leaving a leading-slash path.
+		if ( 0 === strpos( $raw, 'resource://' ) ) {
+			$raw = '/' . ltrim( substr( $raw, strlen( 'resource://' ) ), '/' );
+		}
+
+		$parsed = wp_parse_url( $raw );
+		if ( false === $parsed ) {
+			return null;
+		}
+
+		// Reject non-http(s) schemes (blocks javascript:, file:, etc.).
+		if ( isset( $parsed['scheme'] ) && ! in_array( strtolower( $parsed['scheme'] ), array( 'http', 'https' ), true ) ) {
+			return null;
+		}
+
+		// Reject cross-origin hosts.
+		if ( ! empty( $parsed['host'] ) ) {
+			$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+			if ( strtolower( $parsed['host'] ) !== strtolower( (string) $site_host ) ) {
+				return null;
+			}
+		}
+
+		$path = isset( $parsed['path'] ) && '' !== $parsed['path'] ? $parsed['path'] : '/';
+		if ( $this->is_path_excluded( $path ) ) {
+			return null;
+		}
+
+		// Re-attach the query string so plain-permalink sites (e.g. /?p=4), whose
+		// resources/list URIs carry the query, still resolve via url_to_postid.
+		if ( ! empty( $parsed['query'] ) ) {
+			$path .= '?' . $parsed['query'];
+		}
+
+		return home_url( $path );
 	}
 
 	/**
@@ -412,7 +529,12 @@ class Corsen_Context_MCP_Server {
 	}
 
 	private function get_page_content( string $uri ): ?array {
-		$post_id = url_to_postid( $uri );
+		$resolved = $this->resolve_public_url( $uri );
+		if ( null === $resolved ) {
+			return null;
+		}
+
+		$post_id = url_to_postid( $resolved );
 		if ( ! $post_id ) {
 			return null;
 		}
@@ -507,7 +629,8 @@ class Corsen_Context_MCP_Server {
 	// --- Tool Definitions ---
 
 	private function get_tool_definitions(): array {
-		return array(
+		$enabled = $this->get_enabled_tools();
+		$defs    = array(
 			array(
 				'name'        => 'search_site',
 				'description' => 'Search site content by keyword. Returns matching pages with snippets.',
@@ -551,6 +674,16 @@ class Corsen_Context_MCP_Server {
 					'properties' => new \stdClass(),
 				),
 			),
+		);
+
+		// Only advertise enabled tools (parity with the core).
+		return array_values(
+			array_filter(
+				$defs,
+				static function ( $def ) use ( $enabled ) {
+					return in_array( $def['name'], $enabled, true );
+				}
+			)
 		);
 	}
 

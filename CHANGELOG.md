@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.2.0] - 2026-07-13
+
+### Security
+- Rate limiter keys on the socket IP by default; `X-Forwarded-For`/`X-Real-IP`/`CF-Connecting-IP` are only trusted when `security.trustProxy` is enabled (WordPress: `CORSEN_CONTEXT_TRUST_PROXY`). Closes a spoofable rate-limit bypass on all adapters.
+- `safeFetch` now keeps the real hostname for TLS/SNI and pins the vetted IP at the socket level via `undici` when available — fixing broken HTTPS fetches while still defeating DNS rebinding; without `undici` it resolves and verifies every IP is public (fail-closed).
+- `isPrivateIp` now covers the full IPv6 link-local range (`fe80::/10`) and IPv4-mapped/embedded forms, including the canonical hex form (`::ffff:a9fe:a9fe`).
+- Content-policy path exclusions are now case-insensitive and percent-decoded, closing `/ADMIN` and `/%61dmin` bypasses.
+- Next.js adapter enforces the body-size cap on actual bytes streamed (not the spoofable `Content-Length`), returning 413; rate limiting now runs before auth.
+- WordPress: rate limiting runs before auth; uses the object cache's atomic INCR when available; `resources/read`/`get_page_content` validate the URI resolves to a same-site, non-excluded, http(s) URL; settings restrict post types to publicly-registered types.
+- Sitemap fetch enforces the 5 MB cap while streaming (chunked responses can no longer bypass it).
+- Rate-limit logs a hashed IP instead of the raw address.
+- SSE handler (Next.js) is gated behind auth + rate limiting.
+- Optional `security.exposeVersion: false` to omit the exact server version from `serverInfo`.
+
+### Fixed
+- `resources/list` no longer crashes when a provider returns relative URLs.
+- `list_content` computes `total`/`hasMore` on the full type-filtered set, independent of `maxPages`.
+- Rate-limit state is now shared across the per-request server instances every adapter creates, so the default in-memory limiter actually accumulates.
+- `RedisCache` sets TTLs via `EXPIRE`, so entries expire on ioredis (not just @upstash/redis).
+- HTML→Markdown preserves in-article `<header>` (page H1), skips empty `<main>` wrappers, and neutralizes `javascript:`/`vbscript:`/`file:`/`data:` link targets.
+- Sitemap parsing de-duplicates URLs and drops non-numeric priorities.
+- `serverInfo` and the CLI report a single-sourced version; `initialize` negotiates the client's protocol version.
+
+### Added
+- Batteries-included providers: `createInMemoryProvider`, `createSitemapProvider`.
+- Discovery generators: `generateRobotsTxt`, `generateWellKnownMcp`, `mcpLinkTag`.
+- `resources/list` cursor pagination; `invalidatePage`/`clearCache` for cache invalidation.
+- Next.js handlers accept a `{ cache, rateLimitStore, logger }` options bag for production (Redis) wiring.
+- WordPress: MCP response caching (transients, invalidated on content change) and a `corsen_context_enabled_tools` filter.
+- Repo: GitHub Actions CI (Node + PHP), CodeQL, Changesets-based release with npm provenance, PHPCS config, and expanded test coverage.
+
 ## [1.1.0] - 2026-04-12
 
 ### Security
@@ -30,4 +61,4 @@
 
 ## [1.0.0] - 2026-04-08
 
-Initial release — MCP 2025-11-25 server, llms.txt generation, WordPress plugin, Next.js adapter, CLI, 88 tests.
+Initial release — MCP 2025-11-25 server, llms.txt generation, WordPress plugin, Next.js adapter, and CLI.

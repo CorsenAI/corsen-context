@@ -36,6 +36,14 @@ export const corsenContextConfigSchema = z.object({
       burstLimit: z.number().int().positive().default(10),
       allowedOrigins: z.array(z.string()).default([]),
       apiKey: z.string().optional(),
+      // Only honor forwarding headers (X-Forwarded-For, X-Real-IP, CF-Connecting-IP)
+      // when the request reaches the server through a trusted reverse proxy.
+      // Left false, the rate limiter keys on the socket address so spoofed
+      // forwarding headers cannot each land in a fresh bucket.
+      trustProxy: z.boolean().default(false),
+      // Advertise the exact server version via the X-Powered-By header and
+      // serverInfo. Disable to avoid version fingerprinting on public endpoints.
+      exposeVersion: z.boolean().default(true),
     })
     .default({}),
 

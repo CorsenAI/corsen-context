@@ -1,6 +1,6 @@
 {
   "name": "@corsenai/corsen-context-nextjs",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Next.js adapter for Corsen Context — AI Context Layer with MCP + llms.txt",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",
@@ -24,6 +24,7 @@
   "files": ["dist", "LICENSE", "README.md"],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -37,7 +38,8 @@
     "@types/node": "^22.0.0",
     "next": "^15.0.0",
     "tsup": "^8.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
   },
   "publishConfig": {
     "access": "public"

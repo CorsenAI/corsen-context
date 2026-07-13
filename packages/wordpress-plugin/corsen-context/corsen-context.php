@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Make your WordPress site AI-native. Generates llms.txt and exposes a full MCP server for AI agents.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.1.0' );
+define( 'CORSEN_CONTEXT_VERSION', '1.2.0' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -61,6 +61,9 @@ final class Corsen_Context {
 	 * Register hooks.
 	 */
 	private function init_hooks(): void {
+		// Load translations for the declared text domain.
+		add_action( 'init', array( $this, 'load_textdomain' ) );
+
 		// Rewrite rules for /llms.txt and /llms-full.txt.
 		add_action( 'init', array( $this, 'register_rewrite_rules' ) );
 		add_filter( 'query_vars', array( $this, 'register_query_vars' ) );
@@ -77,9 +80,11 @@ final class Corsen_Context {
 		// Dashboard widget.
 		add_action( 'wp_dashboard_setup', array( $this, 'register_dashboard_widget' ) );
 
-		// Cache invalidation on post save.
+		// Cache invalidation on post save, delete, and status transition
+		// (trash / unpublish do not always fire save_post).
 		add_action( 'save_post', array( $this, 'invalidate_cache' ), 10, 2 );
 		add_action( 'delete_post', array( $this, 'invalidate_cache' ), 10, 1 );
+		add_action( 'transition_post_status', array( $this, 'invalidate_cache_on_transition' ), 10, 3 );
 
 		// Optional <link rel="mcp"> in head.
 		add_action( 'wp_head', array( $this, 'add_mcp_link_tag' ) );
@@ -90,6 +95,17 @@ final class Corsen_Context {
 		// Activation / deactivation.
 		register_activation_hook( CORSEN_CONTEXT_PLUGIN_FILE, array( $this, 'activate' ) );
 		register_deactivation_hook( CORSEN_CONTEXT_PLUGIN_FILE, array( $this, 'deactivate' ) );
+	}
+
+	/**
+	 * Load the plugin text domain for translations.
+	 */
+	public function load_textdomain(): void {
+		load_plugin_textdomain(
+			'corsen-context',
+			false,
+			dirname( plugin_basename( CORSEN_CONTEXT_PLUGIN_FILE ) ) . '/languages'
+		);
 	}
 
 	/**
@@ -271,6 +287,22 @@ final class Corsen_Context {
 		}
 		delete_transient( 'corsen_context_llms_txt' );
 		delete_transient( 'corsen_context_llms_full_txt' );
+		// Bump the MCP cache version so cached tool responses are superseded.
+		update_option( 'corsen_context_cache_version', intval( get_option( 'corsen_context_cache_version', 1 ) ) + 1 );
+	}
+
+	/**
+	 * Invalidate caches when a post changes status (publish, trash, draft, etc.).
+	 *
+	 * @param string   $new_status New status.
+	 * @param string   $old_status Old status.
+	 * @param \WP_Post $post       Post object.
+	 */
+	public function invalidate_cache_on_transition( string $new_status, string $old_status, $post = null ): void {
+		if ( $new_status === $old_status ) {
+			return;
+		}
+		$this->invalidate_cache( $post instanceof \WP_Post ? $post->ID : 0, $post );
 	}
 
 	/**

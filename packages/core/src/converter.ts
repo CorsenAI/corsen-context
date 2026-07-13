@@ -8,8 +8,27 @@ const turndown = new TurndownService({
   emDelimiter: '*',
 });
 
-// Remove unwanted elements before conversion
-turndown.remove(['script', 'style', 'nav', 'footer', 'header', 'iframe', 'noscript', 'svg']);
+// Remove unwanted elements before conversion.
+// Note: `header`/`footer` are intentionally NOT removed here — an in-article
+// <header> commonly wraps the page H1/title. Site-level chrome is removed via
+// the scoped selectors in htmlToMarkdown() instead.
+turndown.remove(['script', 'style', 'nav', 'iframe', 'noscript', 'svg']);
+
+/** URL schemes that must never survive into generated content. */
+const DANGEROUS_URL_SCHEME = /^\s*(?:javascript|vbscript|file|data):/i;
+
+/**
+ * Neutralize links/images whose target uses a dangerous scheme. The markdown is
+ * served as text to AI agents rather than rendered, so this is defense in depth
+ * against a downstream consumer that renders it as HTML.
+ */
+function sanitizeUrls(markdown: string): string {
+  return markdown.replace(/(!?)\[([^\]]*)\]\(([^)]*)\)/g, (match, bang, label, url) => {
+    if (!DANGEROUS_URL_SCHEME.test(url)) return match;
+    // Drop the image marker and point the link at a harmless anchor.
+    return `[${label}](#)`;
+  });
+}
 
 // Better handling of code blocks
 turndown.addRule('pre', {
@@ -24,9 +43,11 @@ turndown.addRule('pre', {
 export function htmlToMarkdown(html: string): string {
   const $ = cheerio.load(html);
 
-  // Remove common non-content elements
+  // Remove common non-content elements. Site-level <header>/<footer> are
+  // targeted only as direct children of <body> (page chrome), so an in-article
+  // <header> holding the H1/title is preserved.
   $(
-    'nav, footer, header, aside, .sidebar, .menu, .navigation, .cookie-banner, .popup, .modal, #comments, .comments, .ad, .advertisement, [role="navigation"], [role="banner"], [role="complementary"]',
+    'nav, aside, body > header, body > footer, .sidebar, .menu, .navigation, .cookie-banner, .popup, .modal, #comments, .comments, .ad, .advertisement, [role="navigation"], [role="banner"], [role="complementary"]',
   ).remove();
 
   // Try to extract main content area
@@ -45,9 +66,11 @@ export function htmlToMarkdown(html: string): string {
   let contentHtml = '';
   for (const sel of mainSelectors) {
     const el = $(sel).first();
-    if (el.length && el.html()) {
-      contentHtml = el.html()!;
-      break;
+    // Skip empty/whitespace-only containers so a bare <main></main> wrapper
+    // doesn't shadow the real content further down the fallback list.
+    if (el.length && el.text().trim()) {
+      contentHtml = el.html() || '';
+      if (contentHtml) break;
     }
   }
 
@@ -58,10 +81,12 @@ export function htmlToMarkdown(html: string): string {
   const markdown = turndown.turndown(contentHtml);
 
   // Clean up excessive whitespace
-  return markdown
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\s+|\s+$/g, '')
-    .trim();
+  return sanitizeUrls(
+    markdown
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\s+|\s+$/g, '')
+      .trim(),
+  );
 }
 
 export function extractMetadata(html: string): Record<string, string> {

@@ -81,15 +81,27 @@ class Corsen_Context_Admin {
 		$sanitized['llms_txt_enabled'] = ! empty( $input['llms_txt_enabled'] );
 		$sanitized['credit']           = ! empty( $input['credit'] );
 
-		$sanitized['post_types'] = array_map( 'sanitize_text_field', $input['post_types'] ?? array( 'post', 'page' ) );
+		// Constrain persisted post types to publicly-registered types so a
+		// crafted POST can't expose a private/internal type via MCP.
+		$public_types            = array_keys( get_post_types( array( 'public' => true ) ) );
+		$requested_types         = array_map( 'sanitize_text_field', (array) ( $input['post_types'] ?? array( 'post', 'page' ) ) );
+		$sanitized['post_types'] = array_values( array_intersect( $requested_types, $public_types ) );
+		if ( empty( $sanitized['post_types'] ) ) {
+			$sanitized['post_types'] = array( 'post', 'page' );
+		}
 		$sanitized['exclude_paths'] = sanitize_textarea_field( $input['exclude_paths'] ?? '' );
 		$sanitized['rate_limit'] = min( max( intval( $input['rate_limit'] ?? 100 ), 10 ), 1000 );
 		$sanitized['cache_ttl']  = min( max( intval( $input['cache_ttl'] ?? 3600 ), 60 ), 86400 );
 		$sanitized['max_pages']  = min( max( intval( $input['max_pages'] ?? 500 ), 10 ), 5000 );
 
-		// Invalidate cache on settings change.
+		// Invalidate caches on settings change so newly excluded paths / removed
+		// post types stop being served from cached MCP responses.
 		delete_transient( 'corsen_context_llms_txt' );
 		delete_transient( 'corsen_context_llms_full_txt' );
+		update_option(
+			'corsen_context_cache_version',
+			intval( get_option( 'corsen_context_cache_version', 1 ) ) + 1
+		);
 
 		return $sanitized;
 	}

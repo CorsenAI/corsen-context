@@ -8,7 +8,7 @@ interface DetectionResult {
   label: string;
 }
 
-function detectFramework(cwd: string): DetectionResult {
+export function detectFramework(cwd: string): DetectionResult {
   // WordPress
   if (existsSync(join(cwd, 'wp-config.php')) || existsSync(join(cwd, 'wp-content'))) {
     return { framework: 'wordpress', label: 'WordPress' };
@@ -80,7 +80,10 @@ export default {
 
   security: {
     rateLimit: 100,
+    burstLimit: 10,
     allowedOrigins: [],
+    // Only trust X-Forwarded-For / X-Real-IP when behind a proxy you control.
+    trustProxy: false,
   },
 
   cache: {
@@ -143,12 +146,14 @@ export { POST, OPTIONS };
 `;
 
 const NEXTJS_APP_SSE_ROUTE = `import { createSSEHandler } from '@corsenai/corsen-context-nextjs';
+import { siteProvider } from '@/lib/corsen-provider';
 
 const config = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://your-site.com',
 };
 
-export const GET = createSSEHandler(config);
+// Passing the provider shares auth + rate-limit state with the MCP route.
+export const GET = createSSEHandler(config, siteProvider);
 `;
 
 const NEXTJS_APP_LLMS_ROUTE = `import { createLlmsTxtHandler } from '@corsenai/corsen-context-nextjs';
@@ -216,10 +221,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader(key, value);
   }
 
-  // Rate limit
-  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-    || req.socket.remoteAddress || 'unknown';
-  const rateLimit = await server.checkRateLimit(clientIp);
+  // Use the socket address by default. Only trust X-Forwarded-For behind a
+  // proxy you control, otherwise it is spoofable and defeats rate limiting.
+  const clientIp = req.socket.remoteAddress || 'unknown';
+
+  // Forward the API key so CORSEN_CONTEXT_API_KEY auth works.
+  const apiKey =
+    (req.headers['x-mcp-key'] as string) ||
+    (req.headers['authorization'] as string)?.replace('Bearer ', '') ||
+    undefined;
+
+  const rateLimit = await server.checkRateLimit(clientIp, apiKey);
   for (const [key, value] of Object.entries(rateLimit.headers)) {
     res.setHeader(key, value);
   }
@@ -228,7 +240,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const result = await server.handleRequest(req.body, clientIp);
+  // skipRateLimit: we already ran the limiter above (don't double-count).
+  const result = await server.handleRequest(req.body, clientIp, apiKey, { skipRateLimit: true });
 
   // Notification (no id) — 204 No Content
   if (result === null) {
@@ -312,10 +325,16 @@ export default function corsenContextRoutes(app) {
       res.set(key, value);
     }
 
-    // Rate limit
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-      || req.socket.remoteAddress || 'unknown';
-    const rateLimit = await server.checkRateLimit(clientIp);
+    // Use the socket address by default. Only trust X-Forwarded-For behind a
+    // proxy you control, otherwise it is spoofable and defeats rate limiting.
+    const clientIp = req.socket.remoteAddress || 'unknown';
+
+    // Forward the API key so CORSEN_CONTEXT_API_KEY auth works.
+    const apiKey = req.headers['x-mcp-key']?.toString()
+      || req.headers['authorization']?.toString().replace('Bearer ', '')
+      || undefined;
+
+    const rateLimit = await server.checkRateLimit(clientIp, apiKey);
     for (const [key, value] of Object.entries(rateLimit.headers)) {
       res.set(key, value);
     }
@@ -325,7 +344,8 @@ export default function corsenContextRoutes(app) {
       });
     }
 
-    const result = await server.handleRequest(req.body, clientIp);
+    // skipRateLimit: we already ran the limiter above (don't double-count).
+    const result = await server.handleRequest(req.body, clientIp, apiKey, { skipRateLimit: true });
 
     // Notification — no response
     if (result === null) {
@@ -359,8 +379,17 @@ export const POST: APIRoute = async ({ request }) => {
   const headers = new Headers(server.getSecurityHeaders());
   headers.set('Content-Type', 'application/json');
 
-  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const rateLimit = await server.checkRateLimit(clientIp);
+  // Astro's Web Request exposes no socket address; use a User-Agent-derived
+  // bucket unless you front the app with a proxy and read its forwarding header.
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'anon';
+
+  // Forward the API key so CORSEN_CONTEXT_API_KEY auth works.
+  const apiKey = request.headers.get('x-mcp-key')
+    || request.headers.get('authorization')?.replace('Bearer ', '')
+    || undefined;
+
+  const rateLimit = await server.checkRateLimit(clientIp, apiKey);
   for (const [key, value] of Object.entries(rateLimit.headers)) {
     headers.set(key, value);
   }
@@ -371,7 +400,8 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const body = await request.json();
-  const result = await server.handleRequest(body, clientIp);
+  // skipRateLimit: we already ran the limiter above (don't double-count).
+  const result = await server.handleRequest(body, clientIp, apiKey, { skipRateLimit: true });
 
   if (result === null) {
     return new Response(null, { status: 204, headers });
