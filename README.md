@@ -354,8 +354,8 @@ See [SECURITY.md](SECURITY.md) for the full security specification.
 | **WordPress** | Full plugin, zero config | 30 sec |
 | **Next.js** (App Router) | `@corsenai/corsen-context-nextjs` adapter | 2 min |
 | **Next.js** (Pages Router) | CLI-scaffolded API route | 2 min |
+| **Astro** | `@corsenai/corsen-context-astro` adapter | 2 min |
 | **Express** | CLI-scaffolded routes | 5 min |
-| **Astro** | CLI-scaffolded endpoints | 3 min |
 | **Fastify / Hono / Koa / SvelteKit / Nuxt** | Core library directly (no adapter yet) | 5 min |
 | **Static sites** | CLI generator (`generate`) | 1 min |
 
