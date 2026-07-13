@@ -31,14 +31,6 @@
   "dependencies": {
     "@corsenai/corsen-context": "workspace:*"
   },
-  "peerDependencies": {
-    "astro": ">=3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "astro": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.3.0",
