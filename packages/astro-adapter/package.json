@@ -1,0 +1,50 @@
+{
+  "name": "@corsenai/corsen-context-astro",
+  "version": "1.2.0",
+  "description": "Astro adapter for Corsen Context — AI Context Layer with MCP + llms.txt",
+  "author": "Corsen AI <contact@corsen.ai>",
+  "license": "MIT",
+  "homepage": "https://github.com/CorsenAI/corsen-context",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CorsenAI/corsen-context.git",
+    "directory": "packages/astro-adapter"
+  },
+  "keywords": ["mcp", "llms-txt", "astro", "ai", "corsen"],
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@corsenai/corsen-context": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/CorsenAI/corsen-context/issues"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

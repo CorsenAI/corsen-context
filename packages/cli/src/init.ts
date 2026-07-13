@@ -359,83 +359,43 @@ export default function corsenContextRoutes(app) {
 
 // --- Astro Template ---
 
-const ASTRO_MCP_ENDPOINT = `import type { APIRoute } from 'astro';
-import { CorsenContext } from '@corsenai/corsen-context';
+const ASTRO_PROVIDER = `import type { ContentProvider } from '@corsenai/corsen-context';
 
-const config = {
-  siteUrl: import.meta.env.SITE || 'https://your-site.com',
-};
-
-const provider = {
-  async getPages() { return []; },
-  async getPageContent(url) { return null; },
-  async searchContent(query, limit) { return []; },
-};
-
-const cc = new CorsenContext(config, provider);
-
-export const POST: APIRoute = async ({ request }) => {
-  const server = cc.createMCPServer();
-  const headers = new Headers(server.getSecurityHeaders());
-  headers.set('Content-Type', 'application/json');
-
-  // Astro's Web Request exposes no socket address; use a User-Agent-derived
-  // bucket unless you front the app with a proxy and read its forwarding header.
-  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || 'anon';
-
-  // Forward the API key so CORSEN_CONTEXT_API_KEY auth works.
-  const apiKey = request.headers.get('x-mcp-key')
-    || request.headers.get('authorization')?.replace('Bearer ', '')
-    || undefined;
-
-  const rateLimit = await server.checkRateLimit(clientIp, apiKey);
-  for (const [key, value] of Object.entries(rateLimit.headers)) {
-    headers.set(key, value);
-  }
-  if (!rateLimit.allowed) {
-    return new Response(JSON.stringify({
-      jsonrpc: '2.0', error: { code: -32000, message: 'Rate limit exceeded' }, id: null,
-    }), { status: 429, headers });
-  }
-
-  const body = await request.json();
-  // skipRateLimit: we already ran the limiter above (don't double-count).
-  const result = await server.handleRequest(body, clientIp, apiKey, { skipRateLimit: true });
-
-  if (result === null) {
-    return new Response(null, { status: 204, headers });
-  }
-
-  return new Response(JSON.stringify(result), { status: 200, headers });
+/**
+ * Implement your content provider here — tell Corsen Context how to read your
+ * pages. Replace the stubs with real data from your content collections or CMS.
+ */
+export const siteProvider: ContentProvider = {
+  async getPages() {
+    return [];
+  },
+  async getPageContent(url) {
+    return null;
+  },
+  async searchContent(query, limit) {
+    return [];
+  },
 };
 `;
 
-const ASTRO_LLMS_ENDPOINT = `import type { APIRoute } from 'astro';
-import { CorsenContext } from '@corsenai/corsen-context';
+const ASTRO_MCP_ENDPOINT = `import { createMCPHandler } from '@corsenai/corsen-context-astro';
+import { siteProvider } from '../../lib/corsen-provider';
 
-const config = {
-  siteUrl: import.meta.env.SITE || 'https://your-site.com',
-};
+// The Astro adapter handles auth, rate limiting (by clientAddress), CORS, and
+// security headers. It reads the real client IP from Astro's clientAddress.
+export const { POST, OPTIONS } = createMCPHandler(
+  { siteUrl: import.meta.env.SITE ?? 'https://your-site.com' },
+  siteProvider,
+);
+`;
 
-const provider = {
-  async getPages() { return []; },
-  async getPageContent(url) { return null; },
-  async searchContent(query, limit) { return []; },
-};
+const ASTRO_LLMS_ENDPOINT = `import { createLlmsTxtHandler } from '@corsenai/corsen-context-astro';
+import { siteProvider } from '../lib/corsen-provider';
 
-const cc = new CorsenContext(config, provider);
-
-export const GET: APIRoute = async () => {
-  const text = await cc.generateLlmsTxt();
-  return new Response(text, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-    },
-  });
-};
+export const GET = createLlmsTxtHandler(
+  { siteUrl: import.meta.env.SITE ?? 'https://your-site.com' },
+  siteProvider,
+);
 `;
 
 // --- Scaffold Functions ---
@@ -485,15 +445,17 @@ function scaffoldExpress(cwd: string): void {
 }
 
 function scaffoldAstro(cwd: string): void {
-  const pagesDir = existsSync(join(cwd, 'src', 'pages')) ? join(cwd, 'src', 'pages') : join(cwd, 'pages');
+  const srcDir = existsSync(join(cwd, 'src')) ? join(cwd, 'src') : cwd;
+  const pagesDir = join(srcDir, 'pages');
 
-  writeIfNotExists(join(pagesDir, 'api', 'mcp.ts'), ASTRO_MCP_ENDPOINT);
+  writeIfNotExists(join(srcDir, 'lib', 'corsen-provider.ts'), ASTRO_PROVIDER);
+  writeIfNotExists(join(pagesDir, 'v1', 'mcp.ts'), ASTRO_MCP_ENDPOINT);
   writeIfNotExists(join(pagesDir, 'llms.txt.ts'), ASTRO_LLMS_ENDPOINT);
 
   console.log('\n  Next steps:');
-  console.log('  1. npm install @corsenai/corsen-context');
+  console.log('  1. npm install @corsenai/corsen-context @corsenai/corsen-context-astro');
   console.log('  2. Make sure Astro SSR is enabled (output: "server" or "hybrid" in astro.config)');
-  console.log('  3. Edit the provider in src/pages/api/mcp.ts');
+  console.log('  3. Edit the provider in src/lib/corsen-provider.ts with your content source');
 }
 
 function scaffoldStatic(cwd: string): void {
