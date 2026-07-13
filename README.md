@@ -6,16 +6,16 @@
 
 **The Universal AI Context Layer — MCP Server + Enhanced llms.txt + Smart Sitemap**
 
+[![CI](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml/badge.svg)](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-4ade80)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/tests-88%20passed-4ade80)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org/)
 
 AI agents can't read your website. HTML is noise. Corsen Context fixes that.
 
 Give Claude, ChatGPT, Cursor, and Grok clean, structured access to your content — no scraping, no parsing, no guessing.
 
-[Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [WordPress](#-wordpress-30-seconds) · [Next.js](#-nextjs-2-minutes) · [CLI](#-cli) · [Docs](#-documentation)
+[Quick Start](#quick-start) · [How It Works](#how-it-works) · [WordPress](#wordpress-30-seconds) · [Next.js](#nextjs-2-minutes) · [CLI](#cli) · [Security](#security)
 
 </div>
 
@@ -249,7 +249,9 @@ export default {
 
   security: {
     rateLimit: 100,          // requests per minute per IP
+    burstLimit: 10,          // max requests per second
     allowedOrigins: [],      // CORS whitelist (empty = allow all origins)
+    trustProxy: false,       // only trust X-Forwarded-For behind a known proxy
     // apiKey via CORSEN_CONTEXT_API_KEY env var
   },
 
@@ -331,8 +333,8 @@ const server = cc.createMCPServer({ rateLimitStore, logger });
 
 Built-in, not bolt-on:
 
-- **SSRF protection (DNS-aware)** — Resolves DNS before fetching to prevent DNS rebinding attacks (OWASP 2026). Blocks all private/internal IPs (IPv4 + IPv6 + carrier-grade NAT)
-- **Rate limiting** — Sliding window, 100 req/min default, burst protection (10/sec). Pluggable store: in-memory (dev) or **Redis** (production, distributed)
+- **SSRF protection (DNS-aware)** — Resolves DNS and verifies every resolved IP is public before fetching (fail-closed). Blocks all private/internal IPs (IPv4 + IPv6, including IPv4-mapped/embedded forms + carrier-grade NAT). When `undici` is installed it also pins the connection to the vetted IP at the socket level (keeping the hostname for TLS), fully defeating DNS rebinding
+- **Rate limiting** — Sliding window, 100 req/min default, burst protection (10/sec). Keyed on the socket IP by default; forwarding headers (`X-Forwarded-For`) are only trusted when `security.trustProxy` is enabled. Pluggable store: in-memory (dev) or **Redis** (production, distributed)
 - **API key auth** — Timing-safe comparison + optional **ApiKeyManager** with SHA-256 hashed keys, scopes, daily quotas, expiry, and revocation
 - **Input validation** — Every parameter validated with Zod. Body size limit (100 KB), JSON depth limit (10), request timeout (8s)
 - **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, `CSP`, `no-store` on all MCP responses
@@ -350,14 +352,16 @@ See [SECURITY.md](SECURITY.md) for the full security specification.
 | Framework | Integration | Setup Time |
 |-----------|------------|------------|
 | **WordPress** | Full plugin, zero config | 30 sec |
-| **Next.js** (App Router) | Adapter + route handlers | 2 min |
-| **Next.js** (Pages Router) | API routes | 2 min |
-| **Express / Fastify / Hono** | Middleware | 5 min |
-| **Astro** | API endpoints | 3 min |
-| **Any Node.js server** | Core library | 5 min |
-| **Static sites** | CLI generator | 1 min |
+| **Next.js** (App Router) | `@corsenai/corsen-context-nextjs` adapter | 2 min |
+| **Next.js** (Pages Router) | CLI-scaffolded API route | 2 min |
+| **Express** | CLI-scaffolded routes | 5 min |
+| **Astro** | CLI-scaffolded endpoints | 3 min |
+| **Fastify / Hono / Koa / SvelteKit / Nuxt** | Core library directly (no adapter yet) | 5 min |
+| **Static sites** | CLI generator (`generate`) | 1 min |
 
-Coming soon: Astro adapter, SvelteKit, Nuxt, Laravel, Django, Shopify.
+The CLI's `init` command scaffolds ready-to-edit route files for Next.js, Express, and Astro. Other frameworks use the framework-agnostic core library directly.
+
+Coming soon: dedicated Astro/SvelteKit/Nuxt adapters, Laravel, Django, Shopify.
 
 ---
 
@@ -373,13 +377,17 @@ corsen-context/
 │   │   │   ├── sitemap.ts        # Sitemap XML parser + discovery
 │   │   │   ├── converter.ts      # HTML → clean Markdown
 │   │   │   ├── security.ts       # SSRF (DNS-aware), rate limiting, CORS, API keys
+│   │   │   ├── content-policy.ts # Public-content ACL (origin, exclusions, types)
+│   │   │   ├── providers.ts      # Batteries-included ContentProvider helpers
+│   │   │   ├── discovery.ts      # robots.txt / .well-known/mcp / <link> generators
 │   │   │   ├── cache.ts          # In-memory cache driver
 │   │   │   ├── redis-cache.ts    # Redis cache driver (production)
 │   │   │   ├── redis-rate-limit.ts # Redis rate limit store (production)
 │   │   │   ├── logger.ts         # Pino structured logging
 │   │   │   ├── config.ts         # Zod config schema
+│   │   │   ├── version.ts        # Single-source version + protocol constants
 │   │   │   └── types.ts          # All TypeScript types
-│   │   └── tests/                # 88 tests (vitest)
+│   │   └── tests/                # vitest suite (run `pnpm test`)
 │   │
 │   ├── nextjs-adapter/       # @corsenai/corsen-context-nextjs
 │   │   └── src/

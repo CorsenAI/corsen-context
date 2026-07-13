@@ -42,13 +42,15 @@ This is a monorepo managed with pnpm workspaces and Turborepo.
 
 ```bash
 pnpm build       # Build all packages
-pnpm test        # Run all tests (88 tests)
+pnpm lint        # ESLint
 pnpm typecheck   # TypeScript type checking
+pnpm test        # Run all tests
 ```
 
-5. Ensure 88 tests pass and all type checks succeed
-6. Commit with a conventional commit message
-7. Submit a pull request
+5. Ensure all tests pass and type checks succeed
+6. Add a changeset for any user-facing change: `pnpm changeset`
+7. Commit with a conventional commit message
+8. Submit a pull request
 
 ## Commit Convention
 
