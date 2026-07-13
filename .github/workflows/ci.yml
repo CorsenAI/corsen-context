@@ -20,7 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20, 22]
+        # The dev toolchain (ESLint 9 ecosystem) requires Node >=20; published
+        # packages still declare runtime support for Node >=18.
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
 
