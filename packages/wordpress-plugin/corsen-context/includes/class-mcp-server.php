@@ -26,7 +26,6 @@ class Corsen_Context_MCP_Server {
 	 */
 	public function handle_get_request( \WP_REST_Request $request ): \WP_REST_Response {
 
-		Corsen_Context_Security::send_security_headers();
 		if ( ! Corsen_Context_Security::validate_origin( (string) $request->get_header( 'Origin' ) ) ) {
 			return $this->http_error_response( 403, 'Invalid Origin' );
 		}
@@ -43,8 +42,6 @@ class Corsen_Context_MCP_Server {
 	 */
 	public function handle_request( \WP_REST_Request $request ): \WP_REST_Response {
 
-		// Security headers.
-		Corsen_Context_Security::send_security_headers();
 		if ( ! Corsen_Context_Security::validate_origin( (string) $request->get_header( 'Origin' ) ) ) {
 			return $this->http_error_response( 403, 'Invalid Origin' );
 		}
@@ -73,21 +70,23 @@ class Corsen_Context_MCP_Server {
 				429
 			);
 			$response->header( 'Retry-After', '60' );
-			return $response;
+			return Corsen_Context_Security::add_security_headers( $response );
 		}
 
 		// API key check.
 		if ( ! Corsen_Context_Security::validate_api_key( $request ) ) {
-			return new \WP_REST_Response(
-				array(
-					'jsonrpc' => '2.0',
-					'error'   => array(
-						'code'    => -32000,
-						'message' => 'Unauthorized',
+			return Corsen_Context_Security::add_security_headers(
+				new \WP_REST_Response(
+					array(
+						'jsonrpc' => '2.0',
+						'error'   => array(
+							'code'    => -32000,
+							'message' => 'Unauthorized',
+						),
+						'id'      => null,
 					),
-					'id'      => null,
-				),
-				401
+					401
+				)
 			);
 		}
 
@@ -136,7 +135,7 @@ class Corsen_Context_MCP_Server {
 		// JSON-RPC 2.0: notifications (no id) get no response.
 		if ( $is_notification ) {
 			$this->dispatch( $method, $params, $id );
-			return new \WP_REST_Response( null, 202 );
+			return Corsen_Context_Security::add_security_headers( new \WP_REST_Response( null, 202 ) );
 		}
 
 		return $this->dispatch( $method, $params, $id );
@@ -871,26 +870,30 @@ class Corsen_Context_MCP_Server {
 	/** Return an HTTP-level error with a JSON-RPC-compatible body. */
 	private function http_error_response( int $status, string $message ): \WP_REST_Response {
 
-		return new \WP_REST_Response(
-			array(
-				'jsonrpc' => '2.0',
-				'error'   => array(
-					'code'    => -32000,
-					'message' => $message,
+		return Corsen_Context_Security::add_security_headers(
+			new \WP_REST_Response(
+				array(
+					'jsonrpc' => '2.0',
+					'error'   => array(
+						'code'    => -32000,
+						'message' => $message,
+					),
+					'id'      => null,
 				),
-				'id'      => null,
-			),
-			$status
+				$status
+			)
 		);
 	}
 	private function success_response( $id, $result ): \WP_REST_Response {
-		return new \WP_REST_Response(
-			array(
-				'jsonrpc' => '2.0',
-				'result'  => $result,
-				'id'      => $id,
-			),
-			200
+		return Corsen_Context_Security::add_security_headers(
+			new \WP_REST_Response(
+				array(
+					'jsonrpc' => '2.0',
+					'result'  => $result,
+					'id'      => $id,
+				),
+				200
+			)
 		);
 	}
 
@@ -905,16 +908,18 @@ class Corsen_Context_MCP_Server {
 			default => 500,
 		};
 
-		return new \WP_REST_Response(
-			array(
-				'jsonrpc' => '2.0',
-				'error'   => array(
-					'code'    => $code,
-					'message' => $message,
+		return Corsen_Context_Security::add_security_headers(
+			new \WP_REST_Response(
+				array(
+					'jsonrpc' => '2.0',
+					'error'   => array(
+						'code'    => $code,
+						'message' => $message,
+					),
+					'id'      => $id,
 				),
-				'id'      => $id,
-			),
-			$status
+				$status
+			)
 		);
 	}
 }

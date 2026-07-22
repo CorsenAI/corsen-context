@@ -138,6 +138,7 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertSame( 200, $initialize->get_status() );
+		$this->assertSame( 'nosniff', $initialize->get_headers()['X-Content-Type-Options'] );
 		$this->assertSame( '2025-11-25', $initialize->get_data()['result']['protocolVersion'] );
 
 		$notification = $this->mcp_request(

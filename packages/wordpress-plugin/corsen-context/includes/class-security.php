@@ -10,6 +10,16 @@
 defined( 'ABSPATH' ) || exit;
 
 class Corsen_Context_Security {
+	/** Security headers shared by plain-text and REST responses. */
+	private const RESPONSE_HEADERS = array(
+		'X-Content-Type-Options'  => 'nosniff',
+		'X-Frame-Options'         => 'DENY',
+		'X-XSS-Protection'        => '0',
+		'Referrer-Policy'         => 'strict-origin-when-cross-origin',
+		'Content-Security-Policy' => "default-src 'none'",
+		'Cache-Control'           => 'no-store',
+		'X-Powered-By'            => 'Corsen Context / Corsen AI',
+	);
 
 	/**
 	 * Private IP ranges for SSRF protection.
@@ -27,13 +37,22 @@ class Corsen_Context_Security {
 	 * Send security headers on all Corsen Context responses.
 	 */
 	public static function send_security_headers(): void {
-		header( 'X-Content-Type-Options: nosniff' );
-		header( 'X-Frame-Options: DENY' );
-		header( 'X-XSS-Protection: 0' );
-		header( 'Referrer-Policy: strict-origin-when-cross-origin' );
-		header( "Content-Security-Policy: default-src 'none'" );
-		header( 'Cache-Control: no-store' );
-		header( 'X-Powered-By: Corsen Context / Corsen AI' );
+		foreach ( self::RESPONSE_HEADERS as $name => $value ) {
+			header( $name . ': ' . $value );
+		}
+	}
+
+	/**
+	 * Attach security headers through the WordPress REST response API.
+	 *
+	 * @param \WP_REST_Response $response REST response.
+	 * @return \WP_REST_Response
+	 */
+	public static function add_security_headers( \WP_REST_Response $response ): \WP_REST_Response {
+		foreach ( self::RESPONSE_HEADERS as $name => $value ) {
+			$response->header( $name, $value );
+		}
+		return $response;
 	}
 
 	/**
