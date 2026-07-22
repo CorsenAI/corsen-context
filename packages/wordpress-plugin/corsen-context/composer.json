@@ -1,6 +1,6 @@
 {
   "name": "corsenai/corsen-context",
-  "description": "Make your WordPress site AI-native — llms.txt + MCP server for AI agents.",
+  "description": "Publish selected WordPress content through llms.txt and a read-only MCP-style endpoint.",
   "type": "wordpress-plugin",
   "license": "MIT",
   "homepage": "https://github.com/CorsenAI/corsen-context",
@@ -11,7 +11,9 @@
     "squizlabs/php_codesniffer": "^3.10",
     "wp-coding-standards/wpcs": "^3.1",
     "phpcompatibility/phpcompatibility-wp": "^2.1",
-    "dealerdirect/phpcodesniffer-composer-installer": "^1.0"
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "phpunit/phpunit": "^9.6",
+    "yoast/phpunit-polyfills": "^2.0"
   },
   "config": {
     "allow-plugins": {
@@ -20,6 +22,9 @@
   },
   "scripts": {
     "lint": "phpcs",
-    "lint:fix": "phpcbf"
+    "lint:fix": "phpcbf",
+    "test": "phpunit",
+    "test:unit": "phpunit --exclude-group integration",
+    "test:integration": "phpunit --group integration"
   }
 }

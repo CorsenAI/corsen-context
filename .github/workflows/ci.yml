@@ -80,5 +80,59 @@ jobs:
 
       - name: PHP CodeSniffer (WordPress standards)
         if: matrix.php == '8.2'
-        continue-on-error: true
         run: composer run lint
+
+      - name: PHP unit tests
+        if: matrix.php == '8.2'
+        run: composer run test:unit
+
+  wordpress-integration:
+    name: WordPress ${{ matrix.wordpress }} integration
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        wordpress: ['6.8.6', '6.9.5', '7.0.2']
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    defaults:
+      run:
+        working-directory: packages/wordpress-plugin/corsen-context
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          extensions: mysqli
+          tools: composer
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install WordPress test suite
+        env:
+          WP_VERSION: ${{ matrix.wordpress }}
+        run: |
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/wp-cli/scaffold-command/main/templates/install-wp-tests.sh \
+            --output /tmp/install-wp-tests.sh
+          bash /tmp/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 "$WP_VERSION" true
+
+      - name: WordPress integration tests
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: composer run test:integration

@@ -3,47 +3,49 @@ Contributors: corsenai
 Donate link: https://corsen.ai
 Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
-Tested up to: 6.8
+Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Make your WordPress site AI-native. Generates llms.txt and exposes a full MCP server so AI agents can access your content.
+Publish selected public WordPress content through llms.txt and a read-only MCP-style JSON-RPC endpoint.
 
 == Description ==
 
-**Corsen Context** is the Universal AI Context Layer for WordPress. It turns your site into an AI-native platform that Claude, ChatGPT, Cursor, Grok, and any MCP-compatible AI agent can understand — instantly.
+**Corsen Context** publishes a bounded overview of selected public WordPress content and provides a read-only JSON-RPC endpoint for compatible MCP clients.
 
 = What it does =
 
 Your site gets two new capabilities:
 
-1. **Static Layer** — Automatically generates `/llms.txt` and `/llms-full.txt` files containing a clean, structured markdown overview of all your published content. AI agents read these files to understand your site at a glance.
+1. **Static Layer** — Generates `/llms.txt` with a structured overview of selected public content. An optional, bounded `/llms-full.txt` export can be enabled in settings.
 
-2. **Dynamic Layer** — Exposes a full **Model Context Protocol (MCP)** server at `/wp-json/corsen-context/v1/mcp` with 4 powerful tools: search your site, get any page as clean markdown, list content by type, and retrieve the full sitemap.
+2. **Dynamic Layer** — Exposes a read-only **Model Context Protocol (MCP)** Streamable HTTP-style endpoint at `/wp-json/corsen-context/v1/mcp` with four content tools.
 
 = Key Features =
 
-* **One-click install** — Zero configuration required. Works out of the box.
-* **Full MCP 2025-11-25 compliance** — `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `notifications/initialized`.
+* **Safe defaults** — `/llms.txt` and the read-only endpoint are enabled; the heavier `/llms-full.txt` export is opt-in.
+* **MCP 2025-11-25 target** — Supports `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, and `notifications/initialized`. The endpoint returns JSON responses and does not provide server-sent event streaming.
 * **4 AI tools** — `search_site`, `get_page_content`, `list_content`, `get_sitemap`.
 * **SEO integration** — Reads Yoast SEO and Rank Math metadata for better descriptions.
 * **Security built-in** — Rate limiting, SSRF protection, input validation, security headers, optional API key auth.
 * **Admin settings page** — Choose post types, exclude paths, set rate limits, toggle features.
 * **Dashboard widget** — See your AI context status at a glance.
-* **Smart caching** — Content is cached via transients and auto-invalidated on post save.
-* **Content safety** — Only published, public content is ever exposed. Never drafts, trash, or private pages.
+* **Bounded generation** — Total item and output-byte limits protect the optional full-content export.
+* **Content safety** — Drafts, private posts, password-protected posts, excluded paths, and content vetoed by the exposure filter are not served.
 * **Credit line** — "Powered by Corsen Context" in generated files (configurable).
 
-= How AI Agents Discover Your Site =
+= Published Endpoints and Discovery Hints =
 
-Once activated, AI agents can find your site through:
+When enabled, Corsen Context publishes:
 
 1. **robots.txt** — `MCP: https://yoursite.com/wp-json/corsen-context/v1/mcp`
 2. **llms.txt** — The credit line includes the MCP endpoint URL
 3. **HTML head** — `<link rel="mcp">` meta tag added automatically
-4. **Direct URL** — Agents can try `/llms.txt` on any site
+4. **Direct URL** — `/llms.txt` remains available to clients that know the convention
+
+These discovery hints are not universal standards and do not guarantee that a search engine or AI client will use the endpoint.
 
 = Requirements =
 
@@ -53,7 +55,7 @@ Once activated, AI agents can find your site through:
 
 = Part of a Bigger Ecosystem =
 
-Corsen Context is an open-source project by [Corsen AI](https://corsen.ai). The same core engine powers adapters for Next.js, Express, Astro, and any Node.js server. WordPress gets a dedicated plugin for the smoothest experience.
+Corsen Context is an open-source project by [Corsen AI](https://corsen.ai). The project also provides packages for Next.js, Express, Astro, and Node.js. WordPress uses this dedicated PHP plugin.
 
 * [GitHub Repository](https://github.com/CorsenAI/corsen-context)
 * [Full Documentation](https://github.com/CorsenAI/corsen-context#readme)
@@ -79,7 +81,7 @@ Corsen Context is an open-source project by [Corsen AI](https://corsen.ai). The 
 Your site immediately has:
 
 * `/llms.txt` — Visit `https://yoursite.com/llms.txt` to see it
-* `/llms-full.txt` — Full content version
+* `/llms-full.txt` — Optional bounded content export (enable it in Settings > Corsen Context)
 * MCP endpoint — `https://yoursite.com/wp-json/corsen-context/v1/mcp`
 * Dashboard widget — Check your admin dashboard
 
@@ -89,23 +91,23 @@ Your site immediately has:
 
 = What is MCP? =
 
-Model Context Protocol is an open standard (maintained by Anthropic / Linux Foundation) that defines how AI agents communicate with data sources. Think of it as a REST API specifically designed for AI agents. Corsen Context implements MCP spec 2025-11-25.
+Model Context Protocol is an open protocol for communication between AI applications and external systems. Corsen Context targets the 2025-11-25 protocol version for its read-only JSON-RPC endpoint.
 
 = What is llms.txt? =
 
-A convention where websites place a `/llms.txt` file (similar to `robots.txt`) containing a clean, structured markdown overview of the site. AI agents check this file to quickly understand what content is available.
+A proposed convention where websites place a `/llms.txt` file containing a structured Markdown overview. Support varies by client and search engine, so it should be treated as an additional publishing surface rather than an indexing guarantee.
 
 = Is my content safe? =
 
-Absolutely. Only published, public content is ever exposed. The plugin explicitly filters for `post_status = 'publish'` and respects all WordPress visibility settings. Draft, pending, private, password-protected, and trashed content is never included.
+The plugin limits output to selected public post types and rejects draft, pending, private, password-protected, trashed, or excluded content. Site owners can also veto individual posts with the `corsen_context_can_expose_post` filter. As with any public export, review the selected post types and exclusions before enabling it on a site with membership or conditional-visibility plugins.
 
 = Does this slow down my site? =
 
-No. All generated content is cached using WordPress transients. The cache is automatically invalidated when you publish or update posts. The MCP endpoint only processes requests when an AI agent connects — it adds zero overhead to normal page loads.
+Normal pages only receive a small discovery link when MCP is enabled. Generated metadata may use bounded WordPress transients for anonymous, cookie-free requests. Rendered page content is not placed in the shared MCP cache, and `/llms-full.txt` uses item, byte, and generation-lock limits.
 
 = Does it work with page builders? =
 
-Yes. Corsen Context uses `apply_filters('the_content')` which processes content through all active plugins including Elementor, Beaver Builder, Divi, and others. The rendered content is then converted to clean markdown.
+By default, Corsen Context reads stored public content without executing `the_content`, dynamic blocks, or shortcodes. This avoids accidentally exporting personalized output. Site owners can opt into full rendering with the `corsen_context_render_mode` filter; full-rendered output is never stored in the shared content cache. Compatibility depends on the page builder and should be tested on the site.
 
 = Can I control which content is exposed? =
 
@@ -140,6 +142,17 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 
 == Changelog ==
 
+= 1.2.1 - 2026-07-21 =
+* Security: Enforced the global kill switch across llms.txt, llms-full.txt, MCP routes, discovery tags, and dashboard state.
+* Security: Safe rendering no longer executes `the_content`, dynamic blocks, or shortcodes by default; full rendering is explicit opt-in and never shared-cacheable.
+* Security: Added same-origin browser checks, HMAC cache/rate-limit keys, conservative path normalization, Markdown URL neutralization, and an exposure veto filter.
+* Security: Disabled llms-full.txt by default and added global item, byte, cache-safety, regeneration-lock, and background-generation controls.
+* Privacy: Author display names are omitted by default and can be enabled separately.
+* MCP: Added protocol-version validation, 202 notification responses, GET/POST transport handling, bounded resources pagination, signed cursors, and prompt-injection trust-boundary notices.
+* Quality: Added PHP unit/integration tests and made WordPress coding standards blocking in CI.
+* Documentation: Replaced unsupported universal-discovery, zero-overhead, page-builder, and full-compliance claims with precise behavior and limitations.
+* Routing: Keeps `/llms.txt` and `/llms-full.txt` free of canonical trailing-slash redirects and refreshes rewrite rules once per plugin version.
+
 = 1.2.0 - 2026-07-13 =
 * Security: Rate limiter now uses REMOTE_ADDR by default; forwarding headers (X-Forwarded-For/X-Real-IP) are only trusted behind a proxy you opt into via CORSEN_CONTEXT_TRUST_PROXY. Closes a spoofable rate-limit bypass.
 * Security: Rate limiter uses the object cache's atomic INCR when a persistent cache (Redis/Memcached) is present, preventing burst overshoot.
@@ -163,7 +176,7 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 
 = 1.0.0 - 2026-04-08 =
 * Initial release
-* Full MCP 2025-11-25 JSON-RPC server with 4 tools
+* Read-only MCP-style JSON-RPC endpoint with 4 tools
 * `initialize`, `ping`, `notifications/initialized` support
 * `tools/list`, `tools/call`, `resources/list`, `resources/read`
 * llms.txt and llms-full.txt generation with auto-caching
@@ -180,8 +193,11 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 
 == Upgrade Notice ==
 
+= 1.2.1 =
+Security and reliability update. `/llms-full.txt` is now disabled by default; review and enable it explicitly if the bounded full-content export is desired.
+
 = 1.1.0 =
 Security update: fixes SSRF fail-open, PHP crash on large content, rate limiter bugs. Adds WP-Cron cleanup and max_pages admin setting. Recommended for all users.
 
 = 1.0.0 =
-Initial release. Install to make your WordPress site AI-native with MCP + llms.txt.
+Initial release with MCP-style JSON-RPC and llms.txt publishing.
