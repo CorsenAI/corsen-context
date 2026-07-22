@@ -3,6 +3,8 @@
  * Admin settings page for Corsen Context.
  *
  * Powered by Corsen Context - Built by Corsen AI - github.com/CorsenAI/corsen-context
+ *
+ * @package Corsen_Context
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,10 +36,14 @@ class Corsen_Context_Admin {
 	}
 
 	public function register_settings(): void {
-		register_setting( 'corsen_context', 'corsen_context_settings', array(
-			'type'              => 'array',
-			'sanitize_callback' => array( $this, 'sanitize_settings' ),
-		) );
+		register_setting(
+			'corsen_context',
+			'corsen_context_settings',
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this, 'sanitize_settings' ),
+			)
+		);
 
 		add_settings_section(
 			'corsen_context_general',
@@ -46,10 +52,50 @@ class Corsen_Context_Admin {
 			'corsen-context'
 		);
 
-		add_settings_field( 'enabled', 'Enable Corsen Context', array( $this, 'render_checkbox' ), 'corsen-context', 'corsen_context_general', array( 'field' => 'enabled', 'label' => 'Enable the AI context layer' ) );
-		add_settings_field( 'mcp_enabled', 'Enable MCP Server', array( $this, 'render_checkbox' ), 'corsen-context', 'corsen_context_general', array( 'field' => 'mcp_enabled', 'label' => 'Expose MCP endpoint for AI agents' ) );
-		add_settings_field( 'llms_txt_enabled', 'Enable llms.txt', array( $this, 'render_checkbox' ), 'corsen-context', 'corsen_context_general', array( 'field' => 'llms_txt_enabled', 'label' => 'Generate and serve /llms.txt' ) );
-
+		add_settings_field(
+			'enabled',
+			'Enable Corsen Context',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field' => 'enabled',
+				'label' => 'Enable the AI context layer',
+			)
+		);
+		add_settings_field(
+			'mcp_enabled',
+			'Enable MCP Server',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field' => 'mcp_enabled',
+				'label' => 'Expose MCP endpoint for AI agents',
+			)
+		);
+		add_settings_field(
+			'llms_txt_enabled',
+			'Enable llms.txt',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field' => 'llms_txt_enabled',
+				'label' => 'Generate and serve /llms.txt',
+			)
+		);
+		add_settings_field(
+			'llms_full_enabled',
+			'Enable llms-full.txt',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field' => 'llms_full_enabled',
+				'label' => 'Generate the bounded full-content export (disabled by default)',
+			)
+		);
 		add_settings_section(
 			'corsen_context_content',
 			'Content Settings',
@@ -58,9 +104,43 @@ class Corsen_Context_Admin {
 		);
 
 		add_settings_field( 'post_types', 'Post Types', array( $this, 'render_post_types' ), 'corsen-context', 'corsen_context_content' );
-		add_settings_field( 'exclude_paths', 'Exclude Paths', array( $this, 'render_textarea' ), 'corsen-context', 'corsen_context_content', array( 'field' => 'exclude_paths', 'description' => 'One path per line (e.g., /admin, /cart)' ) );
-		add_settings_field( 'max_pages', 'Max Pages', array( $this, 'render_number' ), 'corsen-context', 'corsen_context_content', array( 'field' => 'max_pages', 'min' => 10, 'max' => 5000 ) );
-
+		add_settings_field(
+			'exclude_paths',
+			'Exclude Paths',
+			array( $this, 'render_textarea' ),
+			'corsen-context',
+			'corsen_context_content',
+			array(
+				'field'       => 'exclude_paths',
+				'description' => 'One path per line (e.g., /admin, /cart)',
+			)
+		);
+		add_settings_field(
+			'max_pages',
+			'Max Total Items',
+			array( $this, 'render_number' ),
+			'corsen-context',
+			'corsen_context_content',
+			array(
+				'field'       => 'max_pages',
+				'min'         => 10,
+				'max'         => 5000,
+				'description' => 'Absolute cap shared across all selected post types.',
+			)
+		);
+		add_settings_field(
+			'max_output_bytes',
+			'llms-full.txt Max Bytes',
+			array( $this, 'render_number' ),
+			'corsen-context',
+			'corsen_context_content',
+			array(
+				'field'       => 'max_output_bytes',
+				'min'         => 65536,
+				'max'         => 10485760,
+				'description' => 'Hard output limit between 64 KB and 10 MB.',
+			)
+		);
 		add_settings_section(
 			'corsen_context_security',
 			'Security Settings',
@@ -68,19 +148,64 @@ class Corsen_Context_Admin {
 			'corsen-context'
 		);
 
-		add_settings_field( 'rate_limit', 'Rate Limit (req/min)', array( $this, 'render_number' ), 'corsen-context', 'corsen_context_security', array( 'field' => 'rate_limit', 'min' => 10, 'max' => 1000 ) );
-		add_settings_field( 'credit', 'Show Credit', array( $this, 'render_checkbox' ), 'corsen-context', 'corsen_context_security', array( 'field' => 'credit', 'label' => 'Include "Powered by Corsen Context" credit line' ) );
-		add_settings_field( 'cache_ttl', 'Cache TTL (seconds)', array( $this, 'render_number' ), 'corsen-context', 'corsen_context_security', array( 'field' => 'cache_ttl', 'min' => 60, 'max' => 86400 ) );
+		add_settings_field(
+			'rate_limit',
+			'Rate Limit (req/min)',
+			array( $this, 'render_number' ),
+			'corsen-context',
+			'corsen_context_security',
+			array(
+				'field' => 'rate_limit',
+				'min'   => 10,
+				'max'   => 1000,
+			)
+		);
+		add_settings_field(
+			'credit',
+			'Show Credit',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_security',
+			array(
+				'field' => 'credit',
+				'label' => 'Include "Powered by Corsen Context" credit line',
+			)
+		);
+		add_settings_field(
+			'include_author',
+			'Include Author Names',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_security',
+			array(
+				'field' => 'include_author',
+				'label' => 'Expose post author display names in MCP metadata',
+			)
+		);
+		add_settings_field(
+			'cache_ttl',
+			'Cache TTL (seconds)',
+			array( $this, 'render_number' ),
+			'corsen-context',
+			'corsen_context_security',
+			array(
+				'field' => 'cache_ttl',
+				'min'   => 60,
+				'max'   => 86400,
+			)
+		);
 	}
 
 	public function sanitize_settings( $input ): array {
+		$input     = is_array( $input ) ? $input : array();
 		$sanitized = array();
 
-		$sanitized['enabled']          = ! empty( $input['enabled'] );
-		$sanitized['mcp_enabled']      = ! empty( $input['mcp_enabled'] );
-		$sanitized['llms_txt_enabled'] = ! empty( $input['llms_txt_enabled'] );
-		$sanitized['credit']           = ! empty( $input['credit'] );
-
+		$sanitized['enabled']           = ! empty( $input['enabled'] );
+		$sanitized['mcp_enabled']       = ! empty( $input['mcp_enabled'] );
+		$sanitized['llms_txt_enabled']  = ! empty( $input['llms_txt_enabled'] );
+		$sanitized['llms_full_enabled'] = ! empty( $input['llms_full_enabled'] );
+		$sanitized['credit']            = ! empty( $input['credit'] );
+		$sanitized['include_author']    = ! empty( $input['include_author'] );
 		// Constrain persisted post types to publicly-registered types so a
 		// crafted POST can't expose a private/internal type via MCP.
 		$public_types            = array_keys( get_post_types( array( 'public' => true ) ) );
@@ -89,11 +214,11 @@ class Corsen_Context_Admin {
 		if ( empty( $sanitized['post_types'] ) ) {
 			$sanitized['post_types'] = array( 'post', 'page' );
 		}
-		$sanitized['exclude_paths'] = sanitize_textarea_field( $input['exclude_paths'] ?? '' );
-		$sanitized['rate_limit'] = min( max( intval( $input['rate_limit'] ?? 100 ), 10 ), 1000 );
-		$sanitized['cache_ttl']  = min( max( intval( $input['cache_ttl'] ?? 3600 ), 60 ), 86400 );
-		$sanitized['max_pages']  = min( max( intval( $input['max_pages'] ?? 500 ), 10 ), 5000 );
-
+		$sanitized['exclude_paths']    = sanitize_textarea_field( $input['exclude_paths'] ?? '' );
+		$sanitized['rate_limit']       = min( max( intval( $input['rate_limit'] ?? 100 ), 10 ), 1000 );
+		$sanitized['cache_ttl']        = min( max( intval( $input['cache_ttl'] ?? 3600 ), 60 ), 86400 );
+		$sanitized['max_pages']        = min( max( intval( $input['max_pages'] ?? 500 ), 10 ), 5000 );
+		$sanitized['max_output_bytes'] = min( max( intval( $input['max_output_bytes'] ?? 5242880 ), 65536 ), 10485760 );
 		// Invalidate caches on settings change so newly excluded paths / removed
 		// post types stop being served from cached MCP responses.
 		delete_transient( 'corsen_context_llms_txt' );
@@ -127,6 +252,9 @@ class Corsen_Context_Admin {
 			intval( $args['min'] ?? 0 ),
 			intval( $args['max'] ?? 99999 )
 		);
+		if ( ! empty( $args['description'] ) ) {
+				printf( '<p class="description">%s</p>', esc_html( $args['description'] ) );
+		}
 	}
 
 	public function render_textarea( array $args ): void {
@@ -166,16 +294,22 @@ class Corsen_Context_Admin {
 			return;
 		}
 
-		$site_url = home_url();
+		$site_url          = home_url();
+		$settings          = get_option( 'corsen_context_settings', array() );
+		$llms_full_enabled = ! empty( $settings['enabled'] ) && ! empty( $settings['llms_txt_enabled'] ) && ! empty( $settings['llms_full_enabled'] );
 		?>
 		<div class="wrap">
 			<h1>Corsen Context Settings</h1>
-			<p>Make your WordPress site AI-native with MCP + llms.txt.</p>
+			<p>Publish selected public WordPress content through MCP and llms.txt.</p>
 
 			<div style="background:#f0f7ff;border-left:4px solid #2271b1;padding:12px 16px;margin:16px 0;">
 				<strong>Quick Links:</strong>
 				<a href="<?php echo esc_url( $site_url . '/llms.txt' ); ?>" target="_blank">View llms.txt</a> |
-				<a href="<?php echo esc_url( $site_url . '/llms-full.txt' ); ?>" target="_blank">View llms-full.txt</a> |
+				<?php if ( $llms_full_enabled ) : ?>
+					<a href="<?php echo esc_url( $site_url . '/llms-full.txt' ); ?>" target="_blank">View llms-full.txt</a> |
+				<?php else : ?>
+					<span>llms-full.txt disabled</span> |
+				<?php endif; ?>
 				<strong>MCP:</strong> <code><?php echo esc_html( $site_url . '/wp-json/corsen-context/v1/mcp' ); ?></code>
 			</div>
 

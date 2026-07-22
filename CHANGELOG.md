@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.1] - 2026-07-21
+
+### WordPress plugin
+
+- Enforced the global disable switch across public endpoints and discovery output.
+- Made content rendering safe by default and disabled shared caching for full-rendered content.
+- Added origin/protocol checks, signed cursors, bounded pagination, Markdown hardening, normalized exclusions, and an exposure veto filter.
+- Made `llms-full.txt` opt-in with global item, byte, locking, and scheduled-generation limits.
+- Omitted author display names by default.
+- Added PHP unit and WordPress integration tests; coding standards now block CI.
+- Corrected unsupported compliance, discovery, caching, and page-builder claims in the WordPress listing.
+- Prevented WordPress canonical redirects from changing `/llms.txt` to `/llms.txt/` and refreshes rewrite rules once per plugin version.
+
 ## [1.2.0] - 2026-07-13
 
 ### Security

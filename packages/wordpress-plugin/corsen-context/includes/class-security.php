@@ -3,11 +3,23 @@
  * Security layer for Corsen Context.
  *
  * Powered by Corsen Context - Built by Corsen AI - github.com/CorsenAI/corsen-context
+ *
+ * @package Corsen_Context
  */
 
 defined( 'ABSPATH' ) || exit;
 
 class Corsen_Context_Security {
+	/** Security headers shared by plain-text and REST responses. */
+	private const RESPONSE_HEADERS = array(
+		'X-Content-Type-Options'  => 'nosniff',
+		'X-Frame-Options'         => 'DENY',
+		'X-XSS-Protection'        => '0',
+		'Referrer-Policy'         => 'strict-origin-when-cross-origin',
+		'Content-Security-Policy' => "default-src 'none'",
+		'Cache-Control'           => 'no-store',
+		'X-Powered-By'            => 'Corsen Context / Corsen AI',
+	);
 
 	/**
 	 * Private IP ranges for SSRF protection.
@@ -25,13 +37,22 @@ class Corsen_Context_Security {
 	 * Send security headers on all Corsen Context responses.
 	 */
 	public static function send_security_headers(): void {
-		header( 'X-Content-Type-Options: nosniff' );
-		header( 'X-Frame-Options: DENY' );
-		header( 'X-XSS-Protection: 0' );
-		header( 'Referrer-Policy: strict-origin-when-cross-origin' );
-		header( "Content-Security-Policy: default-src 'none'" );
-		header( 'Cache-Control: no-store' );
-		header( 'X-Powered-By: Corsen Context / Corsen AI' );
+		foreach ( self::RESPONSE_HEADERS as $name => $value ) {
+			header( $name . ': ' . $value );
+		}
+	}
+
+	/**
+	 * Attach security headers through the WordPress REST response API.
+	 *
+	 * @param \WP_REST_Response $response REST response.
+	 * @return \WP_REST_Response
+	 */
+	public static function add_security_headers( \WP_REST_Response $response ): \WP_REST_Response {
+		foreach ( self::RESPONSE_HEADERS as $name => $value ) {
+			$response->header( $name, $value );
+		}
+		return $response;
 	}
 
 	/**
@@ -50,8 +71,7 @@ class Corsen_Context_Security {
 		$max_per_min = intval( $settings['rate_limit'] ?? 100 );
 
 		$ip     = self::get_client_ip();
-		$bucket = md5( $ip );
-
+		$bucket = hash_hmac( 'sha256', $ip, wp_salt( 'auth' ) );
 		// Atomic path: object-cache INCR (single Redis/Memcached round trip).
 		if ( wp_using_ext_object_cache() ) {
 			$key = 'corsen_rl_' . $bucket;
@@ -72,14 +92,28 @@ class Corsen_Context_Security {
 		$data = get_transient( $key );
 		if ( false === $data || ! is_array( $data ) ) {
 			// First request in this window — set count=1 with 60s TTL.
-			set_transient( $key, array( 'count' => 1, 'start' => time() ), 60 );
+			set_transient(
+				$key,
+				array(
+					'count' => 1,
+					'start' => time(),
+				),
+				60
+			);
 			return true;
 		}
 
 		// Check if window has expired (safety net if transient TTL drifts).
 		if ( ( time() - intval( $data['start'] ) ) >= 60 ) {
 			delete_transient( $key );
-			set_transient( $key, array( 'count' => 1, 'start' => time() ), 60 );
+			set_transient(
+				$key,
+				array(
+					'count' => 1,
+					'start' => time(),
+				),
+				60
+			);
 			return true;
 		}
 
@@ -91,7 +125,14 @@ class Corsen_Context_Security {
 		// We must re-set with remaining TTL, not a fresh 60s.
 		$elapsed   = time() - intval( $data['start'] );
 		$remaining = max( 1, 60 - $elapsed );
-		set_transient( $key, array( 'count' => intval( $data['count'] ) + 1, 'start' => $data['start'] ), $remaining );
+		set_transient(
+			$key,
+			array(
+				'count' => intval( $data['count'] ) + 1,
+				'start' => $data['start'],
+			),
+			$remaining
+		);
 		return true;
 	}
 
@@ -105,6 +146,7 @@ class Corsen_Context_Security {
 
 		foreach ( array( 'corsen_rl_', 'corsen_mcp_' ) as $prefix ) {
 			// 1. Delete timeouts that have expired.
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled cleanup must remove orphaned transients by prefix.
 			$wpdb->query(
 				$wpdb->prepare(
 					"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND option_value < %d",
@@ -122,6 +164,7 @@ class Corsen_Context_Security {
 					'_transient_' . $wpdb->esc_like( $prefix ) . '%'
 				)
 			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		}
 	}
 
@@ -152,6 +195,7 @@ class Corsen_Context_Security {
 	 * @return string
 	 */
 	public static function get_client_ip(): string {
+
 		$remote = isset( $_SERVER['REMOTE_ADDR'] )
 			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
 			: '';
@@ -172,6 +216,126 @@ class Corsen_Context_Security {
 		return '' !== $remote ? $remote : 'unknown';
 	}
 
+	/**
+	 * Whether a response can safely be stored in a shared cache.
+	 *
+	 * WordPress filters, shortcodes, dynamic blocks and membership plugins may
+	 * vary output by the current user or by request cookies. Never let such a
+	 * request populate a cache that can later be served to another visitor.
+	 *
+	 * @return bool True when the current request is anonymous and cookie-free.
+	 */
+	public static function is_shared_cache_safe(): bool {
+
+		if ( function_exists( 'is_user_logged_in' ) && is_user_logged_in() ) {
+			return false;
+		}
+		if ( function_exists( 'has_filter' ) && false !== has_filter( 'corsen_context_can_expose_post' ) ) {
+			return false;
+		}
+
+		return empty( $_COOKIE );
+	}
+
+	/**
+	 * Validate an MCP Origin header against the site's own origin.
+	 *
+	 * Non-browser clients commonly omit Origin and are accepted. Browser
+	 * requests that do provide it must be same-origin unless explicitly added
+	 * through the corsen_context_allowed_origins filter.
+	 *
+	 * @param string $origin Incoming Origin header.
+	 * @return bool True when the origin is allowed.
+	 */
+	public static function validate_origin( string $origin ): bool {
+
+		$origin = trim( $origin );
+		if ( '' === $origin ) {
+			return true;
+		}
+
+		$site_origin = self::url_origin( home_url() );
+		$allowed     = array( $site_origin );
+		/** Filter browser origins allowed to call the MCP endpoint. */
+		$allowed = (array) apply_filters( 'corsen_context_allowed_origins', $allowed );
+		$allowed = array_filter( array_map( array( self::class, 'url_origin' ), $allowed ) );
+
+		return in_array( self::url_origin( $origin ), $allowed, true );
+	}
+
+	/**
+	 * Normalize a path for conservative exclusion comparisons.
+	 *
+	 * @param string $path Path or URL.
+	 * @return string|null Lowercase leading-slash path, or null when ambiguous.
+	 */
+	public static function normalize_path( string $path ): ?string {
+
+		$path = trim( $path );
+		if ( '' === $path || str_contains( $path, "\0" ) ) {
+				return null;
+		}
+
+		$parsed_path = wp_parse_url( $path, PHP_URL_PATH );
+		if ( is_string( $parsed_path ) && '' !== $parsed_path ) {
+			$path = $parsed_path;
+		}
+
+		for ( $i = 0; $i < 3; $i++ ) {
+			$decoded = rawurldecode( $path );
+			if ( $decoded === $path ) {
+				break;
+			}
+			$path = $decoded;
+		}
+		if ( preg_match( '/[\x00-\x1F\x7F?#]/', $path ) ) {
+			return null;
+		}
+
+		$path = str_replace( '\\', '/', $path );
+		$path = preg_replace( '#/+#', '/', $path ) ?? $path;
+		$path = '/' . ltrim( $path, '/' );
+
+		foreach ( explode( '/', $path ) as $segment ) {
+			if ( '.' === $segment || '..' === $segment ) {
+				return null;
+			}
+		}
+
+		$path = untrailingslashit( $path );
+		$path = '' === $path ? '/' : $path;
+
+		return function_exists( 'mb_strtolower' )
+			? mb_strtolower( $path, 'UTF-8' )
+			: strtolower( $path );
+	}
+
+	/**
+	 * Extract a canonical scheme/host/port origin.
+	 *
+	 * @param string $url URL or Origin value.
+	 * @return string Empty when invalid.
+	 */
+	private static function url_origin( string $url ): string {
+
+		$parts = wp_parse_url( trim( $url ) );
+		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+			return '';
+		}
+
+		$scheme = strtolower( (string) $parts['scheme'] );
+		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+			return '';
+		}
+
+		$origin = $scheme . '://' . strtolower( (string) $parts['host'] );
+		$port   = isset( $parts['port'] ) ? intval( $parts['port'] ) : null;
+		if ( null !== $port && ! ( 'http' === $scheme && 80 === $port ) && ! ( 'https' === $scheme && 443 === $port ) ) {
+			$origin .= ':' . intval( $parts['port'] );
+		}
+
+		return $origin;
+	}
 	/**
 	 * Check if URL is private/internal (SSRF protection).
 	 *
@@ -213,9 +377,9 @@ class Corsen_Context_Security {
 	 */
 	private static function ip_in_range( string $ip, string $range ): bool {
 		list( $subnet, $bits ) = explode( '/', $range );
-		$ip_long     = ip2long( $ip );
-		$subnet_long = ip2long( $subnet );
-		$mask        = -1 << ( 32 - intval( $bits ) );
+		$ip_long               = ip2long( $ip );
+		$subnet_long           = ip2long( $subnet );
+		$mask                  = -1 << ( 32 - intval( $bits ) );
 
 		return ( $ip_long & $mask ) === ( $subnet_long & $mask );
 	}
