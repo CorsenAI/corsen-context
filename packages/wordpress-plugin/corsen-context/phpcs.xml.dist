@@ -6,6 +6,7 @@
 
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
 
 	<arg name="extensions" value="php"/>
 	<arg name="colors"/>
@@ -14,6 +15,9 @@
 	<!-- WordPress coding standards, minus a few noise rules. -->
 	<rule ref="WordPress">
 		<exclude name="WordPress.Files.FileName"/>
+		<exclude name="Squiz.Commenting.ClassComment"/>
+		<exclude name="Squiz.Commenting.FunctionComment"/>
+		<exclude name="Squiz.Commenting.VariableComment"/>
 	</rule>
 
 	<config name="minimum_supported_wp_version" value="6.0"/>

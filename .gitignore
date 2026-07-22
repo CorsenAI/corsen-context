@@ -1,4 +1,6 @@
 node_modules/
+packages/wordpress-plugin/corsen-context/vendor/
+packages/wordpress-plugin/corsen-context/.phpunit.result.cache
 dist/
 .astro/
 .vite/
