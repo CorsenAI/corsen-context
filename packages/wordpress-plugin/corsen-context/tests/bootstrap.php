@@ -1,18 +1,5 @@
 <?php
-/** PHPUnit bootstrap for lightweight unit tests and the WordPress test suite. */
-
-$wp_tests_dir = getenv( 'WP_TESTS_DIR' );
-if ( $wp_tests_dir && file_exists( $wp_tests_dir . '/includes/functions.php' ) ) {
-	require_once $wp_tests_dir . '/includes/functions.php';
-	tests_add_filter(
-		'muplugins_loaded',
-		static function (): void {
-			require dirname( __DIR__ ) . '/corsen-context.php';
-		}
-	);
-	require $wp_tests_dir . '/includes/bootstrap.php';
-	return;
-}
+/** PHPUnit bootstrap for lightweight unit tests. */
 
 define( 'ABSPATH', __DIR__ . '/' );
 

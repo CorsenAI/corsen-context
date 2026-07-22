@@ -28,6 +28,6 @@
     "lint:fix": "phpcbf",
     "test": "phpunit",
     "test:unit": "phpunit --exclude-group integration",
-    "test:integration": "phpunit --group integration"
+    "test:integration": "phpunit -c phpunit-integration.xml.dist --group integration"
   }
 }
