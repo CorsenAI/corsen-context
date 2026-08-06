@@ -53,7 +53,7 @@ Corsen Context creates two layers that AI agents can discover and use:
 AI Agent (Claude, ChatGPT, Cursor, Grok)
     │
     ├─── GET /llms.txt              ← Static: instant overview of your site
-    ├─── GET /llms-full.txt         ← Static: full markdown of all pages
+    ├─── GET /llms-full.txt         ← Static: full markdown of all pages (opt-in)
     │
     └─── POST /v1/mcp               ← Dynamic: search, get pages, list content
          (JSON-RPC 2.0, MCP 2025-11-25)
@@ -66,7 +66,7 @@ AI agents find your site through standard channels:
 1. **robots.txt** — `MCP: https://yoursite.com/v1/mcp`
 2. **llms.txt** — Credit line at the bottom includes the MCP endpoint URL
 3. **HTML head** — `<link rel="mcp" href="/v1/mcp" />`
-4. **/.well-known/mcp** — Standard MCP discovery endpoint
+4. **/.well-known/mcp** — Discovery document built by the core `generateWellKnownMcp()` helper (serve it yourself; the WordPress plugin does not expose this route)
 
 ### MCP Tools Available
 
@@ -77,7 +77,7 @@ AI agents find your site through standard channels:
 | `list_content` | Browse content by type (page, post, product) with pagination |
 | `get_sitemap` | Full structured sitemap with URLs, titles, types, last modified dates |
 
-Full **MCP 2025-11-25** compliance: `initialize`, `ping`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`.
+Targets **MCP 2025-11-25**: `initialize`, `ping`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`. The endpoint speaks JSON-RPC 2.0 over POST and returns JSON responses — no SSE streaming transport.
 
 ---
 
@@ -91,10 +91,11 @@ Full **MCP 2025-11-25** compliance: `initialize`, `ping`, `notifications/initial
 
 Your site now has:
 - `/llms.txt` — structured overview of all published content
-- `/llms-full.txt` — full markdown dump
-- `/wp-json/corsen-context/v1/mcp` — full MCP server (4 tools, JSON-RPC 2.0)
+- `/wp-json/corsen-context/v1/mcp` — read-only MCP endpoint (4 tools, JSON-RPC 2.0)
 - Dashboard widget showing AI context status
 - Yoast SEO + Rank Math metadata integration
+
+Optional and off by default: `/llms-full.txt` — a bounded full-content export (item, byte, and regeneration-lock limits). Enable it in **Settings > Corsen Context**.
 
 Zero config. Works out of the box with sensible defaults.
 
@@ -341,7 +342,7 @@ Built-in, not bolt-on:
 - **Structured logging** — Pino-based, JSON output. Security events (rate limit hits, auth failures, DoS rejections) logged with context
 - **Content ACL** — Only published, public content is exposed. Never drafts, trash, or private pages
 - **No redirects** — MCP endpoints never follow redirects (`redirect: 'error'`)
-- **Client IP extraction** — CF-Connecting-IP > X-Real-IP > X-Forwarded-For > socket IP
+- **Client IP extraction** — Socket IP by default; when `trustProxy` is enabled: CF-Connecting-IP > X-Real-IP > X-Forwarded-For
 
 See [SECURITY.md](SECURITY.md) for the full security specification.
 
@@ -361,7 +362,7 @@ See [SECURITY.md](SECURITY.md) for the full security specification.
 
 The CLI's `init` command scaffolds ready-to-edit route files for Next.js, Express, and Astro. Other frameworks use the framework-agnostic core library directly.
 
-Coming soon: dedicated Astro/SvelteKit/Nuxt adapters, Laravel, Django, Shopify.
+Coming soon: dedicated SvelteKit/Nuxt adapters, Laravel, Django, Shopify.
 
 ---
 
