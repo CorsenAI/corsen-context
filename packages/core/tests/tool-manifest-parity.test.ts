@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { MCPServer } from '../src/mcp-server.js';
 import { resolveConfig } from '../src/config.js';
 import type { ContentProvider } from '../src/types.js';
+import { webMCPAnnotationsFor } from '../src/webmcp.js';
 
 /**
  * The tool manifest is the single agent-facing contract. Every runtime
@@ -72,6 +73,14 @@ describe('core runtime matches the tool manifest', () => {
         const actual = implemented.find((t) => t.name === expected.name);
         expect(actual?.inputSchema).toEqual(expected.inputSchema);
       });
+    });
+  }
+});
+
+describe('core WebMCP annotations match the tool manifest', () => {
+  for (const expected of manifest.tools) {
+    it(`${expected.name} carries the manifest annotations`, () => {
+      expect(webMCPAnnotationsFor(expected.name)).toEqual(expected.annotations);
     });
   }
 });
