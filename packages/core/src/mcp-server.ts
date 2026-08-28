@@ -564,7 +564,7 @@ export class MCPServer {
     if (this.config.mcp.tools.includes('get_sitemap')) {
       tools.push({
         name: 'get_sitemap',
-        description: 'Get structured sitemap of the entire site with URLs, titles, types, and dates.',
+        description: 'Get a structured sitemap of public content with URLs, titles, types, and dates.',
         inputSchema: {
           type: 'object',
           properties: {},

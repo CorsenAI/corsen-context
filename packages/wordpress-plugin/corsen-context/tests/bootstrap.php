@@ -70,5 +70,12 @@ class WP_Post {
 	public int $post_author          = 1;
 }
 
+function get_option( string $name, $default = false ) {
+	return $GLOBALS['corsen_test_options'][ $name ] ?? $default;
+}
+
+$GLOBALS['corsen_test_options'] = array();
+
 require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
+require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';

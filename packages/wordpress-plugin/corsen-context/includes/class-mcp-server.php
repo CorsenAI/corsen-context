@@ -767,13 +767,13 @@ class Corsen_Context_MCP_Server {
 			),
 			array(
 				'name'        => 'get_page_content',
-				'description' => 'Get full page content as clean markdown with metadata.',
+				'description' => 'Get full page content as clean markdown with metadata (title, description, dates).',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
 						'uri' => array(
 							'type'        => 'string',
-							'description' => 'Page URL',
+							'description' => 'Page URL or resource URI',
 						),
 					),
 					'required'   => array( 'uri' ),
@@ -802,7 +802,7 @@ class Corsen_Context_MCP_Server {
 			),
 			array(
 				'name'        => 'get_sitemap',
-				'description' => 'Get a bounded sitemap of selected public content.',
+				'description' => 'Get a structured sitemap of public content with URLs, titles, types, and dates.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => new \stdClass(),
