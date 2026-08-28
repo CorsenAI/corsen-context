@@ -40,9 +40,7 @@ final class ToolManifestParityTest extends TestCase {
 	/** @return array<int,array<string,mixed>> */
 	private function implemented_tools(): array {
 		$server = new Corsen_Context_MCP_Server();
-		$method = new ReflectionMethod( $server, 'get_tool_definitions' );
-		$method->setAccessible( true );
-		return $this->normalize( $method->invoke( $server ) );
+		return $this->normalize( $server->get_tool_definitions() );
 	}
 
 	public function test_manifest_declares_supported_version(): void {
@@ -89,5 +87,16 @@ final class ToolManifestParityTest extends TestCase {
 
 		$this->assertSame( array( 'search_site' ), $names );
 		$this->assertEmpty( array_diff( $names, $manifest ) );
+	}
+
+	/** The plugin annotations must match the manifest, tool for tool. */
+	public function test_plugin_annotations_match_the_manifest(): void {
+		foreach ( self::$manifest['tools'] as $expected ) {
+			$this->assertSame(
+				$expected['annotations'],
+				Corsen_Context_WebMCP::annotations_for( $expected['name'] ),
+				"Annotations for '{$expected['name']}' drifted from the manifest."
+			);
+		}
 	}
 }

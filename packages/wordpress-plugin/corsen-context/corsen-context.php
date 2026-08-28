@@ -28,6 +28,7 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-security.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-content-converter.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-llms-generator.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-mcp-server.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
 
 /**
@@ -94,6 +95,9 @@ final class Corsen_Context {
 
 		// Optional <link rel="mcp"> in head.
 		add_action( 'wp_head', array( $this, 'add_mcp_link_tag' ) );
+
+		// Optional WebMCP bridge for agents running inside the page.
+		add_action( 'wp_head', array( new Corsen_Context_WebMCP(), 'render' ), 20 );
 		add_filter( 'robots_txt', array( $this, 'add_robots_discovery' ), 10, 2 );
 		// Scheduled cron tasks.
 		add_action( 'corsen_context_hourly_cleanup', array( 'Corsen_Context_Security', 'cleanup_rate_limits' ) );

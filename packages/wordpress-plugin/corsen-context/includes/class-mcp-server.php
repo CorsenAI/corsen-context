@@ -743,7 +743,7 @@ class Corsen_Context_MCP_Server {
 
 	// --- Tool Definitions ---
 
-	private function get_tool_definitions(): array {
+	public function get_tool_definitions(): array {
 
 		$enabled = $this->get_enabled_tools();
 		$defs    = array(

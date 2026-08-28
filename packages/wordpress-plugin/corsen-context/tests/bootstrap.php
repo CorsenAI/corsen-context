@@ -76,6 +76,11 @@ function get_option( string $name, $default = false ) {
 
 $GLOBALS['corsen_test_options'] = array();
 
+function wp_json_encode( $data, int $options = 0, int $depth = 512 ) {
+	return json_encode( $data, $options, $depth );
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
+require_once dirname( __DIR__ ) . '/includes/class-webmcp.php';
