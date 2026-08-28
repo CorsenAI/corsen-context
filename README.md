@@ -334,7 +334,7 @@ const server = cc.createMCPServer({ rateLimitStore, logger });
 
 Built-in, not bolt-on:
 
-- **SSRF protection (DNS-aware)** — Resolves DNS and verifies every resolved IP is public before fetching (fail-closed). Blocks all private/internal IPs (IPv4 + IPv6, including IPv4-mapped/embedded forms + carrier-grade NAT). When `undici` is installed it also pins the connection to the vetted IP at the socket level (keeping the hostname for TLS), fully defeating DNS rebinding
+- **SSRF protection (DNS-aware)** — Resolves DNS and verifies every resolved IP is public before fetching (fail-closed). Blocks all private/internal IPs (IPv4 + IPv6, including IPv4-mapped/embedded forms + carrier-grade NAT). When `undici` is installed it also pins the connection to the vetted IP at the socket level (keeping the hostname for TLS), closing the DNS rebinding window
 - **Rate limiting** — Sliding window, 100 req/min default, burst protection (10/sec). Keyed on the socket IP by default; forwarding headers (`X-Forwarded-For`) are only trusted when `security.trustProxy` is enabled. Pluggable store: in-memory (dev) or **Redis** (production, distributed)
 - **API key auth** — Timing-safe comparison + optional **ApiKeyManager** with SHA-256 hashed keys, scopes, daily quotas, expiry, and revocation
 - **Input validation** — Every parameter validated with Zod. Body size limit (100 KB), JSON depth limit (10), request timeout (8s)
@@ -373,7 +373,7 @@ corsen-context/
 ├── packages/
 │   ├── core/                 # @corsenai/corsen-context — TypeScript library
 │   │   ├── src/
-│   │   │   ├── mcp-server.ts     # Full MCP JSON-RPC 2.0 server
+│   │   │   ├── mcp-server.ts     # MCP JSON-RPC 2.0 server
 │   │   │   ├── llms-txt.ts       # llms.txt + llms-full.txt generators
 │   │   │   ├── sitemap.ts        # Sitemap XML parser + discovery
 │   │   │   ├── converter.ts      # HTML → clean Markdown
