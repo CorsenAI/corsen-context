@@ -9,6 +9,7 @@
 [![CI](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml/badge.svg)](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-4ade80)](https://modelcontextprotocol.io)
+[![WebMCP](https://img.shields.io/badge/WebMCP-origin_trial-8b5cf6)](https://webmachinelearning.github.io/webmcp/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org/)
 
 AI agents can't read your website. HTML is noise. Corsen Context fixes that.
@@ -50,13 +51,18 @@ They need this:
 Corsen Context creates two layers that AI agents can discover and use:
 
 ```
+One tool definition  →  three surfaces
+
 AI Agent (Claude, ChatGPT, Cursor, Grok)
     │
     ├─── GET /llms.txt              ← Static: instant overview of your site
     ├─── GET /llms-full.txt         ← Static: full markdown of all pages (opt-in)
     │
-    └─── POST /v1/mcp               ← Dynamic: search, get pages, list content
-         (JSON-RPC 2.0, MCP 2025-11-25)
+    ├─── POST /v1/mcp               ← Dynamic: for agents outside the browser
+    │        (JSON-RPC 2.0, MCP 2025-11-25)
+    │
+    └─── document.modelContext      ← WebMCP: for an agent running inside the page
+             (same tools, registered in-browser)
 ```
 
 ### Discovery Flow
@@ -79,6 +85,16 @@ AI agents find your site through standard channels:
 
 Targets **MCP 2025-11-25**: `initialize`, `ping`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`. The endpoint speaks JSON-RPC 2.0 over POST and returns JSON responses — no SSE streaming transport.
 
+### WebMCP (agents inside the browser)
+
+The same four tools are also exposed through [WebMCP](https://webmachinelearning.github.io/webmcp/) — the browser API (`document.modelContext`, a W3C Community Group draft, in Chrome origin trial) that lets a page register tools with an agent running inside it. The bridge never reimplements a tool: it registers the definitions and forwards every call to `/v1/mcp`, so there is **one implementation behind every surface**, checked by a cross-runtime parity test against [`tools.manifest.json`](tools.manifest.json).
+
+Because a page's content comes from authors, comments and imports, every tool is annotated `readOnlyHint` and `untrustedContentHint`: a consuming agent is told to treat tool output as data, not instructions. The bridge is same-origin only, refuses to register inside a frame, and sends no credentials.
+
+- **WordPress** — enable *WebMCP* in Settings; paste a Chrome origin-trial token if you serve one. No JavaScript to write.
+- **Next.js** — mount `createWebMCPScriptHandler` on a route and load it with `<script src="/webmcp.js" defer>` (see `examples/nextjs-app-router`).
+- **Any site** — `generateWebMCPScript()` from the core returns the bridge as a string.
+
 ---
 
 ## Quick Start
@@ -92,6 +108,7 @@ Targets **MCP 2025-11-25**: `initialize`, `ping`, `notifications/initialized`, `
 Your site now has:
 - `/llms.txt` — structured overview of all published content
 - `/wp-json/corsen-context/v1/mcp` — read-only MCP endpoint (4 tools, JSON-RPC 2.0)
+- **WebMCP** — the same tools in the browser via `document.modelContext` (opt-in, Settings > Corsen Context)
 - Dashboard widget showing AI context status
 - Yoast SEO + Rank Math metadata integration
 
