@@ -105,7 +105,7 @@ What the new work adds:
 | Next.js | `createWebMCPScriptHandler` route handler + tests |
 | Astro | `createWebMCPScriptHandler` route handler + tests |
 | CLI | `doctor` now checks the homepage for a WebMCP bridge |
-| Example | Next.js demo serving MCP + WebMCP + llms.txt from one definition |
+| Example | Next.js demo serving MCP + WebMCP + llms.txt from one definition; Express demo serves the bridge at `/webmcp.js` |
 | Diagnostics | `examples/webmcp-diagnostic.html` |
 | Docs | README WebMCP surface; corrected earlier MCP compliance wording |
 

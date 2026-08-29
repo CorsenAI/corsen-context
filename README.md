@@ -94,6 +94,7 @@ Because a page's content comes from authors, comments and imports, every tool is
 - **WordPress** — enable *WebMCP* in Settings; paste a Chrome origin-trial token if you serve one. No JavaScript to write.
 - **Next.js** — mount `createWebMCPScriptHandler` on a route and load it with `<script src="/webmcp.js" defer>` (see `examples/nextjs-app-router`).
 - **Astro** — same handler, mounted as `src/pages/webmcp.js.ts`.
+- **Express** — serve `generateWebMCPScript()` from a `/webmcp.js` route (see `examples/express-basic`).
 - **Any site** — `generateWebMCPScript()` from the core returns the bridge as a string.
 
 ---
