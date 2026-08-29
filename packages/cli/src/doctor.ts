@@ -152,6 +152,26 @@ export async function doctor(args: string[]) {
     });
   }
 
+  // Check 7: WebMCP bridge on the homepage
+  try {
+    const res = await fetch(base, { signal: AbortSignal.timeout(10000) });
+    const html = res.ok ? await res.text() : '';
+    const hasBridge = html.includes('modelContext') || html.includes('/webmcp.js');
+    results.push({
+      name: 'WebMCP',
+      status: hasBridge ? 'pass' : 'warn',
+      message: hasBridge
+        ? 'WebMCP bridge found on the homepage (in-page agents supported)'
+        : 'No WebMCP bridge detected on the homepage (in-page agents cannot see tools)',
+    });
+  } catch {
+    results.push({
+      name: 'WebMCP',
+      status: 'warn',
+      message: 'Could not check the homepage for a WebMCP bridge',
+    });
+  }
+
   // Print results
   const icons = { pass: '\u2705', fail: '\u274C', warn: '\u26A0\uFE0F' };
   for (const r of results) {
