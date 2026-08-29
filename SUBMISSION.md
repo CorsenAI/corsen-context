@@ -60,6 +60,17 @@ that run inside the user's authenticated session. Corsen Context answers each:
 Every one of these is covered by an automated test, on both the TypeScript and
 the WordPress runtime.
 
+## The site owner stays in control
+
+A person, not just an agent, is in the loop. The WordPress admin has an
+**Agent Access** panel that states plainly what agents can see and do, and
+per-tool checkboxes to choose exactly which of the four tools are exposed —
+unchecking one removes it from every surface at once (MCP, WebMCP, sitemap),
+proven end to end by a test. Content visibility (post types, hidden paths) is
+the owner's to set, and the panel makes the read-only guarantee explicit:
+agents read published content and can never create, edit, delete, or click
+anything.
+
 ## How the implementation stays honest
 
 The four tools are declared once, in a language-neutral
