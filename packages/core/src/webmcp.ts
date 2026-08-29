@@ -23,10 +23,14 @@ export interface WebMCPTool extends MCPToolDefinition {
 }
 
 export interface WebMCPScriptConfig {
-  /** MCP endpoint the browser bridge calls. Defaults to `/v1/mcp`. */
+  /**
+   * MCP endpoint the browser bridge calls. Defaults to `/v1/mcp`.
+   *
+   * The bridge is deliberately keyless: any credential embedded in a public
+   * page's script is disclosed to every visitor, so a key-protected endpoint
+   * should not enable the WebMCP bridge at all.
+   */
   mcpEndpoint?: string;
-  /** Optional API key header name, when the endpoint requires one. */
-  apiKeyHeader?: string;
 }
 
 /**
