@@ -103,6 +103,8 @@ What the new work adds:
 | Core (TS) | `generateWebMCPScript`, tool annotations, bridge security tests |
 | WordPress | WebMCP emitter, admin toggle, origin-trial token support, tests |
 | Next.js | `createWebMCPScriptHandler` route handler + tests |
+| Astro | `createWebMCPScriptHandler` route handler + tests |
+| CLI | `doctor` now checks the homepage for a WebMCP bridge |
 | Example | Next.js demo serving MCP + WebMCP + llms.txt from one definition |
 | Diagnostics | `examples/webmcp-diagnostic.html` |
 | Docs | README WebMCP surface; corrected earlier MCP compliance wording |
