@@ -76,6 +76,14 @@ function get_option( string $name, $default = false ) {
 
 $GLOBALS['corsen_test_options'] = array();
 
+function esc_attr( $text ): string {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+
+function esc_html( $text ): string {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+
 function wp_json_encode( $data, int $options = 0, int $depth = 512 ) {
 	return json_encode( $data, $options, $depth );
 }

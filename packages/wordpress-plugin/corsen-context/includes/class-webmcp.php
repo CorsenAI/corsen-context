@@ -174,12 +174,31 @@ JS;
 	}
 
 	/**
+	 * Chrome exposes WebMCP during the origin trial only when the page
+	 * serves a per-origin token; agents with built-in WebMCP support
+	 * need none. Sanitised to token charset on read as well as on save.
+	 */
+	public static function origin_trial_token(): string {
+		$settings = get_option( 'corsen_context_settings', array() );
+		$token    = (string) ( $settings['webmcp_origin_trial_token'] ?? '' );
+		return substr( (string) preg_replace( '/[^A-Za-z0-9+\/=]/', '', $token ), 0, 4096 );
+	}
+
+	/**
 	 * Print the bridge in wp_head.
 	 */
 	public function render(): void {
 
 		if ( ! self::is_enabled() ) {
 			return;
+		}
+
+		$token = self::origin_trial_token();
+		if ( '' !== $token ) {
+			printf(
+				'<meta http-equiv="origin-trial" content="%s">' . "\n",
+				esc_attr( $token )
+			);
 		}
 
 		$server = new Corsen_Context_MCP_Server();

@@ -96,6 +96,28 @@ class Corsen_Context_Admin {
 				'label' => 'Generate the bounded full-content export (disabled by default)',
 			)
 		);
+		add_settings_field(
+			'webmcp_enabled',
+			'Enable WebMCP',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field' => 'webmcp_enabled',
+				'label' => 'Register the MCP tools with AI agents running inside the page (document.modelContext)',
+			)
+		);
+		add_settings_field(
+			'webmcp_origin_trial_token',
+			'Chrome Origin Trial Token',
+			array( $this, 'render_text' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field'       => 'webmcp_origin_trial_token',
+				'description' => 'Optional. Chrome only exposes WebMCP during the origin trial when the page serves this token; agents with built-in WebMCP support need none. Register your origin at developer.chrome.com/origintrials.',
+			)
+		);
 		add_settings_section(
 			'corsen_context_content',
 			'Content Settings',
@@ -200,12 +222,14 @@ class Corsen_Context_Admin {
 		$input     = is_array( $input ) ? $input : array();
 		$sanitized = array();
 
-		$sanitized['enabled']           = ! empty( $input['enabled'] );
-		$sanitized['mcp_enabled']       = ! empty( $input['mcp_enabled'] );
-		$sanitized['llms_txt_enabled']  = ! empty( $input['llms_txt_enabled'] );
-		$sanitized['llms_full_enabled'] = ! empty( $input['llms_full_enabled'] );
-		$sanitized['credit']            = ! empty( $input['credit'] );
-		$sanitized['include_author']    = ! empty( $input['include_author'] );
+		$sanitized['enabled']                   = ! empty( $input['enabled'] );
+		$sanitized['mcp_enabled']               = ! empty( $input['mcp_enabled'] );
+		$sanitized['llms_txt_enabled']          = ! empty( $input['llms_txt_enabled'] );
+		$sanitized['llms_full_enabled']         = ! empty( $input['llms_full_enabled'] );
+		$sanitized['credit']                    = ! empty( $input['credit'] );
+		$sanitized['include_author']            = ! empty( $input['include_author'] );
+		$sanitized['webmcp_enabled']            = ! empty( $input['webmcp_enabled'] );
+		$sanitized['webmcp_origin_trial_token'] = substr( (string) preg_replace( '/[^A-Za-z0-9+\/=]/', '', (string) ( $input['webmcp_origin_trial_token'] ?? '' ) ), 0, 4096 );
 		// Constrain persisted post types to publicly-registered types so a
 		// crafted POST can't expose a private/internal type via MCP.
 		$public_types            = array_keys( get_post_types( array( 'public' => true ) ) );
@@ -240,6 +264,19 @@ class Corsen_Context_Admin {
 			checked( $checked, true, false ),
 			esc_html( $args['label'] ?? '' )
 		);
+	}
+
+	public function render_text( array $args ): void {
+		$settings = get_option( 'corsen_context_settings', array() );
+		$value    = $settings[ $args['field'] ] ?? '';
+		printf(
+			'<input type="text" name="corsen_context_settings[%s]" value="%s" class="large-text" />',
+			esc_attr( $args['field'] ),
+			esc_attr( $value )
+		);
+		if ( ! empty( $args['description'] ) ) {
+			printf( '<p class="description">%s</p>', esc_html( $args['description'] ) );
+		}
 	}
 
 	public function render_number( array $args ): void {

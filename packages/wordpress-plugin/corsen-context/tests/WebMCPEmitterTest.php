@@ -146,4 +146,32 @@ final class WebMCPEmitterTest extends TestCase {
 
 		$this->assertFalse( Corsen_Context_WebMCP::is_enabled() );
 	}
+
+	public function test_origin_trial_token_is_sanitized_on_read(): void {
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'webmcp_origin_trial_token' => 'Ab1+/="><script>alert(1)</script>',
+		);
+		$this->assertSame( 'Ab1+/=scriptalert1/script', Corsen_Context_WebMCP::origin_trial_token() );
+	}
+
+	public function test_renders_origin_trial_meta_and_bridge_when_enabled(): void {
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'enabled'                   => true,
+			'mcp_enabled'               => true,
+			'webmcp_enabled'            => true,
+			'webmcp_origin_trial_token' => 'TESTTOKEN123=',
+		);
+		ob_start();
+		( new Corsen_Context_WebMCP() )->render();
+		$out = (string) ob_get_clean();
+		$this->assertStringContainsString( '<meta http-equiv="origin-trial" content="TESTTOKEN123=">', $out );
+		$this->assertStringContainsString( '<script>', $out );
+		$this->assertStringContainsString( 'mc.registerTool(', $out );
+	}
+
+	public function test_renders_nothing_at_all_when_disabled(): void {
+		ob_start();
+		( new Corsen_Context_WebMCP() )->render();
+		$this->assertSame( '', (string) ob_get_clean() );
+	}
 }
