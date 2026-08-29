@@ -87,6 +87,8 @@ class Corsen_Context_WebMCP {
 	 *   frame registering the set a second time.
 	 * - No credentials are sent, so the bridge cannot act with the visitor's
 	 *   logged-in session.
+	 * - Every forwarded call carries the MCP-Protocol-Version header, which
+	 *   the endpoint requires on every request after initialize.
 	 * - Definitions are encoded with JSON_HEX_TAG, so a hostile post title
 	 *   cannot close the script block and become markup.
 	 *
@@ -98,8 +100,9 @@ class Corsen_Context_WebMCP {
 
 		$tools_json    = wp_json_encode( array_values( $tools ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES );
 		$endpoint_json = wp_json_encode( $endpoint, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES );
+		$protocol_json = wp_json_encode( Corsen_Context_MCP_Server::protocol_version(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES );
 
-		if ( false === $tools_json || false === $endpoint_json ) {
+		if ( false === $tools_json || false === $endpoint_json || false === $protocol_json ) {
 			return '';
 		}
 
@@ -107,6 +110,7 @@ class Corsen_Context_WebMCP {
 (function () {
   var tools = {$tools_json};
   var endpoint = {$endpoint_json};
+  var protocolVersion = {$protocol_json};
 
   if (window.top !== window.self) return;
 
@@ -119,7 +123,12 @@ class Corsen_Context_WebMCP {
     return fetch(endpoint, {
       method: 'POST',
       credentials: 'omit',
-      headers: { 'Content-Type': 'application/json' },
+      // The endpoint rejects version-less calls: MCP requires the negotiated
+      // protocol version header on every request after initialize.
+      headers: {
+        'Content-Type': 'application/json',
+        'MCP-Protocol-Version': protocolVersion
+      },
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: Date.now(),

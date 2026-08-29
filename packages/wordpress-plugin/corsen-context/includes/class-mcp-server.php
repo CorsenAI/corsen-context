@@ -19,6 +19,16 @@ class Corsen_Context_MCP_Server {
 	private const RESOURCES_PAGE_SIZE = 100;
 
 	/**
+	 * The MCP protocol version this server implements.
+	 *
+	 * The WebMCP bridge reads it here so the header it sends can never drift
+	 * from what the endpoint enforces.
+	 */
+	public static function protocol_version(): string {
+		return self::PROTOCOL_VERSION;
+	}
+
+	/**
 	 * Handle GET for Streamable HTTP clients when server-side SSE is unavailable.
 	 *
 	 * @param \WP_REST_Request $request REST request.

@@ -75,6 +75,12 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringContainsString( 'https://example.com/wp-json/corsen-context/v1/mcp', $script );
 	}
 
+	public function test_bridge_sends_the_protocol_version_header_the_endpoint_requires(): void {
+		$script = $this->script();
+		$this->assertStringContainsString( "'MCP-Protocol-Version': protocolVersion", $script );
+		$this->assertStringContainsString( '"' . Corsen_Context_MCP_Server::protocol_version() . '"', $script );
+	}
+
 	public function test_carries_annotations_to_the_agent(): void {
 		$script = $this->script();
 		$this->assertStringContainsString( '"untrustedContentHint":true', $script );

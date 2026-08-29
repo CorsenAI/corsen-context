@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MCPServer } from '../src/mcp-server.js';
 import { resolveConfig } from '../src/config.js';
+import { MCP_PROTOCOL_VERSION } from '../src/version.js';
 import {
   generateWebMCPScript,
   toWebMCPTools,
@@ -69,6 +70,11 @@ describe('generateWebMCPScript', () => {
     expect(script).toContain("'tools/call'");
     expect(script).toContain('"/v1/mcp"');
     expect(script).not.toContain('credentials: \'include\'');
+  });
+
+  it('sends the MCP-Protocol-Version header the endpoint requires', () => {
+    expect(script).toContain("'MCP-Protocol-Version': protocolVersion");
+    expect(script).toContain(`"${MCP_PROTOCOL_VERSION}"`);
   });
 
   it('honours a custom endpoint', () => {

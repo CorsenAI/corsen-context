@@ -1,4 +1,5 @@
 import type { MCPToolDefinition } from './types.js';
+import { MCP_PROTOCOL_VERSION } from './version.js';
 
 /**
  * WebMCP exposes the same tools to an agent running inside the page, through
@@ -77,6 +78,8 @@ function embedJson(value: unknown): string {
  *   frame from registering the set a second time.
  * - The bridge only forwards calls to this site's own MCP endpoint; the page
  *   cannot introduce a tool the server does not already serve.
+ * - Every forwarded call carries the MCP-Protocol-Version header, which the
+ *   endpoint requires on every request after initialize.
  */
 export function generateWebMCPScript(
   tools: WebMCPTool[],
@@ -87,6 +90,7 @@ export function generateWebMCPScript(
   return `(function () {
   var tools = ${embedJson(tools)};
   var endpoint = ${embedJson(endpoint)};
+  var protocolVersion = ${embedJson(MCP_PROTOCOL_VERSION)};
 
   if (window.top !== window.self) return;
 
@@ -99,7 +103,12 @@ export function generateWebMCPScript(
     return fetch(endpoint, {
       method: 'POST',
       credentials: 'omit',
-      headers: { 'Content-Type': 'application/json' },
+      // The endpoint rejects version-less calls: MCP requires the negotiated
+      // protocol version header on every request after initialize.
+      headers: {
+        'Content-Type': 'application/json',
+        'MCP-Protocol-Version': protocolVersion
+      },
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: Date.now(),

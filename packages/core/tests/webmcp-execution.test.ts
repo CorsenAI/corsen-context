@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { runInNewContext } from 'node:vm';
 import { MCPServer } from '../src/mcp-server.js';
 import { resolveConfig } from '../src/config.js';
+import { MCP_PROTOCOL_VERSION } from '../src/version.js';
 import { generateWebMCPScript, toWebMCPTools } from '../src/webmcp.js';
 import type { ContentProvider } from '../src/types.js';
 
@@ -34,7 +35,7 @@ interface RegisteredTool {
 
 interface FetchCall {
   url: string;
-  init: { credentials?: string; body?: string };
+  init: { credentials?: string; headers?: Record<string, string>; body?: string };
 }
 
 function buildScript(): string {
@@ -141,6 +142,10 @@ describe('the generated bridge, executed', () => {
     expect(fetchCalls).toHaveLength(1);
     expect(fetchCalls[0].url).toBe('/v1/mcp');
     expect(fetchCalls[0].init.credentials).toBe('omit');
+    expect(fetchCalls[0].init.headers).toMatchObject({
+      'Content-Type': 'application/json',
+      'MCP-Protocol-Version': MCP_PROTOCOL_VERSION,
+    });
     const body = JSON.parse(String(fetchCalls[0].init.body));
     expect(body.method).toBe('tools/call');
     expect(body.params).toEqual({ name: 'search_site', arguments: { query: 'hello' } });
