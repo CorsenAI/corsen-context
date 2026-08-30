@@ -1,0 +1,48 @@
+---
+import { demoPages } from '../lib/provider';
+
+/**
+ * Renders the provider's markdown as real pages, so every URL the tools
+ * advertise also answers a human visitor. Replace with content collections.
+ */
+const path = Astro.url.pathname;
+const page = demoPages.find((p) => p.path === path);
+
+if (!page) {
+  Astro.response.status = 404;
+}
+
+function renderMarkdown(md: string): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const blocks: string[] = [];
+  let inCode = false;
+  for (const line of md.split('\n')) {
+    if (line.startsWith('```')) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) blocks.push(`<pre><code>${esc(line)}</code></pre>`);
+    else if (line.startsWith('## ')) blocks.push(`<h2>${esc(line.slice(3))}</h2>`);
+    else if (line.startsWith('# ')) blocks.push(`<h1>${esc(line.slice(2))}</h1>`);
+    else if (line.trim()) blocks.push(`<p>${esc(line)}</p>`);
+  }
+  return blocks.join('\n');
+}
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{page ? `${page.title} — Astro demo` : 'Not found'}</title>
+    <script src="/webmcp.js" defer></script>
+  </head>
+  <body>
+    <main style="max-width:680px;margin:0 auto;padding:2rem;font-family:system-ui;line-height:1.5">
+      {page ? <div set:html={renderMarkdown(page.markdown)} /> : <h1>Page not found</h1>}
+      <p style="margin-top:2rem;color:#888;font-size:14px">
+        <a href="/">Home</a> — Powered by Corsen Context
+      </p>
+    </main>
+  </body>
+</html>

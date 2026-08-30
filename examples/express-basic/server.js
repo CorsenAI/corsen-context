@@ -1,6 +1,8 @@
 import express from 'express';
 import { CorsenContext, generateWebMCPScript, toWebMCPTools } from '@corsenai/corsen-context';
 
+const SITE_URL = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+
 const app = express();
 app.use(express.json());
 
@@ -8,10 +10,10 @@ app.use(express.json());
 const provider = {
   async getPages() {
     return [
-      { url: 'http://localhost:3000/', title: 'Home', description: 'Welcome', type: 'page' },
-      { url: 'http://localhost:3000/about', title: 'About', description: 'About us', type: 'page' },
+      { url: `${SITE_URL}/`, title: 'Home', description: 'Welcome', type: 'page' },
+      { url: `${SITE_URL}/about`, title: 'About', description: 'About us', type: 'page' },
       {
-        url: 'http://localhost:3000/blog/hello',
+        url: `${SITE_URL}/blog/hello`,
         title: 'Hello World',
         description: 'Our first post',
         type: 'post',
@@ -22,15 +24,15 @@ const provider = {
 
   async getPageContent(url) {
     const pages = {
-      'http://localhost:3000/': {
+      [`${SITE_URL}/`]: {
         title: 'Home',
         markdown: '# Welcome\n\nThis is a demo Express server with Corsen Context.',
       },
-      'http://localhost:3000/about': {
+      [`${SITE_URL}/about`]: {
         title: 'About',
         markdown: '# About Us\n\nWe make websites AI-native.',
       },
-      'http://localhost:3000/blog/hello': {
+      [`${SITE_URL}/blog/hello`]: {
         title: 'Hello World',
         markdown: '# Hello World\n\nThis is our first blog post.\n\n## What is Corsen Context?\n\nA Universal AI Context Layer.',
       },
@@ -67,7 +69,7 @@ const provider = {
   },
 };
 
-const cc = new CorsenContext({ siteUrl: 'http://localhost:3000' }, provider);
+const cc = new CorsenContext({ siteUrl: SITE_URL }, provider);
 
 // Serve /llms.txt
 app.get('/llms.txt', async (_req, res) => {
@@ -148,6 +150,30 @@ app.get('/', (_req, res) => {
       <li><code>GET /webmcp.js</code> — WebMCP bridge for in-page agents</li>
     </ul>
     <p style="color:#888">Powered by Corsen Context — Corsen AI</p>
+  `);
+});
+
+// Content pages: render the provider's markdown as real HTML so the URLs the
+// tools advertise never 404 when a human (or a jury) clicks them.
+app.use(async (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  const page = await provider.getPageContent(`${SITE_URL}${req.path}`);
+  if (!page) return next();
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = page.markdown
+    .split('\n')
+    .map((line) => {
+      if (line.startsWith('## ')) return `<h2>${esc(line.slice(3))}</h2>`;
+      if (line.startsWith('# ')) return `<h1>${esc(line.slice(2))}</h1>`;
+      return line.trim() ? `<p>${esc(line)}</p>` : '';
+    })
+    .join('\n');
+  res.type('html').send(`
+    <script src="/webmcp.js" defer></script>
+    <main style="max-width:680px;margin:0 auto;padding:2rem;font-family:system-ui;line-height:1.5">
+      ${html}
+      <p style="color:#888"><a href="/">Home</a> — Powered by Corsen Context</p>
+    </main>
   `);
 });
 
