@@ -98,8 +98,9 @@ class Corsen_Context_Content_Converter {
 			'/<a\b[^>]*\bhref=["\']([^"\']*)["\'][^>]*>(.*?)<\/a>/si',
 			static function ( array $matches ): string {
 
-				$url = self::sanitize_markdown_url( $matches[1], false );
-				return '[' . $matches[2] . '](' . $url . ')';
+				$url   = self::sanitize_markdown_url( $matches[1], false );
+				$label = self::escape_markdown_inline( $matches[2] );
+				return '[' . $label . '](' . $url . ')';
 			},
 			$html
 		) ?? $html;
@@ -122,7 +123,7 @@ class Corsen_Context_Content_Converter {
 			$html
 		) ?? $html;
 		// Convert lists.
-		$html = preg_replace( '/<li[^>]*>(.*?)<\/li>/si', '- $1', $html ) ?? $html;
+		$html = preg_replace( '/<li[^>]*>(.*?)<\/li>/si', "\n- $1", $html ) ?? $html;
 		$html = preg_replace( '/<\/?(?:ul|ol)[^>]*>/si', "\n", $html ) ?? $html;
 
 		// Convert blockquotes.
@@ -143,11 +144,95 @@ class Corsen_Context_Content_Converter {
 
 		// Keep residual angle brackets as text, never downstream raw HTML.
 		$html = str_replace( array( '<', '>' ), array( '&lt;', '&gt;' ), $html );
+
+		// Neutralize dangerous raw Markdown destinations that were present as
+		// text rather than as an HTML href/src. The pattern supports one balanced
+		// parenthesis level (for example javascript:alert(1)).
+		$html = preg_replace(
+			'~(?<!\\\\)\]\(\s*(?:javascript|vbscript|file|data)(?::|%3a)(?:[^()\r\n]|\([^()\r\n]*\))*\)~i',
+			'](#)',
+			$html
+		) ?? $html;
 		// Clean up whitespace.
 		$html = preg_replace( '/\n{3,}/', "\n\n", $html ) ?? $html;
 		$html = trim( $html );
 
 		return $html;
+	}
+
+	/**
+	 * Convert stored content to plain text without exposing shortcode markup.
+	 *
+	 * The explicit legacy cleanup protects excerpts even before WordPress has
+	 * registered the compatibility shim for forms created by older versions.
+	 *
+	 * @param string $content Stored post content or excerpt.
+	 * @return string Plain text.
+	 */
+	public static function content_to_plain_text( string $content ): string {
+		$content = preg_replace( '/\[\/?corsen_agent_form\b[^\]]*\]/i', '', $content ) ?? $content;
+		return wp_strip_all_tags( strip_shortcodes( $content ) );
+	}
+
+	/**
+	 * Count Unicode code points without requiring the mbstring extension.
+	 *
+	 * @param string $text UTF-8 text.
+	 * @return int Code-point count, or zero for invalid UTF-8.
+	 */
+	public static function utf8_length( string $text ): int {
+		if ( function_exists( 'mb_strlen' ) ) {
+			return mb_strlen( $text, 'UTF-8' );
+		}
+
+		$length = preg_match_all( '/./us', $text );
+		return false === $length ? 0 : $length;
+	}
+
+	/**
+	 * Slice UTF-8 text by Unicode code points without requiring mbstring.
+	 *
+	 * @param string $text   UTF-8 text.
+	 * @param int    $start  Non-negative code-point offset.
+	 * @param int    $length Maximum number of code points.
+	 * @return string A valid UTF-8 slice, or an empty string for invalid input.
+	 */
+	public static function utf8_substr( string $text, int $start, int $length ): string {
+		if ( $start < 0 || $length <= 0 ) {
+			return '';
+		}
+		if ( function_exists( 'mb_substr' ) ) {
+			return mb_substr( $text, $start, $length, 'UTF-8' );
+		}
+
+		$pattern = '/\A.{' . $start . '}(.{0,' . $length . '})/us';
+		return 1 === preg_match( $pattern, $text, $matches ) ? $matches[1] : '';
+	}
+
+	/**
+	 * Find a case-insensitive UTF-8 substring and return its code-point offset.
+	 *
+	 * @param string $text  UTF-8 text to search.
+	 * @param string $query UTF-8 search text.
+	 * @return int|null Code-point offset, or null when not found/invalid.
+	 */
+	public static function utf8_stripos( string $text, string $query ): ?int {
+		if ( '' === $query ) {
+			return 0;
+		}
+		if ( function_exists( 'mb_stripos' ) ) {
+			$position = mb_stripos( $text, $query, 0, 'UTF-8' );
+			return false === $position ? null : $position;
+		}
+
+		$pattern = '/' . preg_quote( $query, '/' ) . '/iu';
+		if ( 1 !== preg_match( $pattern, $text, $matches, PREG_OFFSET_CAPTURE ) ) {
+			return null;
+		}
+
+		$prefix = substr( $text, 0, $matches[0][1] );
+		$offset = preg_match_all( '/./us', $prefix );
+		return false === $offset ? null : $offset;
 	}
 
 	/**
@@ -296,12 +381,12 @@ class Corsen_Context_Content_Converter {
 	 */
 	private static function get_post_description( \WP_Post $post ): string {
 		if ( $post->post_excerpt ) {
-			return wp_strip_all_tags( $post->post_excerpt );
+			return self::content_to_plain_text( $post->post_excerpt );
 		}
 
-		$content = wp_strip_all_tags( $post->post_content );
-		if ( strlen( $content ) > 160 ) {
-			return substr( $content, 0, 157 ) . '...';
+		$content = self::content_to_plain_text( $post->post_content );
+		if ( self::utf8_length( $content ) > 160 ) {
+			return self::utf8_substr( $content, 0, 157 ) . '...';
 		}
 
 		return $content;

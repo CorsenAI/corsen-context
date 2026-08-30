@@ -141,8 +141,7 @@ async function fetchAndParseSitemap(
       if (await isPrivateUrl(u.loc)) continue;
 
       seen.add(u.loc);
-      const priority =
-        typeof u.priority === 'string' ? parseFloat(u.priority) : u.priority;
+      const priority = typeof u.priority === 'string' ? parseFloat(u.priority) : u.priority;
       entries.push({
         url: u.loc,
         lastmod: u.lastmod,

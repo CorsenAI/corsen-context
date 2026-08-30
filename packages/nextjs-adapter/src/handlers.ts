@@ -1,5 +1,6 @@
 import {
   CorsenContext,
+  MCP_PROTOCOL_VERSION,
   MAX_BODY_SIZE,
   SECURITY_HEADERS,
   generateWebMCPScript,
@@ -22,27 +23,30 @@ export interface HandlerOptions {
   logger?: Logger;
 }
 
-const cachedInstances = new WeakMap<ContentProvider, Map<string, CorsenContext>>();
-
-function getInstance(
+function createInstanceFactory(
   config: CorsenContextConfig,
   provider: ContentProvider,
   cache?: CacheDriver,
-): CorsenContext {
-  let providerInstances = cachedInstances.get(provider);
-  if (!providerInstances) {
-    providerInstances = new Map<string, CorsenContext>();
-    cachedInstances.set(provider, providerInstances);
-  }
+): () => CorsenContext {
+  let instance: CorsenContext | undefined;
+  return () => {
+    instance ??= new CorsenContext(config, provider, cache);
+    return instance;
+  };
+}
 
-  const configKey = stableStringify(config);
-  let instance = providerInstances.get(configKey);
-  if (!instance) {
-    instance = new CorsenContext(config, provider, cache);
-    providerInstances.set(configKey, instance);
-  }
+function mcpNotFound(): Response {
+  return new Response(null, { status: 404, headers: { ...SECURITY_HEADERS } });
+}
 
-  return instance;
+function isJsonRpcResponse(body: unknown): boolean {
+  return (
+    !!body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    !('method' in body) &&
+    ('result' in body || 'error' in body)
+  );
 }
 
 /** Bounded body read: aborts once MAX_BODY_SIZE bytes are consumed. */
@@ -76,22 +80,6 @@ async function readBoundedText(request: Request): Promise<string | null> {
   return new TextDecoder().decode(merged);
 }
 
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value) ?? 'undefined';
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
-  }
-
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
-    .join(',')}}`;
-}
-
 function getClientIp(request: Request, trustProxy: boolean): string {
   // Forwarding headers are only trustworthy behind a reverse proxy that sets
   // them. When untrusted, they are attacker-controllable and would let a client
@@ -110,20 +98,11 @@ function getClientIp(request: Request, trustProxy: boolean): string {
     }
   }
 
-  // Web `Request` exposes no socket address, so without a trusted proxy we
-  // derive a stable bucket from the User-Agent. This is coarse but prevents the
-  // limiter from being trivially reset per request. Deployments needing strict
-  // limits should front the app with a proxy and set security.trustProxy.
-  const ua = request.headers.get('user-agent') || '';
-  return `anon-${simpleHash(ua)}`;
-}
-
-function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash).toString(36);
+  // Web `Request` exposes no socket address. A global fallback bucket is
+  // deliberately fail-closed: attacker-controlled headers cannot rotate it.
+  // Production deployments should use a trusted edge proxy and enable
+  // security.trustProxy so legitimate clients receive per-IP buckets.
+  return 'unknown';
 }
 
 function getApiKey(request: Request): string | undefined {
@@ -134,34 +113,53 @@ function getApiKey(request: Request): string | undefined {
   );
 }
 
+function hasUnsupportedJsonEncoding(request: Request): boolean {
+  const contentType = request.headers.get('content-type') || '';
+  const charset = /(?:^|;)\s*charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1];
+  if (charset && !['utf-8', 'utf8'].includes(charset.toLowerCase())) return true;
+
+  const contentEncoding = (request.headers.get('content-encoding') || 'identity').toLowerCase();
+  return contentEncoding !== 'identity';
+}
+
 /**
- * Creates a Next.js App Router handler for the MCP endpoint (POST /v1/mcp).
+ * Creates a Next.js App Router handler for the MCP endpoint (GET/POST/OPTIONS
+ * on /v1/mcp).
  *
- * Uses the core MCPServer class from @corsenai/corsen-context for full
- * MCP 2025-11-25 compliance including:
+ * Implements the stateless JSON response subset of MCP Streamable HTTP
+ * 2025-11-25, including:
  * - initialize, ping, notifications/initialized
  * - tools/list, tools/call
  * - resources/list, resources/read
- * - JSON-RPC 2.0 notification handling (204 No Content when id is absent)
+ * - JSON-RPC 2.0 notification handling (202 Accepted when id is absent)
  * - Rate limiting, CORS, API key auth, security headers
+ *
+ * SSE, resumability, and session identifiers are not implemented. GET on the
+ * MCP endpoint therefore returns 405 with Allow: POST, as the transport
+ * specification permits when the server does not offer an SSE stream.
  *
  * Usage (App Router - app/v1/mcp/route.ts):
  * ```ts
  * import { createMCPHandler } from '@corsenai/corsen-context-nextjs';
  *
- * const { POST, OPTIONS } = createMCPHandler({
+ * const { GET, POST, OPTIONS } = createMCPHandler({
  *   siteUrl: 'https://example.com',
  * }, myProvider);
  *
- * export { POST, OPTIONS };
+ * export { GET, POST, OPTIONS };
  * ```
  */
 export function createMCPHandler(
   config: CorsenContextConfig,
   provider: ContentProvider,
   options?: HandlerOptions,
-): { POST: (request: Request) => Promise<Response>; OPTIONS: (request: Request) => Promise<Response> } {
+): {
+  GET: (request: Request) => Promise<Response>;
+  POST: (request: Request) => Promise<Response>;
+  OPTIONS: (request: Request) => Promise<Response>;
+} {
   const trustProxy = config.security?.trustProxy ?? false;
+  const getInstance = createInstanceFactory(config, provider, options?.cache);
 
   function createServer(instance: CorsenContext) {
     return instance.createMCPServer({
@@ -171,7 +169,10 @@ export function createMCPHandler(
   }
 
   async function POST(request: Request): Promise<Response> {
-    const instance = getInstance(config, provider, options?.cache);
+    const instance = getInstance();
+    if (!instance.getConfig().mcp.enabled) {
+      return mcpNotFound();
+    }
     const server = createServer(instance);
 
     // Security headers
@@ -183,8 +184,55 @@ export function createMCPHandler(
 
     // CORS
     const origin = request.headers.get('origin') || undefined;
+    if (!server.validateRequestOrigin(origin)) {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Invalid Origin' },
+          id: null,
+        }),
+        { status: 403, headers },
+      );
+    }
     for (const [key, value] of Object.entries(server.getCorsHeaders(origin))) {
       headers.set(key, value);
+    }
+
+    const contentType = (request.headers.get('content-type') || '')
+      .split(';', 1)[0]
+      ?.trim()
+      .toLowerCase();
+    if (contentType !== 'application/json') {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Content-Type must be application/json' },
+          id: null,
+        }),
+        { status: 415, headers },
+      );
+    }
+    if (hasUnsupportedJsonEncoding(request)) {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Unsupported JSON encoding' },
+          id: null,
+        }),
+        { status: 415, headers },
+      );
+    }
+
+    const accept = (request.headers.get('accept') || '').toLowerCase();
+    if (accept && !accept.includes('application/json') && !accept.includes('*/*')) {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Client must accept application/json' },
+          id: null,
+        }),
+        { status: 406, headers },
+      );
     }
 
     // Extract client identity
@@ -199,7 +247,11 @@ export function createMCPHandler(
     }
     if (!rateLimit.allowed) {
       return new Response(
-        JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'Rate limit exceeded' }, id: null }),
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Rate limit exceeded' },
+          id: null,
+        }),
         { status: 429, headers },
       );
     }
@@ -207,7 +259,11 @@ export function createMCPHandler(
     // Auth check
     if (!server.checkAuth(apiKey)) {
       return new Response(
-        JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'Unauthorized' }, id: null }),
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Unauthorized' },
+          id: null,
+        }),
         { status: 401, headers },
       );
     }
@@ -217,7 +273,11 @@ export function createMCPHandler(
     const raw = await readBoundedText(request);
     if (raw === null) {
       return new Response(
-        JSON.stringify({ jsonrpc: '2.0', error: { code: -32600, message: 'Request body too large' }, id: null }),
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32600, message: 'Request body too large' },
+          id: null,
+        }),
         { status: 413, headers },
       );
     }
@@ -227,22 +287,58 @@ export function createMCPHandler(
       body = JSON.parse(raw);
     } catch {
       return new Response(
-        JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }),
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32700, message: 'Parse error' },
+          id: null,
+        }),
         { status: 400, headers },
       );
     }
 
+    if (isJsonRpcResponse(body)) {
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32600, message: 'JSON-RPC responses are not accepted' },
+          id: null,
+        }),
+        { status: 400, headers },
+      );
+    }
+
+    const method =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>).method
+        : undefined;
+    if (typeof method === 'string' && method !== 'initialize') {
+      const requestedVersion = request.headers.get('mcp-protocol-version') || '2025-03-26';
+      if (requestedVersion !== MCP_PROTOCOL_VERSION) {
+        return new Response(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: { code: -32000, message: 'Unsupported MCP-Protocol-Version' },
+            id: null,
+          }),
+          { status: 400, headers },
+        );
+      }
+    }
+
     const result = await server.handleRequest(body, clientIp, apiKey, { skipRateLimit: true });
 
-    // null result = JSON-RPC notification (no id) — return 204 No Content
+    // null result = accepted JSON-RPC notification (no id).
     if (result === null) {
-      return new Response(null, { status: 204, headers });
+      return new Response(null, { status: 202, headers });
     }
     return new Response(JSON.stringify(result), { status: 200, headers });
   }
 
   async function OPTIONS(request: Request): Promise<Response> {
-    const instance = getInstance(config, provider, options?.cache);
+    const instance = getInstance();
+    if (!instance.getConfig().mcp.enabled) {
+      return mcpNotFound();
+    }
     const server = createServer(instance);
 
     const headers = new Headers();
@@ -250,6 +346,9 @@ export function createMCPHandler(
       headers.set(key, value);
     }
     const origin = request.headers.get('origin') || undefined;
+    if (!server.validateRequestOrigin(origin)) {
+      return new Response(null, { status: 403, headers });
+    }
     for (const [key, value] of Object.entries(server.getCorsHeaders(origin))) {
       headers.set(key, value);
     }
@@ -257,17 +356,35 @@ export function createMCPHandler(
     return new Response(null, { status: 204, headers });
   }
 
-  return { POST, OPTIONS };
+  async function GET(request: Request): Promise<Response> {
+    const instance = getInstance();
+    if (!instance.getConfig().mcp.enabled) {
+      return mcpNotFound();
+    }
+    const server = createServer(instance);
+    const headers = new Headers(server.getSecurityHeaders());
+    headers.set('Allow', 'POST');
+    const origin = request.headers.get('origin') || undefined;
+    if (!server.validateRequestOrigin(origin)) {
+      return new Response(null, { status: 403, headers });
+    }
+    return new Response(null, { status: 405, headers });
+  }
+
+  return { GET, POST, OPTIONS };
 }
 
 /**
- * Creates a SSE handler for MCP streaming (GET /v1/mcp/sse).
+ * Creates the legacy endpoint-discovery event stream used by pre-Streamable
+ * HTTP integrations. It is not an MCP transport: it lives on a separate URL,
+ * emits no JSON-RPC messages, and must not be mounted as GET on the MCP
+ * endpoint. New integrations should use createMCPHandler, whose same-endpoint
+ * GET returns 405 until Streamable HTTP SSE is implemented.
  *
- * This is a stub for future SSE transport support.
- * Currently returns a proper SSE connection that sends the MCP endpoint URL
- * so clients can discover the POST endpoint for JSON-RPC calls.
+ * @deprecated Kept only for existing 1.x integrations. New scaffolds do not
+ * create this route.
  *
- * Usage (App Router - app/v1/mcp/sse/route.ts):
+ * Legacy usage (App Router - app/v1/mcp/sse/route.ts):
  * ```ts
  * import { createSSEHandler } from '@corsenai/corsen-context-nextjs';
  * export const GET = createSSEHandler({ siteUrl: 'https://example.com' });
@@ -292,21 +409,34 @@ export function createSSEHandler(
       return [];
     },
   };
+  const getInstance = createInstanceFactory(config, gateProvider, options?.cache);
 
   return async function GET(request: Request): Promise<Response> {
-    const siteUrl = config.siteUrl.replace(/\/$/, '');
-    const mcpEndpoint = `${siteUrl}${config.mcp?.endpoint || '/v1/mcp'}`;
-
     // Gate the persistent connection behind auth + rate limiting so it can't be
     // opened unauthenticated/unthrottled (each connection holds a keep-alive).
-    const instance = getInstance(config, gateProvider, options?.cache);
-    const server = instance.createMCPServer({ rateLimitStore: options?.rateLimitStore, logger: options?.logger });
+    const instance = getInstance();
+    if (!instance.getConfig().mcp.enabled) {
+      return mcpNotFound();
+    }
+    const siteUrl = config.siteUrl.replace(/\/$/, '');
+    const mcpEndpoint = `${siteUrl}${instance.getConfig().mcp.endpoint}`;
+    const server = instance.createMCPServer({
+      rateLimitStore: options?.rateLimitStore,
+      logger: options?.logger,
+    });
+    const origin = request.headers.get('origin') || undefined;
+    if (!server.validateRequestOrigin(origin)) {
+      return new Response('invalid origin', { status: 403, headers: { ...SECURITY_HEADERS } });
+    }
     const apiKey = getApiKey(request);
     const clientIp = getClientIp(request, trustProxy);
 
     const rl = await server.checkRateLimit(clientIp, apiKey);
     if (!rl.allowed) {
-      return new Response('rate limit exceeded', { status: 429, headers: { ...SECURITY_HEADERS, 'Retry-After': rl.headers['Retry-After'] || '60' } });
+      return new Response('rate limit exceeded', {
+        status: 429,
+        headers: { ...SECURITY_HEADERS, 'Retry-After': rl.headers['Retry-After'] || '60' },
+      });
     }
     if (!server.checkAuth(apiKey)) {
       return new Response('unauthorized', { status: 401, headers: { ...SECURITY_HEADERS } });
@@ -357,9 +487,17 @@ export function createSSEHandler(
  * through document.modelContext. Every execute() calls back into the MCP
  * endpoint, so the browser never reimplements a tool.
  */
-export function createWebMCPScriptHandler(config: CorsenContextConfig, provider: ContentProvider) {
+export function createWebMCPScriptHandler(
+  config: CorsenContextConfig,
+  provider: ContentProvider,
+  options?: HandlerOptions,
+) {
+  const getInstance = createInstanceFactory(config, provider, options?.cache);
   return async function GET(): Promise<Response> {
-    const instance = getInstance(config, provider);
+    const instance = getInstance();
+    if (!instance.getConfig().mcp.enabled) {
+      return mcpNotFound();
+    }
     const server = instance.createMCPServer();
     const script = generateWebMCPScript(toWebMCPTools(server.getToolDefinitions()), {
       mcpEndpoint: config.mcp?.endpoint,
@@ -375,9 +513,17 @@ export function createWebMCPScriptHandler(config: CorsenContextConfig, provider:
 /**
  * Creates a handler that serves /llms.txt
  */
-export function createLlmsTxtHandler(config: CorsenContextConfig, provider: ContentProvider) {
+export function createLlmsTxtHandler(
+  config: CorsenContextConfig,
+  provider: ContentProvider,
+  options?: HandlerOptions,
+) {
+  const getInstance = createInstanceFactory(config, provider, options?.cache);
   return async function GET(): Promise<Response> {
-    const instance = getInstance(config, provider);
+    const instance = getInstance();
+    if (!instance.getConfig().static.generateLlmsTxt) {
+      return mcpNotFound();
+    }
     const text = await instance.generateLlmsTxt();
 
     const headers = new Headers(SECURITY_HEADERS);
@@ -391,9 +537,20 @@ export function createLlmsTxtHandler(config: CorsenContextConfig, provider: Cont
 /**
  * Creates a handler that serves /llms-full.txt
  */
-export function createLlmsFullTxtHandler(config: CorsenContextConfig, provider: ContentProvider) {
+export function createLlmsFullTxtHandler(
+  config: CorsenContextConfig,
+  provider: ContentProvider,
+  options?: HandlerOptions,
+) {
+  const getInstance = createInstanceFactory(config, provider, options?.cache);
   return async function GET(): Promise<Response> {
-    const instance = getInstance(config, provider);
+    const instance = getInstance();
+    if (
+      !instance.getConfig().static.generateLlmsTxt ||
+      !instance.getConfig().static.includeFullContent
+    ) {
+      return mcpNotFound();
+    }
     const text = await instance.generateLlmsFullTxt();
 
     const headers = new Headers(SECURITY_HEADERS);

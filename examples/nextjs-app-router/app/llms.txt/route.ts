@@ -1,8 +1,8 @@
 import { createLlmsTxtHandler } from '@corsenai/corsen-context-nextjs';
-import { demoProvider } from '../../lib/provider';
+import { demoProvider, SITE_URL } from '../../lib/provider';
 
 const config = {
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://demo.example.com',
+  siteUrl: SITE_URL,
 };
 
 const GET = createLlmsTxtHandler(config, demoProvider);

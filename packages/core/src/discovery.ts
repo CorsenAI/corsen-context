@@ -9,10 +9,46 @@ export interface DiscoveryConfig {
   sitemapUrl?: string;
 }
 
+function sameOriginHttpUrl(value: string, siteUrl: string, label: string): string {
+  if (/[\r\n]/.test(value) || /[\r\n]/.test(siteUrl)) {
+    throw new Error(`Corsen Context: ${label} cannot contain line breaks.`);
+  }
+
+  let site: URL;
+  let candidate: URL;
+  try {
+    site = new URL(siteUrl);
+    candidate = new URL(value, site);
+  } catch {
+    throw new Error(`Corsen Context: ${label} must be a valid URL.`);
+  }
+
+  if (!['http:', 'https:'].includes(site.protocol) || site.username || site.password) {
+    throw new Error('Corsen Context: siteUrl must be an HTTP(S) URL without credentials.');
+  }
+  if (!['http:', 'https:'].includes(candidate.protocol)) {
+    throw new Error(`Corsen Context: ${label} must use HTTP(S).`);
+  }
+  if (candidate.username || candidate.password) {
+    throw new Error(`Corsen Context: ${label} cannot contain credentials.`);
+  }
+  if (candidate.origin !== site.origin) {
+    throw new Error(`Corsen Context: ${label} must be same-origin with siteUrl.`);
+  }
+  return candidate.toString();
+}
+
 function absoluteEndpoint(config: DiscoveryConfig): string {
-  const base = config.siteUrl.replace(/\/$/, '');
-  const endpoint = config.mcpEndpoint || '/v1/mcp';
-  return /^https?:\/\//.test(endpoint) ? endpoint : `${base}${endpoint}`;
+  return sameOriginHttpUrl(config.mcpEndpoint || '/v1/mcp', config.siteUrl, 'mcpEndpoint');
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -21,7 +57,9 @@ function absoluteEndpoint(config: DiscoveryConfig): string {
  */
 export function generateRobotsTxt(config: DiscoveryConfig): string {
   const lines = [`MCP: ${absoluteEndpoint(config)}`];
-  if (config.sitemapUrl) lines.push(`Sitemap: ${config.sitemapUrl}`);
+  if (config.sitemapUrl) {
+    lines.push(`Sitemap: ${sameOriginHttpUrl(config.sitemapUrl, config.siteUrl, 'sitemapUrl')}`);
+  }
   return lines.join('\n') + '\n';
 }
 
@@ -43,5 +81,5 @@ export function generateWellKnownMcp(config: DiscoveryConfig): {
 
 /** Build the `<link rel="mcp">` tag for the HTML head. */
 export function mcpLinkTag(config: DiscoveryConfig): string {
-  return `<link rel="mcp" href="${absoluteEndpoint(config)}" />`;
+  return `<link rel="mcp" href="${escapeHtmlAttribute(absoluteEndpoint(config))}" />`;
 }

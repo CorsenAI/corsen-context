@@ -2,7 +2,7 @@
   "name": "corsen-context-monorepo",
   "version": "0.0.0",
   "private": true,
-  "description": "Universal AI Context Layer — MCP Adapter + Enhanced llms.txt + Smart Sitemap",
+  "description": "Owner-controlled public content for MCP, WebMCP, llms.txt, and sitemaps",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",
   "homepage": "https://github.com/CorsenAI/corsen-context",
@@ -15,7 +15,12 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "build:wordpress": "node scripts/build-wordpress-zip.mjs",
     "test": "turbo run test",
+    "verify:live": "node scripts/verify-live.mjs",
+    "verify:examples:candidate": "bash scripts/verify-example-candidates.sh",
+    "verify:wordpress": "bash scripts/verify-wordpress-package.sh",
+    "verify:wordpress:aurora": "bash scripts/verify-wordpress-aurora.sh",
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "typecheck": "turbo run typecheck",
@@ -26,17 +31,18 @@
     "release": "turbo run build && changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.0",
-    "@eslint/js": "^9.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
-    "prettier": "^3.4.0",
-    "turbo": "^2.4.0",
-    "typescript": "^5.7.0"
+    "@changesets/cli": "^3.0.1",
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.12",
+    "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0",
+    "pnpm": ">=11.24.0"
   }
 }

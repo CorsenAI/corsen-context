@@ -22,19 +22,29 @@ interface NextConfig {
 export function withCorsenContext(corsenConfig: CorsenContextConfig) {
   return function wrapNextConfig(nextConfig: NextConfig = {}): NextConfig {
     const existingRewrites = nextConfig.rewrites;
+    const publishLlmsTxt = corsenConfig.static?.generateLlmsTxt !== false;
+    const publishLlmsFullTxt = publishLlmsTxt && corsenConfig.static?.includeFullContent === true;
 
     return {
       ...nextConfig,
       async rewrites() {
         const corsenRewrites = [
-          {
-            source: '/llms.txt',
-            destination: '/api/corsen-context/llms-txt',
-          },
-          {
-            source: '/llms-full.txt',
-            destination: '/api/corsen-context/llms-full-txt',
-          },
+          ...(publishLlmsTxt
+            ? [
+                {
+                  source: '/llms.txt',
+                  destination: '/api/corsen-context/llms-txt',
+                },
+              ]
+            : []),
+          ...(publishLlmsFullTxt
+            ? [
+                {
+                  source: '/llms-full.txt',
+                  destination: '/api/corsen-context/llms-full-txt',
+                },
+              ]
+            : []),
         ];
 
         if (existingRewrites) {
@@ -49,12 +59,6 @@ export function withCorsenContext(corsenConfig: CorsenContextConfig) {
         }
 
         return corsenRewrites;
-      },
-
-      // Store config for runtime handlers
-      env: {
-        ...(nextConfig.env as Record<string, string> | undefined),
-        CORSEN_CONTEXT_CONFIG: JSON.stringify(corsenConfig),
       },
     };
   };

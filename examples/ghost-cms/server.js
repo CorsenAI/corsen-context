@@ -1,5 +1,11 @@
 import express from 'express';
-import { CorsenContext, generateWebMCPScript, toWebMCPTools } from '@corsenai/corsen-context';
+import {
+  CorsenContext,
+  MCP_PROTOCOL_VERSION,
+  extractClientIp,
+  generateWebMCPScript,
+  toWebMCPTools,
+} from '@corsenai/corsen-context';
 
 /**
  * Ghost CMS wrapped by Corsen Context. Ghost stays internal; this server is
@@ -10,22 +16,42 @@ import { CorsenContext, generateWebMCPScript, toWebMCPTools } from '@corsenai/co
 const SITE_URL = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const GHOST_API_URL = (process.env.GHOST_API_URL || 'http://127.0.0.1:2368').replace(/\/$/, '');
 const GHOST_CONTENT_KEY = process.env.GHOST_CONTENT_KEY || '';
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
-async function fetchPosts() {
+async function loadPosts() {
   const url =
     `${GHOST_API_URL}/ghost/api/content/posts/` +
     `?key=${encodeURIComponent(GHOST_CONTENT_KEY)}` +
-    `&fields=title,slug,excerpt,plaintext,published_at&limit=all&order=published_at%20desc`;
-  const res = await fetch(url);
+    `&fields=title,slug,excerpt,plaintext,published_at&limit=100&order=published_at%20desc`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Ghost Content API returned ${res.status}`);
   const body = await res.json();
   return (body.posts || []).map((p) => ({
-    path: `/posts/${p.slug}`,
+    path: `/posts/${encodeURIComponent(String(p.slug))}`,
     title: p.title,
     description: p.excerpt || '',
     text: p.plaintext || '',
     lastModified: p.published_at,
   }));
+}
+
+let postsCache = null;
+let postsCacheExpiresAt = 0;
+let postsLoadPromise = null;
+
+async function fetchPosts() {
+  if (postsCache && Date.now() < postsCacheExpiresAt) return postsCache;
+  if (postsLoadPromise) return postsLoadPromise;
+  postsLoadPromise = loadPosts().then((posts) => {
+    postsCache = posts;
+    postsCacheExpiresAt = Date.now() + 60_000;
+    return posts;
+  });
+  try {
+    return await postsLoadPromise;
+  } finally {
+    postsLoadPromise = null;
+  }
 }
 
 // A couple of static pages around the Ghost content, so the sitemap also
@@ -89,8 +115,7 @@ const provider = {
     const pages = await this.getPages();
     return pages
       .filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q),
+        (p) => p.title.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q),
       )
       .slice(0, limit)
       .map((p) => ({
@@ -103,43 +128,180 @@ const provider = {
   },
 };
 
-const cc = new CorsenContext({ siteUrl: SITE_URL }, provider);
+const cc = new CorsenContext(
+  {
+    siteUrl: SITE_URL,
+    mcp: { enabled: process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false' },
+    static: {
+      generateLlmsTxt: process.env.CORSEN_CONTEXT_LLMS_TXT_ENABLED !== 'false',
+      includeFullContent: process.env.CORSEN_CONTEXT_LLMS_FULL_TXT_ENABLED === 'true',
+    },
+    cache: { enabled: false },
+    security: { trustProxy: TRUST_PROXY },
+  },
+  provider,
+);
 
 const app = express();
-app.use(express.json());
+if (TRUST_PROXY) app.set('trust proxy', 1);
+app.all(['/v1/mcp', '/webmcp.js'], (_req, res, next) => {
+  if (!cc.getConfig().mcp.enabled) return res.status(404).end();
+  return next();
+});
+app.all('/v1/mcp', (req, res, next) => {
+  const server = cc.createMCPServer();
+  for (const [key, value] of Object.entries(server.getSecurityHeaders())) res.set(key, value);
+  const origin = req.get('Origin') || undefined;
+  if (!server.validateRequestOrigin(origin)) {
+    return res.status(403).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Invalid Origin' },
+      id: null,
+    });
+  }
+  for (const [key, value] of Object.entries(server.getCorsHeaders(origin))) res.set(key, value);
+  res.locals.mcpServer = server;
+  return next();
+});
+
+async function mcpPostPreflight(req, res, next) {
+  try {
+    const contentType = (req.get('Content-Type') || '').split(';', 1)[0].trim().toLowerCase();
+    if (contentType !== 'application/json') {
+      return res.status(415).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Content-Type must be application/json' },
+        id: null,
+      });
+    }
+    const accept = (req.get('Accept') || '').trim().toLowerCase();
+    if (accept && !accept.includes('application/json') && !accept.includes('*/*')) {
+      return res.status(406).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Client must accept application/json' },
+        id: null,
+      });
+    }
+    const server = res.locals.mcpServer;
+    const clientIp = extractClientIp(req.headers, req.socket.remoteAddress, TRUST_PROXY);
+    const apiKey =
+      req.headers['x-mcp-key']?.toString() ||
+      req.headers['authorization']?.toString().replace('Bearer ', '') ||
+      undefined;
+    const rateLimit = await server.checkRateLimit(clientIp, apiKey);
+    for (const [key, value] of Object.entries(rateLimit.headers)) res.set(key, value);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Rate limit exceeded' },
+        id: null,
+      });
+    }
+    if (!server.checkAuth(apiKey)) {
+      return res.status(401).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Unauthorized' },
+        id: null,
+      });
+    }
+    res.locals.mcpClientIp = clientIp;
+    res.locals.mcpApiKey = apiKey;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+const mcpJsonParser = express.json({ limit: 102400, strict: false });
+
+function isJsonRpcResponse(body) {
+  return (
+    !!body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    !('method' in body) &&
+    ('result' in body || 'error' in body)
+  );
+}
 
 app.get('/llms.txt', async (_req, res) => {
+  if (!cc.getConfig().static.generateLlmsTxt) {
+    return res.status(404).set('Cache-Control', 'no-store').end();
+  }
   const text = await cc.generateLlmsTxt();
   res.type('text/plain').set('Cache-Control', 'public, max-age=300').send(text);
 });
 
 app.get('/llms-full.txt', async (_req, res) => {
+  const config = cc.getConfig();
+  const includeFullContent = config.static.includeFullContent;
+  if (!config.static.generateLlmsTxt || !includeFullContent) {
+    return res.status(404).set('Cache-Control', 'no-store').end();
+  }
   const text = await cc.generateLlmsFullTxt();
   res.type('text/plain').set('Cache-Control', 'public, max-age=300').send(text);
 });
 
-app.post('/v1/mcp', async (req, res) => {
-  const server = cc.createMCPServer();
-  for (const [key, value] of Object.entries(server.getSecurityHeaders())) {
-    res.set(key, value);
+app.options('/v1/mcp', (_req, res) => res.status(204).end());
+
+app.get('/v1/mcp', (_req, res) => {
+  res.set('Allow', 'POST');
+  return res.status(405).end();
+});
+
+app.post('/v1/mcp', mcpPostPreflight, mcpJsonParser, async (req, res) => {
+  const server = res.locals.mcpServer;
+  const clientIp = res.locals.mcpClientIp;
+  const apiKey = res.locals.mcpApiKey;
+  if (isJsonRpcResponse(req.body)) {
+    return res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32600, message: 'JSON-RPC responses are not accepted' },
+      id: null,
+    });
   }
-  const clientIp = req.socket.remoteAddress || 'unknown';
-  const apiKey =
-    req.headers['x-mcp-key']?.toString() ||
-    req.headers['authorization']?.toString().replace('Bearer ', '') ||
-    undefined;
-  const rateLimit = await server.checkRateLimit(clientIp, apiKey);
-  for (const [key, value] of Object.entries(rateLimit.headers)) {
-    res.set(key, value);
-  }
-  if (!rateLimit.allowed) {
-    return res
-      .status(429)
-      .json({ jsonrpc: '2.0', error: { code: -32000, message: 'Rate limit exceeded' }, id: null });
+  const method =
+    req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+      ? req.body.method
+      : undefined;
+  if (typeof method === 'string' && method !== 'initialize') {
+    const requestedVersion = req.get('MCP-Protocol-Version') || '2025-03-26';
+    if (requestedVersion !== MCP_PROTOCOL_VERSION) {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Unsupported MCP-Protocol-Version' },
+        id: null,
+      });
+    }
   }
   const result = await server.handleRequest(req.body, clientIp, apiKey, { skipRateLimit: true });
-  if (result === null) return res.status(204).end();
+  if (result === null) return res.status(202).end();
   res.json(result);
+});
+
+app.use('/v1/mcp', (error, _req, res, next) => {
+  if (error?.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32700, message: 'Parse error' },
+      id: null,
+    });
+  }
+  if (error?.type === 'entity.too.large') {
+    return res.status(413).json({
+      jsonrpc: '2.0',
+      error: { code: -32600, message: 'Request body too large' },
+      id: null,
+    });
+  }
+  if (error?.type === 'charset.unsupported' || error?.type === 'encoding.unsupported') {
+    return res.status(415).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Unsupported request encoding' },
+      id: null,
+    });
+  }
+  return next(error);
 });
 
 // WebMCP bridge — every page loads it with <script src="/webmcp.js" defer>.
@@ -152,10 +314,14 @@ app.get('/webmcp.js', (_req, res) => {
   res.type('application/javascript').set('Cache-Control', 'public, max-age=3600').send(script);
 });
 
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const escAttr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const webmcpScriptTag = cc.getConfig().mcp.enabled
+  ? '<script src="/webmcp.js" defer></script>'
+  : '';
 const pageShell = (title, inner) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title><script src="/webmcp.js" defer></script></head>
+<title>${esc(title)}</title>${webmcpScriptTag}</head>
 <body><main style="max-width:680px;margin:0 auto;padding:2rem;font-family:system-ui;line-height:1.5">
 ${inner}
 <p style="margin-top:2rem;color:#888;font-size:14px"><a href="/">Home</a> — Ghost + Corsen Context</p>
@@ -165,7 +331,7 @@ ${inner}
 app.get('/', async (_req, res) => {
   const posts = await fetchPosts();
   const items = posts
-    .map((p) => `<li><a href="${p.path}">${esc(p.title)}</a> — ${esc(p.description)}</li>`)
+    .map((p) => `<li><a href="${escAttr(p.path)}">${esc(p.title)}</a> — ${esc(p.description)}</li>`)
     .join('\n');
   res.type('html').send(
     pageShell(
@@ -193,6 +359,20 @@ app.use(async (req, res, next) => {
     })
     .join('\n');
   res.type('html').send(pageShell(page.title, paragraphs));
+});
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  const message = error instanceof Error ? error.message : 'Unexpected runtime error';
+  console.error(`[ghost-cms] ${message}`);
+  if (req.path === '/v1/mcp') {
+    return res.status(502).json({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: 'Content source is temporarily unavailable' },
+      id: req.body?.id ?? null,
+    });
+  }
+  return res.status(502).type('text/plain').send('Content source is temporarily unavailable.');
 });
 
 const PORT = process.env.PORT || 3000;

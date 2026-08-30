@@ -69,7 +69,7 @@ describe('generateWebMCPScript', () => {
   it('bridges execution back to the MCP endpoint instead of reimplementing tools', () => {
     expect(script).toContain("'tools/call'");
     expect(script).toContain('"/v1/mcp"');
-    expect(script).not.toContain('credentials: \'include\'');
+    expect(script).not.toContain("credentials: 'include'");
   });
 
   it('sends the MCP-Protocol-Version header the endpoint requires', () => {
@@ -83,9 +83,9 @@ describe('generateWebMCPScript', () => {
   });
 
   it('honours a custom endpoint', () => {
-    expect(generateWebMCPScript(tools, { mcpEndpoint: '/wp-json/corsen-context/v1/mcp' })).toContain(
-      '"/wp-json/corsen-context/v1/mcp"'
-    );
+    expect(
+      generateWebMCPScript(tools, { mcpEndpoint: '/wp-json/corsen-context/v1/mcp' }),
+    ).toContain('"/wp-json/corsen-context/v1/mcp"');
   });
 
   it('carries the annotations to the agent', () => {

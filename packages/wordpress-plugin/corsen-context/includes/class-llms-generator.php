@@ -46,7 +46,7 @@ class Corsen_Context_Llms_Generator {
 		$site_name = Corsen_Context_Content_Converter::escape_markdown_inline( get_bloginfo( 'name' ) );
 		$site_desc = Corsen_Context_Content_Converter::escape_markdown_inline( get_bloginfo( 'description' ) );
 		$site_url  = home_url();
-		$mcp_url   = $site_url . '/wp-json/corsen-context/v1/mcp';
+		$mcp_url   = Corsen_Context_MCP_Server::endpoint_url();
 		$lines     = array( '# ' . $site_name, '' );
 
 		if ( $site_desc ) {
@@ -58,6 +58,7 @@ class Corsen_Context_Llms_Generator {
 		$lines[] = 'This file publishes selected public site content for clients and services that support the llms.txt convention.';
 		if ( ! empty( $settings['enabled'] ) && ! empty( $settings['mcp_enabled'] ) ) {
 			$lines[] = 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
+			$lines[] = 'MCP endpoint: ' . $mcp_url;
 		}
 		$lines[] = '';
 
@@ -94,10 +95,7 @@ class Corsen_Context_Llms_Generator {
 		}
 
 		if ( ! empty( $settings['credit'] ) ) {
-			$credit = '**' . self::CREDIT_LINE . '**';
-			if ( ! empty( $settings['enabled'] ) && ! empty( $settings['mcp_enabled'] ) ) {
-				$credit .= ' • MCP endpoint: ' . $mcp_url;
-			}
+			$credit  = '**' . self::CREDIT_LINE . '**';
 			$lines[] = $credit;
 			$lines[] = '';
 		}

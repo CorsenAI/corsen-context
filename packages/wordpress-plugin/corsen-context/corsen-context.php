@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and a read-only MCP-style JSON-RPC endpoint.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.4.0' );
+define( 'CORSEN_CONTEXT_VERSION', '1.4.1' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -29,7 +29,6 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-content-converter.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-llms-generator.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-mcp-server.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
-require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-agent-forms.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
 
 /**
@@ -100,10 +99,9 @@ final class Corsen_Context {
 		// Optional WebMCP bridge for agents running inside the page.
 		add_action( 'wp_head', array( new Corsen_Context_WebMCP(), 'render' ), 20 );
 
-		// Agent-callable forms (declarative WebMCP), owner opt-in.
-		add_shortcode( 'corsen_agent_form', array( new Corsen_Context_Agent_Forms(), 'render' ) );
-		add_action( 'admin_post_corsen_agent_form', array( new Corsen_Context_Agent_Forms(), 'handle_submit' ) );
-		add_action( 'admin_post_nopriv_corsen_agent_form', array( new Corsen_Context_Agent_Forms(), 'handle_submit' ) );
+		// Legacy safety shim: the experimental write form was removed. Keep old
+		// shortcodes from becoming visible text, but never render or store input.
+		add_shortcode( 'corsen_agent_form', '__return_empty_string' );
 		add_filter( 'robots_txt', array( $this, 'add_robots_discovery' ), 10, 2 );
 		// Scheduled cron tasks.
 		add_action( 'corsen_context_hourly_cleanup', array( 'Corsen_Context_Security', 'cleanup_rate_limits' ) );
@@ -298,6 +296,10 @@ final class Corsen_Context {
 		}
 
 		$mcp = new Corsen_Context_MCP_Server();
+		// WordPress handles OPTIONS outside normal route callbacks. Intercept this
+		// endpoint before Core's generic OPTIONS handler so Origin policy is still
+		// enforced for browser preflight requests.
+		add_filter( 'rest_pre_dispatch', array( $mcp, 'handle_pre_dispatch_request' ), 5, 3 );
 
 		register_rest_route(
 			'corsen-context/v1',
@@ -360,7 +362,7 @@ final class Corsen_Context {
 		if ( $mcp ) {
 			printf(
 				'<p><strong>MCP endpoint:</strong> <code>%s</code></p>',
-				esc_html( $site_url . '/wp-json/corsen-context/v1/mcp' )
+				esc_html( Corsen_Context_MCP_Server::endpoint_url() )
 			);
 		}
 
@@ -413,7 +415,7 @@ final class Corsen_Context {
 		if ( empty( $settings['enabled'] ) || empty( $settings['mcp_enabled'] ) ) {
 			return;
 		}
-		$endpoint = home_url( '/wp-json/corsen-context/v1/mcp' );
+		$endpoint = Corsen_Context_MCP_Server::endpoint_url();
 		printf( '<link rel="mcp" href="%s" />' . "\n", esc_url( $endpoint ) );
 	}
 
@@ -426,7 +428,7 @@ final class Corsen_Context {
 			return $output;
 		}
 
-		return rtrim( $output ) . "\nMCP: " . home_url( '/wp-json/corsen-context/v1/mcp' ) . "\n";
+		return rtrim( $output ) . "\nMCP: " . Corsen_Context_MCP_Server::endpoint_url() . "\n";
 	}
 
 	/** Pre-generate the bounded llms-full.txt cache from a cookie-free cron request. */

@@ -1,7 +1,7 @@
 {
   "name": "@corsenai/corsen-context-cli",
-  "version": "1.3.0",
-  "description": "CLI for Corsen Context — init, generate, and validate your AI context layer",
+  "version": "2.0.0",
+  "description": "CLI to initialize, generate, and validate Corsen Context public-content surfaces",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",
   "homepage": "https://github.com/CorsenAI/corsen-context",
@@ -36,9 +36,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "tsup": "^8.3.0",
-    "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public"
@@ -47,6 +48,6 @@
     "url": "https://github.com/CorsenAI/corsen-context/issues"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.12.0"
   }
 }

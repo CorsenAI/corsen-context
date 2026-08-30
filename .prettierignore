@@ -1,0 +1,17 @@
+# Private hackathon working material and local state
+.challenge/
+.devpost-hackathon-state.json
+
+# Generated output, dependencies, and caches
+**/dist/
+**/build/
+**/vendor/
+**/coverage/
+**/.turbo/
+**/node_modules/
+**/next-env.d.ts
+examples/static-html/public/
+
+# Legacy internal memory and historical audit reports
+CLAUDE.md
+packages/wordpress-plugin/corsen-context/RAPPORT-*.md

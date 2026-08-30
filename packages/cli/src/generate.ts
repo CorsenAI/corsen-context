@@ -23,7 +23,9 @@ export async function generate(args: string[]) {
 
   if (!url) {
     console.error('  Error: --url is required');
-    console.error('  Usage: npx corsen-context generate --url https://mysite.com [--full]');
+    console.error(
+      '  Usage: npx @corsenai/corsen-context-cli generate --url https://mysite.com [--full]',
+    );
     process.exit(1);
   }
 
@@ -33,7 +35,10 @@ export async function generate(args: string[]) {
   // The core's sitemap provider handles discovery, SSRF-safe fetching, and
   // markdown conversion.
   const provider = createSitemapProvider(url, { maxPages: 100 });
-  const cc = new CorsenContext({ siteUrl: url }, provider);
+  const cc = new CorsenContext(
+    { siteUrl: url, static: { includeFullContent: Boolean(full) } },
+    provider,
+  );
 
   const outputDir = output || process.cwd();
 

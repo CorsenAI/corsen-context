@@ -33,7 +33,11 @@ export class MemoryCache implements CacheDriver {
     if (options?.autoCleanup !== false) {
       this.cleanupTimer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL_MS);
       // Don't block Node.js shutdown
-      if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+      if (
+        this.cleanupTimer &&
+        typeof this.cleanupTimer === 'object' &&
+        'unref' in this.cleanupTimer
+      ) {
         this.cleanupTimer.unref();
       }
     }

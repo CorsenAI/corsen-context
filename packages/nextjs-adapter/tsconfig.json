@@ -3,6 +3,10 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@corsenai/corsen-context-nextjs": ["./src/index.ts"]
+    },
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",

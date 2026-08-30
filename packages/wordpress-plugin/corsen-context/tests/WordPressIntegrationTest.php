@@ -129,7 +129,7 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 				'method'  => 'initialize',
 				'params'  => array(
 					'protocolVersion' => '2025-11-25',
-					'capabilities'    => array(),
+					'capabilities'    => (object) array(),
 					'clientInfo'      => array(
 						'name'    => 'phpunit',
 						'version' => '1',
@@ -145,12 +145,91 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 			array(
 				'jsonrpc' => '2.0',
 				'method'  => 'notifications/initialized',
-				'params'  => array(),
+				'params'  => (object) array(),
 			),
 			array( 'MCP-Protocol-Version' => '2025-11-25' )
 		);
 		$this->assertSame( 202, $notification->get_status() );
 		$this->assertNull( $notification->get_data() );
+	}
+
+	public function test_mcp_initialize_rejects_non_object_and_incomplete_client_metadata(): void {
+		$invalid_params = array(
+			'params list'          => array(),
+			'capabilities list'    => array(
+				'protocolVersion' => '2025-11-25',
+				'capabilities'    => array(),
+				'clientInfo'      => array( 'name' => 'phpunit', 'version' => '1' ),
+			),
+			'client info list'     => array(
+				'protocolVersion' => '2025-11-25',
+				'capabilities'    => (object) array(),
+				'clientInfo'      => array(),
+			),
+			'client name missing' => array(
+				'protocolVersion' => '2025-11-25',
+				'capabilities'    => (object) array(),
+				'clientInfo'      => (object) array( 'version' => '1' ),
+			),
+			'client version empty' => array(
+				'protocolVersion' => '2025-11-25',
+				'capabilities'    => (object) array(),
+				'clientInfo'      => array( 'name' => 'phpunit', 'version' => '' ),
+			),
+		);
+
+		foreach ( $invalid_params as $label => $params ) {
+			$response = $this->mcp_request(
+				array(
+					'jsonrpc' => '2.0',
+					'id'      => 1,
+					'method'  => 'initialize',
+					'params'  => $params,
+				)
+			);
+			$this->assertSame( 200, $response->get_status(), $label );
+			$this->assertSame( -32602, $response->get_data()['error']['code'], $label );
+		}
+	}
+
+	public function test_mcp_distinguishes_invalid_json_from_valid_non_object_json(): void {
+		$invalid_json = $this->mcp_raw_request( '{' );
+		$this->assertSame( 400, $invalid_json->get_status() );
+		$this->assertSame( -32700, $invalid_json->get_data()['error']['code'] );
+
+		foreach ( array( '42', 'null', '"text"', '[]' ) as $primitive ) {
+			$response = $this->mcp_raw_request( $primitive );
+			$this->assertSame( 400, $response->get_status(), $primitive );
+			$this->assertSame( -32600, $response->get_data()['error']['code'], $primitive );
+		}
+
+		$null_id = $this->mcp_raw_request( '{"jsonrpc":"2.0","method":"ping","id":null}' );
+		$this->assertSame( 200, $null_id->get_status() );
+		$this->assertSame( -32600, $null_id->get_data()['error']['code'] );
+
+		foreach ( array( 'null', '[]' ) as $params ) {
+			$response = $this->mcp_raw_request( '{"jsonrpc":"2.0","method":"ping","id":1,"params":' . $params . '}' );
+			$this->assertSame( 200, $response->get_status(), $params );
+			$this->assertSame( -32600, $response->get_data()['error']['code'], $params );
+		}
+
+		$unexpected_response = $this->mcp_raw_request( '{"jsonrpc":"2.0","id":1,"result":{}}' );
+		$this->assertSame( 400, $unexpected_response->get_status() );
+		$this->assertSame( -32600, $unexpected_response->get_data()['error']['code'] );
+	}
+
+	public function test_mcp_options_enforces_origin_before_wordpress_generic_handler(): void {
+		$allowed = new WP_REST_Request( 'OPTIONS', '/corsen-context/v1/mcp' );
+		$allowed->set_header( 'Origin', home_url() );
+		$allowed_response = rest_do_request( $allowed );
+		$this->assertSame( 204, $allowed_response->get_status() );
+		$this->assertSame( home_url(), $allowed_response->get_headers()['Access-Control-Allow-Origin'] );
+
+		$rejected = new WP_REST_Request( 'OPTIONS', '/corsen-context/v1/mcp' );
+		$rejected->set_header( 'Origin', 'https://cross-origin.invalid' );
+		$rejected_response = rest_do_request( $rejected );
+		$this->assertSame( 403, $rejected_response->get_status() );
+		$this->assertSame( 'Invalid Origin', $rejected_response->get_data()['error']['message'] );
 	}
 
 	public function test_mcp_tools_filter_can_disable_every_tool(): void {
@@ -168,6 +247,150 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( array(), $response->get_data()['result']['tools'] );
+	}
+
+	public function test_search_results_do_not_expose_shortcode_markup(): void {
+		self::factory()->post->create(
+			array(
+				'post_title'   => 'Quote Guide',
+				'post_status'  => 'publish',
+				'post_content' => 'Needle [corsen_agent_form id="quote"] Public details.',
+			)
+		);
+
+		$response = $this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 4,
+				'method'  => 'tools/call',
+				'params'  => array(
+					'name'      => 'search_site',
+					'arguments' => array( 'query' => 'Needle' ),
+				),
+			),
+			array( 'MCP-Protocol-Version' => '2025-11-25' )
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$text = $response->get_data()['result']['content'][0]['text'];
+		$this->assertStringContainsString( 'Public details', $text );
+		$this->assertStringNotContainsString( 'corsen_agent_form', $text );
+	}
+
+	public function test_search_result_metadata_and_snippet_remain_valid_utf8(): void {
+		self::factory()->post->create(
+			array(
+				'post_title'   => 'Unicode Needle',
+				'post_status'  => 'publish',
+				'post_content' => str_repeat( '€', 100 ),
+			)
+		);
+
+		$response = $this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 41,
+				'method'  => 'tools/call',
+				'params'  => array(
+					'name'      => 'search_site',
+					'arguments' => array( 'query' => 'Unicode Needle' ),
+				),
+			),
+			array( 'MCP-Protocol-Version' => '2025-11-25' )
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$text = $response->get_data()['result']['content'][0]['text'];
+		$this->assertIsString( $text );
+		$this->assertSame( 1, preg_match( '//u', $text ) );
+		$results = json_decode( $text, true, 512, JSON_THROW_ON_ERROR );
+		$this->assertNotEmpty( $results );
+		$this->assertIsString( $results[0]['description'] );
+		$this->assertIsString( $results[0]['snippet'] );
+		$this->assertSame( 1, preg_match( '//u', $results[0]['description'] ) );
+		$this->assertSame( 1, preg_match( '//u', $results[0]['snippet'] ) );
+	}
+
+	public function test_mcp_tool_arguments_must_be_a_json_object(): void {
+		$invalid = $this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 5,
+				'method'  => 'tools/call',
+				'params'  => array(
+					'name'      => 'get_sitemap',
+					'arguments' => array(),
+				),
+			),
+			array( 'MCP-Protocol-Version' => '2025-11-25' )
+		);
+		$this->assertSame( 200, $invalid->get_status() );
+		$this->assertSame( -32602, $invalid->get_data()['error']['code'] );
+
+		$valid = $this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 6,
+				'method'  => 'tools/call',
+				'params'  => array(
+					'name'      => 'get_sitemap',
+					'arguments' => new stdClass(),
+				),
+			),
+			array( 'MCP-Protocol-Version' => '2025-11-25' )
+		);
+		$this->assertSame( 200, $valid->get_status() );
+	}
+
+	public function test_resource_params_match_the_strict_core_contract(): void {
+		$headers = array( 'MCP-Protocol-Version' => '2025-11-25' );
+		foreach (
+			array(
+				'missing'  => array(),
+				'null'     => array( 'uri' => null ),
+				'list'     => array( 'uri' => array() ),
+				'empty'    => array( 'uri' => '' ),
+				'too long' => array( 'uri' => str_repeat( '😀', 2001 ) ),
+			) as $label => $params
+		) {
+			$response = $this->mcp_request(
+				array(
+					'jsonrpc' => '2.0',
+					'id'      => 50,
+					'method'  => 'resources/read',
+					'params'  => $params,
+				),
+				$headers
+			);
+			$this->assertSame( 200, $response->get_status(), $label );
+			$this->assertSame( -32602, $response->get_data()['error']['code'], $label );
+			$this->assertSame( 'Missing resource URI', $response->get_data()['error']['message'], $label );
+		}
+
+		$without_cursor = $this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 51,
+				'method'  => 'resources/list',
+			),
+			$headers
+		);
+		$this->assertSame( 200, $without_cursor->get_status() );
+		$this->assertArrayHasKey( 'resources', $without_cursor->get_data()['result'] );
+
+		foreach ( array( null, '' ) as $cursor ) {
+			$response = $this->mcp_request(
+				array(
+					'jsonrpc' => '2.0',
+					'id'      => 52,
+					'method'  => 'resources/list',
+					'params'  => array( 'cursor' => $cursor ),
+				),
+				$headers
+			);
+			$this->assertSame( 200, $response->get_status() );
+			$this->assertSame( -32602, $response->get_data()['error']['code'] );
+		}
 	}
 
 	public function test_mcp_rejects_cross_origin_and_wrong_content_type(): void {
@@ -219,6 +442,45 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_discovery_and_admin_surfaces_use_the_filtered_rest_url(): void {
+		$filter = static fn( string $url, string $path ): string => home_url( '/?corsen_rest=' . rawurlencode( $path ) );
+		add_filter( 'rest_url', $filter, 10, 4 );
+		$settings                    = get_option( 'corsen_context_settings' );
+		$settings['webmcp_enabled']  = true;
+		$settings['credit']          = false;
+		update_option( 'corsen_context_settings', $settings );
+		delete_transient( 'corsen_context_llms_txt' );
+		$expected = home_url( '/?corsen_rest=corsen-context%2Fv1%2Fmcp' );
+
+		try {
+			$this->assertSame( $expected, Corsen_Context_MCP_Server::endpoint_url() );
+
+			ob_start();
+			Corsen_Context::instance()->add_mcp_link_tag();
+			$link = (string) ob_get_clean();
+			$this->assertStringContainsString( esc_url( $expected ), $link );
+
+			$robots = Corsen_Context::instance()->add_robots_discovery( "User-agent: *\n", true );
+			$this->assertStringContainsString( 'MCP: ' . $expected, $robots );
+
+			$llms = ( new Corsen_Context_Llms_Generator() )->generate_llms_txt();
+			$this->assertStringContainsString( 'MCP endpoint: ' . $expected, $llms );
+
+			ob_start();
+			( new Corsen_Context_WebMCP() )->render();
+			$bridge = (string) ob_get_clean();
+			$this->assertStringContainsString( $expected, $bridge );
+
+			wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+			ob_start();
+			Corsen_Context_Admin::instance()->render_settings_page();
+			$admin = (string) ob_get_clean();
+			$this->assertStringContainsString( esc_html( $expected ), $admin );
+		} finally {
+			remove_filter( 'rest_url', $filter, 10 );
+		}
+	}
+
 	public function test_full_export_is_bounded_and_disabled_by_default_on_upgrade(): void {
 		delete_option( 'corsen_context_settings' );
 		Corsen_Context::instance()->maybe_upgrade_settings();
@@ -243,13 +505,17 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 	}
 
 	private function mcp_request( array $body, array $headers = array() ): WP_REST_Response {
+		return $this->mcp_raw_request( wp_json_encode( $body ), $headers );
+	}
+
+	private function mcp_raw_request( string $body, array $headers = array() ): WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', '/corsen-context/v1/mcp' );
 		$request->set_header( 'Content-Type', 'application/json' );
 		$request->set_header( 'Accept', 'application/json, text/event-stream' );
 		foreach ( $headers as $name => $value ) {
 			$request->set_header( $name, $value );
 		}
-		$request->set_body( wp_json_encode( $body ) );
+		$request->set_body( $body );
 		return rest_do_request( $request );
 	}
 }

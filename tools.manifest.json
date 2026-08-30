@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Language-neutral contract for the tools Corsen Context exposes to AI agents. This file describes the contract only - never the implementation. Every runtime (TypeScript core, PHP WordPress plugin) implements these tools independently and is mechanically checked against this manifest. Transports that serve this contract: MCP over HTTP (JSON-RPC 2.0), WebMCP (document.modelContext) and llms.txt discovery.",
+  "description": "Language-neutral contract for the tools Corsen Context exposes to compatible agents. This file describes the contract only - never the implementation. Every runtime (TypeScript core, PHP WordPress plugin) implements these tools independently and is mechanically checked against this manifest. The callable interfaces are MCP over HTTP (JSON-RPC 2.0) and WebMCP (document.modelContext); llms.txt is a separate discovery and publication surface.",
   "annotationsReference": "https://webmachinelearning.github.io/webmcp/",
   "tools": [
     {
@@ -11,14 +11,20 @@
         "properties": {
           "query": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
             "description": "Keywords to search for, in the site's own language. Use the user's words."
           },
           "limit": {
-            "type": "number",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10,
             "description": "Maximum number of results to return (1-50, default 10)."
           }
         },
-        "required": ["query"]
+        "required": ["query"],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -33,10 +39,13 @@
         "properties": {
           "uri": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
             "description": "The page's absolute URL on this site, exactly as returned by search_site, list_content or get_sitemap."
           }
         },
-        "required": ["uri"]
+        "required": ["uri"],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -51,17 +60,27 @@
         "properties": {
           "type": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "default": "page",
             "description": "The content type to list: post, page, product, or any custom type the site exposes."
           },
           "page": {
-            "type": "number",
-            "description": "Result page number (default 1)."
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 1,
+            "description": "Result page number (1-5000, default 1)."
           },
           "limit": {
-            "type": "number",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20,
             "description": "Items per page (1-100, default 20)."
           }
-        }
+        },
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -70,10 +89,11 @@
     },
     {
       "name": "get_sitemap",
-      "description": "Get the structured sitemap of this site's public content: every URL with its title, type and last-modified date. Use for a complete overview of what the site exposes to agents. Read-only.",
+      "description": "Get a bounded structured sitemap of this site's public content, with each exposed URL's title, type and last-modified date, up to the owner's configured content limit. Use for a broad overview of what the site exposes to agents. Read-only.",
       "inputSchema": {
         "type": "object",
-        "properties": {}
+        "properties": {},
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,

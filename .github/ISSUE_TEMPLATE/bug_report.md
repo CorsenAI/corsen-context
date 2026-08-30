@@ -1,9 +1,9 @@
 ---
 name: Bug Report
 about: Report a bug in Corsen Context
-title: "[Bug] "
+title: '[Bug] '
 labels: bug
-assignees: ""
+assignees: ''
 ---
 
 ## Description
@@ -27,10 +27,10 @@ What actually happens.
 ## Environment
 
 - **Package**: (core / nextjs-adapter / cli / wordpress-plugin)
-- **Version**: 
-- **Node.js version**: 
+- **Version**:
+- **Node.js version**:
 - **Framework**: (Next.js / Express / WordPress / Other)
-- **OS**: 
+- **OS**:
 
 ## Additional Context
 

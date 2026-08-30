@@ -26,6 +26,7 @@ final class SecurityTest extends TestCase {
 		$this->assertTrue( Corsen_Context_Security::validate_origin( 'https://example.com:443' ) );
 		$this->assertFalse( Corsen_Context_Security::validate_origin( 'https://attacker.example' ) );
 		$this->assertFalse( Corsen_Context_Security::validate_origin( 'null' ) );
+		$this->assertFalse( Corsen_Context_Security::validate_origin( 'https://user@example.com' ) );
 	}
 
 	public function test_shared_cache_is_disabled_when_cookies_are_present(): void {

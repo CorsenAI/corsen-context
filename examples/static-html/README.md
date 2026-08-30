@@ -4,25 +4,75 @@ A plain folder of HTML files — no framework, no CMS — made agent-native.
 This is the most common kind of site on the web, and it needs exactly two
 things from Corsen Context:
 
-1. **A build step** (`scripts/build.mjs`) that writes static agent assets into
-   `public/`: `llms.txt`, `llms-full.txt`, and `webmcp.js` (the WebMCP bridge
-   every page loads with `<script src="/webmcp.js" defer>`).
-2. **One function** (`function/server.js`) answering `POST /v1/mcp`. On a
-   serverless host (Netlify, Vercel, Cloudflare), that handler is a function;
-   here it's a tiny Express server. Everything else is static.
+1. **A build step** (`scripts/build.mjs`) that conditionally writes static
+   context and WebMCP assets into `public/` from the owner switches.
+2. **One same-origin endpoint** (`function/server.js`) answering
+   `POST /v1/mcp`. The reference server also serves `public/`, so the page,
+   `/webmcp.js`, and `/v1/mcp` work from one origin without hidden proxy setup.
 
-If the site is already live and you only want `llms.txt`, the CLI does it
-without a build script:
+Before every build, the script removes any previous `llms.txt`,
+`llms-full.txt`, `webmcp.js`, and `webmcp-status.js`. With
+`CORSEN_CONTEXT_MCP_ENABLED=false`, it does not recreate the bridge/status
+assets and removes their `<script>` tags from generated pages. With
+`CORSEN_CONTEXT_LLMS_TXT_ENABLED=false`, it does not recreate either static
+export. `CORSEN_CONTEXT_LLMS_FULL_TXT_ENABLED=false` removes only the full
+export. The gallery deliberately enables the bounded full export at build time
+unless that variable is exactly `false`.
+
+The reference server applies the same gates at runtime, except that it requires
+`CORSEN_CONTEXT_LLMS_FULL_TXT_ENABLED=true` to serve the full export. Use the
+same explicit values for build and runtime. A host that serves `public/`
+directly has no runtime gate: revocation requires a new disabled build,
+redeployment, and purge of any CDN copy.
+
+If the site is already live and you only want `llms.txt`, the CLI can generate
+that file without opting in to full content:
 
 ```bash
-npx @corsenai/corsen-context-cli generate --url https://yoursite.com --full
+npx @corsenai/corsen-context-cli generate --url https://yoursite.com
 ```
 
 ## Run
 
 ```bash
 npm install
-SITE_URL=https://yoursite.com npm run build   # writes public/
-SITE_URL=https://yoursite.com npm start       # the MCP function (port 3010)
-# serve public/ with any static file server
+npm run build
+npm start
 ```
+
+Open `http://localhost:3010`. The default `SITE_URL` already targets that URL.
+The server exits with an actionable error if `public/` has not been built.
+
+At runtime, `CORSEN_CONTEXT_MCP_ENABLED=false` makes MCP and WebMCP return
+`404`, and `CORSEN_CONTEXT_LLMS_TXT_ENABLED=false` makes both static export
+paths return `404`. The core bounds generated output to 5 MiB by default,
+configurable from 64 KiB through 10 MiB, and truncates only at a complete UTF-8
+code point.
+
+For a real domain, set the same canonical URL at build and runtime:
+
+```bash
+# macOS / Linux
+SITE_URL=https://www.example.com npm run build
+SITE_URL=https://www.example.com npm start
+```
+
+```powershell
+# Windows PowerShell
+$env:SITE_URL = 'https://www.example.com'
+npm run build
+npm start
+```
+
+Replace the sample entries in `content.mjs` with the public pages supplied by
+your own build/content pipeline. Do not include private, personalized, draft,
+or authenticated content.
+
+## Deployment invariant
+
+The HTML pages, `/webmcp.js`, and `POST /v1/mcp` must share one public origin.
+You can deploy the reference Express server as-is, or map those paths through
+your host/reverse proxy. A separate static origin without a `/v1/mcp` rewrite
+is not a working WebMCP deployment. Keep the endpoint public and rate-limited
+when WebMCP is enabled; browser code intentionally does not embed or send a
+secret API key.

@@ -9,7 +9,7 @@ export const corsenContextConfigSchema = z.object({
     .object({
       postTypes: z.array(z.string()).default(['post', 'page']),
       excludePaths: z.array(z.string()).default([]),
-      maxPages: z.number().int().positive().default(500),
+      maxPages: z.number().int().min(1).max(5000).default(500),
     })
     .default({}),
 
@@ -26,7 +26,8 @@ export const corsenContextConfigSchema = z.object({
   static: z
     .object({
       generateLlmsTxt: z.boolean().default(true),
-      includeFullContent: z.boolean().default(true),
+      includeFullContent: z.boolean().default(false),
+      maxOutputBytes: z.number().int().min(65536).max(10485760).default(5242880),
     })
     .default({}),
 
@@ -41,8 +42,8 @@ export const corsenContextConfigSchema = z.object({
       // Left false, the rate limiter keys on the socket address so spoofed
       // forwarding headers cannot each land in a fresh bucket.
       trustProxy: z.boolean().default(false),
-      // Advertise the exact server version via the X-Powered-By header and
-      // serverInfo. Disable to avoid version fingerprinting on public endpoints.
+      // Deprecated compatibility input. MCP requires Implementation.version
+      // in initialize results, so this value no longer suppresses it.
       exposeVersion: z.boolean().default(true),
     })
     .default({}),
@@ -66,22 +67,6 @@ export function resolveConfig(input: CorsenContextConfig): ResolvedConfig {
 
   if (!config.security.apiKey && process.env.CORSEN_CONTEXT_API_KEY) {
     config.security.apiKey = process.env.CORSEN_CONTEXT_API_KEY;
-  }
-
-  // Safety check: if Redis is selected but no REDIS_URL is set, warn loudly
-  if (config.cache.driver === 'redis' && !process.env.REDIS_URL) {
-    const isProduction = process.env.NODE_ENV === 'production';
-    if (isProduction) {
-      throw new Error(
-        'Corsen Context: cache.driver is "redis" but REDIS_URL environment variable is not set. ' +
-        'Set REDIS_URL or switch to driver: "memory".',
-      );
-    } else {
-      console.warn(
-        '[corsen-context] WARNING: cache.driver is "redis" but REDIS_URL is not set. ' +
-        'Falling back to memory cache. Set REDIS_URL for production.',
-      );
-    }
   }
 
   return config;

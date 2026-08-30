@@ -1,5 +1,127 @@
 # Changelog
 
+## npm packages [2.0.0] - Candidate - 2026-08-30
+
+### Breaking runtime requirement
+
+- Raised the four npm packages to Node.js 22.12 or newer; the repository toolchain
+  uses Node.js 22.13 or newer and pnpm 11.24 or newer.
+
+### Contract validation
+
+- Added explicit schema bounds and `additionalProperties: false` to the shared
+  four-tool manifest.
+- Made the TypeScript runtime reject wrong scalar types, fractional integers,
+  unknown properties, and out-of-range values without coercion. Valid
+  `arguments` objects with invalid tool input now return `isError: true`;
+  malformed call envelopes remain JSON-RPC `-32602`.
+- Added execution-level tests for invalid calls, same-origin endpoint
+  resolution, and Promise-based WebMCP registration failures.
+- Made `mcp.enabled` an authoritative pre-provider gate for the core, supplied
+  MCP routes, WebMCP routes, and legacy discovery route.
+- Made `static.generateLlmsTxt` gate both `CorsenContext` static generation
+  methods and supplied handlers, kept full content disabled by default behind
+  `static.includeFullContent`, and bounded `static.maxOutputBytes` to 64
+  KiB–10 MiB (5 MiB default). Static output now truncates only at complete
+  UTF-8 code points. `content.maxPages` is schema-bounded to 5000.
+- Normalized same-site static URLs and escaped generated Markdown metadata and
+  destinations. Provider-supplied page bodies remain unchanged and explicitly
+  untrusted.
+
+### Transport and verification
+
+- Added strict initialize metadata, media negotiation, Origin/CORS handling,
+  notification acknowledgement, and required server metadata across the
+  supplied TypeScript handlers.
+- Standardized bounded JSON parsing across the supplied Node handlers:
+  malformed JSON returns `-32700`, bodies over 100 KiB return `413`, and Origin,
+  media negotiation, rate limiting, and authentication run before parsing.
+- Added a 10-second upstream fetch timeout to every CMS reference bridge.
+  All five references cache successful provider results in process-local memory
+  and coalesce concurrent misses. Ghost, Strapi, Directus, and Wagtail use a
+  fixed 60-second TTL; MediaWiki retains its bounded, configurable 30-second
+  default.
+- Stopped `withCorsenContext` from serializing the Corsen configuration through
+  `nextConfig.env`; route handlers now import server-only configuration
+  directly.
+- Added a candidate-package receipt that packs this checkout, installs it into
+  all nine npm examples without changing their lockfiles, builds them, and
+  exercises their MCP and WebMCP surfaces.
+
+## WordPress plugin [1.4.1] - Candidate - 2026-08-30
+
+### Contract and plugin changes
+
+- Set the repository candidate version and stable tag to 1.4.1. This does not
+  imply that WordPress.org already serves 1.4.1; verify the listing before
+  installation.
+- Removed the unreleased declarative form renderer, submission endpoint, and
+  stored-submission module so the distributed contract remains four read-only
+  public-content tools.
+- Kept the legacy `[corsen_agent_form]` shortcode as an empty compatibility shim
+  and removed legacy stored submissions during uninstall.
+- Preserved an explicitly empty Agent Tools selection instead of restoring all
+  tools on save.
+- Rejected invalid, credential-bearing, non-HTTP(S), and cross-origin WebMCP
+  endpoints before registration or fetch.
+- Mirrored the strict initialize, tool-input, media-negotiation, Origin, and
+  notification contract in PHP. Tool input failures return `isError: true`;
+  malformed call envelopes remain JSON-RPC `-32602`.
+
+## Repository verification and documentation - 2026-08-30
+
+- Added deterministic live verification against `tools.manifest.json`. A live
+  deployment is considered current only when the verifier exits successfully;
+  browser execution remains a separate gate.
+- Added explicit installation classes for native adapters and CMS reference
+  bridges, same-origin sidecar guidance, and the public WebMCP versus
+  authenticated MCP deployment boundary.
+- Replaced universal-discovery, universal-browser, and automatic CMS
+  compatibility claims with prerequisites and reproducible checks.
+- Made static-HTML revocation reproducible at build time: disabled builds
+  remove stale static context/WebMCP assets and omit bridge/status scripts from
+  generated pages. Purely static hosting requires rebuild and redeployment.
+- Split npm release preparation from publication: pushes may prepare a
+  Changesets version pull request, while publishing requires a confirmed manual
+  run for an exact `main` commit/version through the `npm-publish` environment
+  and npm trusted publishing (OIDC). Long-lived npm credentials are rejected.
+
+## WordPress plugin [1.4.0] - Not released - 2026-08-30
+
+- Prototyped declarative WebMCP forms and bounded submission storage during the
+  challenge.
+- Withdrew the prototype before release; it is not part of the 1.4.1 candidate
+  or the submitted four-tool read-only scope.
+
+## WordPress plugin [1.3.1] - 2026-08-30
+
+### WordPress plugin
+
+- Forwarded an agent-provided abort signal to the in-flight MCP request when
+  the browser supplies one to the WebMCP `execute` callback.
+
+## [1.3.0] - 2026-08-30
+
+### WebMCP
+
+- Added imperative `document.modelContext.registerTool` generation for the
+  same read-only contract served over MCP.
+- Added `readOnlyHint` and `untrustedContentHint` annotations, sourced from the
+  shared manifest and checked by parity tests.
+- Kept browser execution same-origin, refused frame registration, omitted
+  cookies and credentials, and forwarded calls to the configured MCP endpoint.
+- Added WebMCP script handlers for Next.js and Astro plus an opt-in WordPress
+  emitter and origin-trial meta-token field.
+- Added a CLI homepage diagnostic. It detects the bridge surface but does not
+  prove that a browser agent registered or executed a tool.
+
+### Examples
+
+- Added Next.js, Astro, Express, and static-HTML reference integrations.
+- Added Ghost, Strapi, Directus, Wagtail, and MediaWiki reference Node bridges.
+  These are deployable bridge services, not native plugins or extensions for
+  those CMSs.
+
 ## [1.2.1] - 2026-07-21
 
 ### WordPress plugin
@@ -16,20 +138,25 @@
 ## [1.2.0] - 2026-07-13
 
 ### Security
+
 - Rate limiter keys on the socket IP by default; `X-Forwarded-For`/`X-Real-IP`/`CF-Connecting-IP` are only trusted when `security.trustProxy` is enabled (WordPress: `CORSEN_CONTEXT_TRUST_PROXY`). Closes a spoofable rate-limit bypass on all adapters.
-- `safeFetch` now keeps the real hostname for TLS/SNI and pins the vetted IP at the socket level via `undici` when available — fixing broken HTTPS fetches while still defeating DNS rebinding; without `undici` it resolves and verifies every IP is public (fail-closed).
+- `safeFetch` now keeps the real hostname for TLS/SNI and, when optional
+  `undici` is available, pins the vetted IP at the socket level. Without
+  `undici`, it resolves and verifies every IP before the platform fetch but
+  retains a narrow rebinding window.
 - `isPrivateIp` now covers the full IPv6 link-local range (`fe80::/10`) and IPv4-mapped/embedded forms, including the canonical hex form (`::ffff:a9fe:a9fe`).
 - Content-policy path exclusions are now case-insensitive and percent-decoded, closing `/ADMIN` and `/%61dmin` bypasses.
 - Next.js adapter enforces the body-size cap on actual bytes streamed (not the spoofable `Content-Length`), returning 413; rate limiting now runs before auth.
 - WordPress: rate limiting runs before auth; uses the object cache's atomic INCR when available; `resources/read`/`get_page_content` validate the URI resolves to a same-site, non-excluded, http(s) URL; settings restrict post types to publicly-registered types.
 - Sitemap fetch enforces the 5 MB cap while streaming (chunked responses can no longer bypass it).
 - Rate-limit logs a hashed IP instead of the raw address.
-- SSE handler (Next.js) is gated behind auth + rate limiting.
-- Optional `security.exposeVersion: false` to omit the exact server version from `serverInfo`.
+- The legacy Next.js endpoint-discovery SSE helper is gated behind auth + rate limiting and explicitly deprecated; new scaffolds use the stateless JSON MCP endpoint only.
+- `security.exposeVersion` was accepted during the 1.3 development cycle; MCP requires `serverInfo.version`, so the compatibility input no longer suppresses that required field.
 
 ### Fixed
+
 - `resources/list` no longer crashes when a provider returns relative URLs.
-- `list_content` computes `total`/`hasMore` on the full type-filtered set, independent of `maxPages`.
+- `list_content` filters by type before enforcing the owner-configured `maxPages` exposure cap; totals and pagination cannot disclose items beyond that cap.
 - Rate-limit state is now shared across the per-request server instances every adapter creates, so the default in-memory limiter actually accumulates.
 - `RedisCache` sets TTLs via `EXPIRE`, so entries expire on ioredis (not just @upstash/redis).
 - HTML→Markdown preserves in-article `<header>` (page H1), skips empty `<main>` wrappers, and neutralizes `javascript:`/`vbscript:`/`file:`/`data:` link targets.
@@ -37,6 +164,7 @@
 - `serverInfo` and the CLI report a single-sourced version; `initialize` negotiates the client's protocol version.
 
 ### Added
+
 - Batteries-included providers: `createInMemoryProvider`, `createSitemapProvider`.
 - Discovery generators: `generateRobotsTxt`, `generateWellKnownMcp`, `mcpLinkTag`.
 - `resources/list` cursor pagination; `invalidatePage`/`clearCache` for cache invalidation.
@@ -47,6 +175,7 @@
 ## [1.1.0] - 2026-04-12
 
 ### Security
+
 - SSRF DNS rebinding protection with IP pinning
 - WordPress SSRF fail-closed on DNS failure
 - PHP ReDoS null-safe preg_replace
@@ -58,6 +187,7 @@
 - Rate-limit transient cleanup on uninstall
 
 ### Fixed
+
 - Double rate limit counting in Next.js adapter
 - CORS headers missing when no allowedOrigins set
 - Query parameters stripped from resource URIs
@@ -68,10 +198,12 @@
 - WordPress $params validation and posts_per_page
 
 ### Added
+
 - WordPress admin max_pages setting (10-5000)
 - WP-Cron hourly garbage collector for transients
 - Dashboard widget admin-only visibility
 
 ## [1.0.0] - 2026-04-08
 
-Initial release — MCP 2025-11-25 server, llms.txt generation, WordPress plugin, Next.js adapter, and CLI.
+Initial release — JSON-RPC endpoint targeting MCP 2025-11-25, llms.txt
+generation, WordPress plugin, Next.js adapter, and CLI.

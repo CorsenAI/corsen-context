@@ -5,7 +5,7 @@ function siteOrigin(config: ResolvedConfig): string {
   return new URL(config.siteUrl).origin;
 }
 
-function percentDecode(value: string): string {
+function percentDecode(value: string): string | null {
   // Decode repeatedly (capped) so double-encoding like %2561 -> %61 -> a can't
   // slip an excluded path past the denylist comparison.
   let current = value;
@@ -14,28 +14,66 @@ function percentDecode(value: string): string {
     try {
       decoded = decodeURIComponent(current);
     } catch {
-      return current; // malformed escape — stop decoding
+      // A malformed escape in the input is ambiguous. A literal percent that
+      // appears only after decoding (for example %25) is no longer an escape.
+      return i === 0 ? null : current;
     }
     if (decoded === current) break;
     current = decoded;
+  }
+
+  // Reject encodings nested beyond the bounded decoding budget.
+  try {
+    if (decodeURIComponent(current) !== current) return null;
+  } catch {
+    // A decoded literal percent is allowed; it cannot hide another escape.
   }
   return current;
 }
 
 function normalizePath(path: string): string | null {
-  const trimmed = percentDecode(path.trim());
-  if (!trimmed) return null;
-  const withSlash = `/${trimmed.replace(/^\/+/, '')}`;
+  const decoded = percentDecode(path.trim());
+  if (!decoded) return null;
+  if (/[\\?#]/.test(decoded) || /\p{Cc}/u.test(decoded)) return null;
+
+  const withSlash = decoded.startsWith('/') ? decoded : `/${decoded}`;
+  // Repeated separators are rejected rather than silently canonicalized: a
+  // downstream proxy and the application may otherwise disagree on the URL.
+  if (withSlash.includes('//')) return null;
+  const segments = withSlash.split('/');
+  if (segments.some((segment) => segment === '.' || segment === '..')) return null;
   const withoutTrailing = withSlash.replace(/\/+$/, '');
   return withoutTrailing || '/';
 }
 
+function rawPathFromInput(value: string): string | null {
+  if (value.includes('\\') || value.startsWith('//')) return null;
+
+  const scheme = /^[a-z][a-z\d+.-]*:\/\//i.exec(value);
+  if (!scheme) {
+    const delimiter = value.search(/[?#]/);
+    return delimiter === -1 ? value : value.slice(0, delimiter);
+  }
+
+  const authorityStart = scheme[0].length;
+  const delimiter = value.slice(authorityStart).search(/[?#]/);
+  const end = delimiter === -1 ? value.length : authorityStart + delimiter;
+  const pathStart = value.indexOf('/', authorityStart);
+  if (pathStart === -1 || pathStart >= end) return '/';
+  return value.slice(pathStart, end);
+}
+
 function pathFromUrlOrPath(value: string, config: ResolvedConfig): string | null {
+  const rawPath = rawPathFromInput(value.trim());
+  if (rawPath === null) return null;
+  const normalizedRaw = normalizePath(rawPath);
+  if (!normalizedRaw) return null;
   try {
     const parsed = new URL(value, config.siteUrl);
-    return normalizePath(parsed.pathname);
+    const normalizedParsed = normalizePath(parsed.pathname);
+    return normalizedParsed === normalizedRaw ? normalizedParsed : null;
   } catch {
-    return normalizePath(value);
+    return normalizedRaw;
   }
 }
 
@@ -62,6 +100,11 @@ export function resolvePublicPageUrl(input: string, config: ResolvedConfig): str
     ? `/${raw.slice('resource://'.length).replace(/^\/+/, '')}`
     : raw;
 
+  const rawPath = rawPathFromInput(value);
+  if (rawPath === null) return null;
+  const normalizedRawPath = normalizePath(rawPath);
+  if (!normalizedRawPath) return null;
+
   let parsed: URL;
   try {
     parsed = new URL(value, config.siteUrl);
@@ -73,14 +116,20 @@ export function resolvePublicPageUrl(input: string, config: ResolvedConfig): str
     return null;
   }
 
+  if (parsed.username || parsed.password) return null;
+
   if (parsed.origin !== siteOrigin(config)) {
     return null;
   }
 
-  if (isExcludedPath(parsed.pathname, config)) {
+  const normalizedParsedPath = normalizePath(parsed.pathname);
+  if (!normalizedParsedPath || normalizedParsedPath !== normalizedRawPath) return null;
+
+  if (isExcludedPath(normalizedParsedPath, config)) {
     return null;
   }
 
+  parsed.pathname = normalizedParsedPath;
   return parsed.toString();
 }
 
@@ -95,7 +144,13 @@ export function filterPublicPages(
   pages: ContentListItem[],
   config: ResolvedConfig,
 ): ContentListItem[] {
-  return pages.filter((page) => isPublicListItem(page, config)).slice(0, config.content.maxPages);
+  const allowed: ContentListItem[] = [];
+  for (const page of pages) {
+    if (!isPublicListItem(page, config)) continue;
+    allowed.push(page);
+    if (allowed.length >= config.content.maxPages) break;
+  }
+  return allowed;
 }
 
 export function isPublicPageContent(content: PageContent, config: ResolvedConfig): boolean {
@@ -107,7 +162,11 @@ export function filterPublicSearchResults(
   config: ResolvedConfig,
   limit: number,
 ): SearchResult[] {
-  return results
-    .filter((result) => resolvePublicPageUrl(result.url, config) !== null)
-    .slice(0, limit);
+  const allowed: SearchResult[] = [];
+  for (const result of results) {
+    if (resolvePublicPageUrl(result.url, config) === null) continue;
+    allowed.push(result);
+    if (allowed.length >= limit) break;
+  }
+  return allowed;
 }

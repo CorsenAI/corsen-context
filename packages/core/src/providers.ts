@@ -1,9 +1,4 @@
-import type {
-  ContentProvider,
-  ContentListItem,
-  PageContent,
-  SearchResult,
-} from './types.js';
+import type { ContentProvider, ContentListItem, PageContent, SearchResult } from './types.js';
 import { safeFetch, isPrivateUrl } from './security.js';
 import { discoverSitemap, parseSitemap } from './sitemap.js';
 import { htmlToMarkdown, extractMetadata } from './converter.js';

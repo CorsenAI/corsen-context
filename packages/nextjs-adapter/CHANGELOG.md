@@ -1,5 +1,22 @@
 # @corsenai/corsen-context-nextjs
 
+## 2.0.0
+
+### Major Changes
+
+- Require Node.js 22.12 or newer across the npm runtime packages.
+- Harden the WebMCP bridge and MCP 2025-11-25 stateless JSON transport: complete the initialization lifecycle, validate Origin and protocol headers, return correct notification and tool-error envelopes, align bounded schemas across runtimes, and add reproducible cross-stack verification.
+- Return `404` from MCP, legacy SSE, WebMCP, and static handlers when their
+  owner switches are disabled. Static full content remains off by default and
+  both exports inherit the core's UTF-8 byte bound.
+- Parse at most 100 KiB of JSON after Origin, media, rate-limit, and optional
+  authentication checks; return bounded parse and body-size errors.
+- Keep Corsen configuration out of `nextConfig.env`; route handlers import
+  their full server-only configuration directly, while `withCorsenContext`
+  only adds the enabled static rewrites.
+- Updated dependencies
+  - @corsenai/corsen-context@2.0.0
+
 ## 1.3.0
 
 ### Minor Changes

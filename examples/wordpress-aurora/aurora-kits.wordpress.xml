@@ -1,0 +1,779 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Aurora Kits is a fictional, deterministic demo corpus.
+  Prices and policies are not commercial offers.
+-->
+<rss version="2.0"
+  xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+  <title>Aurora Kits</title>
+  <link>https://aurora-kits.example</link>
+  <description>Fictional deterministic content for a read-only WebMCP demonstration.</description>
+  <pubDate>Sun, 30 Aug 2026 12:00:00 +0000</pubDate>
+  <language>en-US</language>
+  <wp:wxr_version>1.2</wp:wxr_version>
+  <wp:base_site_url>https://aurora-kits.example</wp:base_site_url>
+  <wp:base_blog_url>https://aurora-kits.example</wp:base_blog_url>
+
+  <wp:author>
+    <wp:author_id>1</wp:author_id>
+    <wp:author_login><![CDATA[aurora-kits]]></wp:author_login>
+    <wp:author_email><![CDATA[aurora-kits@example.invalid]]></wp:author_email>
+    <wp:author_display_name><![CDATA[Aurora Kits]]></wp:author_display_name>
+    <wp:author_first_name><![CDATA[Aurora]]></wp:author_first_name>
+    <wp:author_last_name><![CDATA[Kits]]></wp:author_last_name>
+  </wp:author>
+
+  <wp:category>
+    <wp:term_id>51</wp:term_id>
+    <wp:category_nicename><![CDATA[aurora-guides]]></wp:category_nicename>
+    <wp:category_parent><![CDATA[]]></wp:category_parent>
+    <wp:cat_name><![CDATA[Aurora guides]]></wp:cat_name>
+  </wp:category>
+
+  <item>
+    <title>Home</title>
+    <link>https://aurora-kits.example/home/</link>
+    <pubDate>Mon, 24 Aug 2026 09:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1001</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"64px","right":"32px","bottom":"64px","left":"32px"}},"color":{"background":"#101728","text":"#f8fafc"},"border":{"radius":"20px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-text-color has-background" style="border-radius:20px;color:#f8fafc;background-color:#101728;padding-top:64px;padding-right:32px;padding-bottom:64px;padding-left:32px"><!-- wp:paragraph {"style":{"typography":{"textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"text":"#67e8f9"}}} -->
+<p class="has-text-color" style="color:#67e8f9;letter-spacing:0.08em;text-transform:uppercase">Aurora Kits · owner-controlled agent demo</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"3.4rem","lineHeight":"1.05"}}} -->
+<h1 class="wp-block-heading" style="font-size:3.4rem;line-height:1.05">A small robotics catalog an agent can search and read</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">Compare three kits, retrieve a fixed support procedure, check school policies, and inspect exactly what the site permits an agent to access.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Aurora Kits is a fictional, deterministic demo corpus; prices and policies are not commercial offers.</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:buttons -->
+<div class="wp-block-buttons"><!-- wp:button {"backgroundColor":"cyan-bluish-gray","textColor":"black"} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-black-color has-cyan-bluish-gray-background-color has-text-color has-background wp-element-button" href="/products/">Compare the kits</a></div>
+<!-- /wp:button -->
+
+<!-- wp:button {"className":"is-style-outline"} -->
+<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/agent-access/">Read the access boundary</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons --></div>
+<!-- /wp:group -->
+
+<!-- wp:spacer {"height":"32px"} -->
+<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>
+<!-- /wp:spacer -->
+
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">3 products</h3>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>One canonical comparison, from Explorer v2 to a ROS 2 lab kit.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">4 read-only tools</h3>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>Search, read, list, and map only the public content selected by the owner.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">1 fixed diagnostic</h3>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>AK-E17 always has three steps followed by a human escalation condition.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Try these prompts with your agent</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>These are selectable prompt examples, not buttons and not transcripts. Paste one into a compatible agent and ask it to use this site's tools.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}},"color":{"background":"#ecfeff"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#ecfeff;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Choose a kit</h3>
+<!-- /wp:heading -->
+<!-- wp:code -->
+<pre class="wp-block-code"><code>Compare Explorer v2, Maker, and Pro by price, age guidance, projects, sensors, and coding stack. Cite the relevant Aurora Kits pages.</code></pre>
+<!-- /wp:code --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}},"color":{"background":"#f0fdf4"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#f0fdf4;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Diagnose AK-E17</h3>
+<!-- /wp:heading -->
+<!-- wp:code -->
+<pre class="wp-block-code"><code>Find the AK-E17 Maker arm calibration guide. Return the three steps in order and tell me exactly when to escalate.</code></pre>
+<!-- /wp:code --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}},"color":{"background":"#fff7ed"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#fff7ed;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Check school terms</h3>
+<!-- /wp:heading -->
+<!-- wp:code -->
+<pre class="wp-block-code"><code>What shipping, education discount, return, and parts-warranty terms apply to an EU school order?</code></pre>
+<!-- /wp:code --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Product comparison</h2>
+<!-- /wp:heading -->
+
+<!-- wp:table {"className":"is-style-stripes"} -->
+<figure class="wp-block-table is-style-stripes"><table><thead><tr><th>Kit</th><th>Price</th><th>Age guidance</th><th>Learning format</th><th>Key hardware</th><th>Coding stack</th></tr></thead><tbody><tr><td><strong>Explorer v2</strong></td><td>EUR 89 (€89)</td><td>10+</td><td>24 guided projects; no soldering</td><td>Line and distance sensors</td><td>Block editor and Python</td></tr><tr><td><strong>Maker</strong></td><td>EUR 179 (€179)</td><td>12+</td><td>30 guided projects</td><td>Camera and articulated arm</td><td>Python</td></tr><tr><td><strong>Pro</strong></td><td>EUR 449 (€449)</td><td>16+</td><td>Self-directed labs; no fixed project count</td><td>LiDAR</td><td>ROS 2 with Python or C++</td></tr></tbody></table></figure>
+<!-- /wp:table -->
+
+<!-- wp:paragraph -->
+<p><a href="/products/">Read the canonical product page</a> for the selection rules and full deterministic facts.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"28px","right":"28px","bottom":"28px","left":"28px"}},"color":{"background":"#f8fafc"},"border":{"radius":"16px","color":"#cbd5e1","width":"1px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-border-color has-background" style="border-color:#cbd5e1;border-width:1px;border-radius:16px;background-color:#f8fafc;padding-top:28px;padding-right:28px;padding-bottom:28px;padding-left:28px"><!-- wp:heading -->
+<h2 class="wp-block-heading">AK-E17 quick diagnostic</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>Applies to:</strong> Maker arm calibration. Complete the sequence once, in order.</p>
+<!-- /wp:paragraph -->
+<!-- wp:list {"ordered":true} -->
+<ol><li>Power the Maker kit off, disconnect USB-C, and wait 30 seconds.</li><li>Place the arm on a level surface with every joint aligned to its neutral marker, reconnect power, then run Settings → Arm calibration → Zero.</li><li>After the zero cycle ends, run the built-in pick-and-place test once and confirm every joint returns to its neutral marker.</li></ol>
+<!-- /wp:list -->
+<!-- wp:paragraph -->
+<p><strong>Escalate:</strong> Stop and escalate with code AK-E17 if the code returns after this single calibration, a joint cannot reach neutral, or the arm grinds or becomes hot. Do not repeat calibration.</p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p><a href="/guides/ak-e17/">Open the canonical AK-E17 guide</a>.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">The agent-access boundary</h2>
+<!-- /wp:heading -->
+
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#f0fdf4"},"border":{"radius":"14px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:14px;background-color:#f0fdf4;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Can</h3>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li>Search selected published pages and posts.</li><li>Read one same-origin public URL returned by a tool.</li><li>List selected public content types.</li><li>Request a bounded public sitemap.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#fff1f2"},"border":{"radius":"14px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:14px;background-color:#fff1f2;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Cannot</h3>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li>Create, edit, or delete content.</li><li>Order, pay, submit, or act as a visitor.</li><li>Read drafts, private items, passwords, cookies, or credentials.</li><li>Use the content tool to read another origin.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+
+<!-- wp:buttons -->
+<div class="wp-block-buttons"><!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/integrate/">See the WordPress integration path</a></div>
+<!-- /wp:button -->
+<!-- wp:button {"className":"is-style-outline"} -->
+<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/updates/">Check content freshness</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[A deterministic read-only WebMCP demonstration corpus for three fictional robotics kits.]]></excerpt:encoded>
+    <wp:post_id>1001</wp:post_id>
+    <wp:post_date><![CDATA[2026-08-24 09:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2026-08-24 09:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status>
+    <wp:ping_status><![CDATA[closed]]></wp:ping_status>
+    <wp:post_name><![CDATA[home]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_parent>0</wp:post_parent>
+    <wp:menu_order>0</wp:menu_order>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+    <wp:post_password><![CDATA[]]></wp:post_password>
+    <wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-home-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Products</title>
+    <link>https://aurora-kits.example/products/</link>
+    <pubDate>Mon, 24 Aug 2026 09:10:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1002</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Choose an Aurora kit</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">One canonical comparison for price, age guidance, learning format, hardware, and coding stack.</p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p><strong>Aurora Kits is a fictional, deterministic demo corpus; prices and policies are not commercial offers.</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:table {"className":"is-style-stripes"} -->
+<figure class="wp-block-table is-style-stripes"><table><thead><tr><th>Kit</th><th>Price</th><th>Age guidance</th><th>Projects</th><th>Hardware</th><th>Coding</th></tr></thead><tbody><tr><td><strong>Explorer v2</strong></td><td>EUR 89 (€89)</td><td>10+</td><td>24 guided projects</td><td>Line and distance sensors; no soldering required</td><td>Block editor and Python</td></tr><tr><td><strong>Maker</strong></td><td>EUR 179 (€179)</td><td>12+</td><td>30 guided projects</td><td>Camera and articulated arm</td><td>Python</td></tr><tr><td><strong>Pro</strong></td><td>EUR 449 (€449)</td><td>16+</td><td>Self-directed labs; no fixed project count</td><td>LiDAR</td><td>ROS 2 with Python or C++</td></tr></tbody></table></figure>
+<!-- /wp:table -->
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Explorer v2</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>EUR 89 · age 10+ · 24 guided projects</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:list -->
+<ul><li>Line and distance sensors.</li><li>Block editor and Python path.</li><li>No soldering required.</li><li>Choose it for a first structured robotics sequence.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:column -->
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Maker</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>EUR 179 · age 12+ · 30 guided projects</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:list -->
+<ul><li>Camera and articulated arm included.</li><li>Python learning path.</li><li>AK-E17 arm-calibration guide available.</li><li>Choose it for vision and motion projects.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:column -->
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Pro</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>EUR 449 · age 16+ · self-directed labs</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:list -->
+<ul><li>LiDAR included.</li><li>ROS 2 with Python or C++.</li><li>No fixed project count.</li><li>Choose it for an experienced lab team.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#ecfeff"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#ecfeff;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Selection rule</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>Choose Explorer v2 for the lowest-price, no-soldering guided path. Choose Maker when the camera and arm are required. Choose Pro only when the team specifically needs LiDAR and ROS 2.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[Canonical facts for Explorer v2, Maker, and Pro.]]></excerpt:encoded>
+    <wp:post_id>1002</wp:post_id><wp:post_date><![CDATA[2026-08-24 09:10:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 09:10:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[products]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>1</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-products-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Guides</title>
+    <link>https://aurora-kits.example/guides/</link>
+    <pubDate>Mon, 24 Aug 2026 09:20:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1003</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Aurora resource library</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">Six dated learning resources and one fixed support diagnostic, written as public source material an agent can retrieve.</p>
+<!-- /wp:paragraph -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#fff7ed"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#fff7ed;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Support diagnostic</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>AK-E17 — Maker arm calibration</strong> provides exactly three fixed steps and a human escalation condition.</p>
+<!-- /wp:paragraph -->
+<!-- wp:buttons -->
+<div class="wp-block-buttons"><!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/guides/ak-e17/">Open AK-E17</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons --></div>
+<!-- /wp:group -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Dated resources</h2>
+<!-- /wp:heading -->
+<!-- wp:group {"style":{"spacing":{"blockGap":"18px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><a href="/choose-the-right-aurora-kit/">Choose the right Aurora kit</a></h3>
+<!-- /wp:heading --><p><time datetime="2026-08-18">18 August 2026</time> · A three-question selection path.</p>
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><a href="/explorer-v2-first-24-projects/">Explorer v2: plan the first 24 projects</a></h3>
+<!-- /wp:heading --><p><time datetime="2026-08-19">19 August 2026</time> · A four-stage learning sequence.</p>
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><a href="/maker-camera-privacy-checklist/">Maker camera privacy checklist</a></h3>
+<!-- /wp:heading --><p><time datetime="2026-08-20">20 August 2026</time> · A public-space classroom checklist.</p>
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><a href="/prepare-an-arm-calibration-session/">Prepare an arm calibration session</a></h3>
+<!-- /wp:heading --><p><time datetime="2026-08-21">21 August 2026</time> · Preparation before the canonical AK-E17 procedure.</p>
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><a href="/pro-lidar-ros2-lab-setup/">Pro LiDAR and ROS 2 lab setup</a></h3>
+<!-- /wp:heading --><p><time datetime="2026-08-22">22 August 2026</time> · Scope and prerequisites for the Pro kit.</p>
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><a href="/school-club-launch-checklist/">School club launch checklist</a></h3>
+<!-- /wp:heading --><p><time datetime="2026-08-23">23 August 2026</time> · Ownership, storage, and policy review.</p></div>
+<!-- /wp:group -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[Six dated Aurora resources and the AK-E17 support diagnostic.]]></excerpt:encoded>
+    <wp:post_id>1003</wp:post_id><wp:post_date><![CDATA[2026-08-24 09:20:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 09:20:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[guides]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>2</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-guides-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>AK-E17 — Maker arm calibration</title>
+    <link>https://aurora-kits.example/guides/ak-e17/</link>
+    <pubDate>Mon, 24 Aug 2026 09:30:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1004</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:paragraph -->
+<p><a href="/guides/">Guides</a> / Support diagnostic</p>
+<!-- /wp:paragraph -->
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">AK-E17 — Maker arm calibration</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">Applies only to the Aurora Maker kit when the local control app reports AK-E17.</p>
+<!-- /wp:paragraph -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"28px","right":"28px","bottom":"28px","left":"28px"}},"color":{"background":"#ecfeff"},"border":{"radius":"14px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:14px;background-color:#ecfeff;padding-top:28px;padding-right:28px;padding-bottom:28px;padding-left:28px"><!-- wp:heading -->
+<h2 class="wp-block-heading">Three fixed steps</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>Complete this sequence once, in order. Do not add, skip, or repeat a step.</p>
+<!-- /wp:paragraph -->
+<!-- wp:list {"ordered":true} -->
+<ol><li><strong>Power down.</strong> Power the Maker kit off, disconnect USB-C, and wait 30 seconds.</li><li><strong>Zero the arm.</strong> Place the arm on a level surface with every joint aligned to its neutral marker, reconnect power, then run Settings → Arm calibration → Zero.</li><li><strong>Test once.</strong> After the zero cycle ends, run the built-in pick-and-place test once and confirm every joint returns to its neutral marker.</li></ol>
+<!-- /wp:list --></div>
+<!-- /wp:group -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#fff1f2"},"border":{"radius":"14px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:14px;background-color:#fff1f2;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading -->
+<h2 class="wp-block-heading">Escalation condition</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>Stop and escalate with code AK-E17 if the code returns after this single calibration, a joint cannot reach neutral, or the arm grinds or becomes hot. Do not repeat calibration.</strong></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Scope</h2>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li>This is a deterministic support example, not a remote repair service.</li><li>An agent may retrieve and summarize this public procedure; it cannot operate the kit.</li><li>The human remains responsible for inspection, calibration, and escalation.</li></ul>
+<!-- /wp:list -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[Exactly three Maker arm-calibration steps and the AK-E17 escalation condition.]]></excerpt:encoded>
+    <wp:post_id>1004</wp:post_id><wp:post_date><![CDATA[2026-08-24 09:30:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 09:30:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[ak-e17]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>1003</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-ak-e17-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Shipping &amp; education</title>
+    <link>https://aurora-kits.example/shipping-education/</link>
+    <pubDate>Mon, 24 Aug 2026 09:40:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1005</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Shipping, education, returns, and warranty</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">Canonical policy facts for the Aurora Kits demonstration corpus.</p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p><strong>Aurora Kits is a fictional, deterministic demo corpus; prices and policies are not commercial offers.</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#ecfeff"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#ecfeff;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">EU delivery</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>2–4 business days · free</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p>In this corpus, standard delivery to an EU address takes 2–4 business days and has no shipping charge.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#f0fdf4"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#f0fdf4;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Education</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>20% for a verified school or club</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p>The fictional discount applies only after the organization is verified as a school or educational club.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#fff7ed"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#fff7ed;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Returns</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>30 days</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p>The deterministic return window is 30 days.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#f8fafc"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#f8fafc;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Parts warranty</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>2 years</strong></p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p>The deterministic parts-warranty period is two years.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Agent interpretation rule</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>An agent should report these four facts exactly and preserve the school-or-club verification condition. It should not turn the fictional corpus into a quote, order, approval, or commercial promise.</p>
+<!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[EU delivery, education discount, returns, and parts-warranty facts for the demo corpus.]]></excerpt:encoded>
+    <wp:post_id>1005</wp:post_id><wp:post_date><![CDATA[2026-08-24 09:40:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 09:40:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[shipping-education]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>3</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-shipping-education-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Updates</title>
+    <link>https://aurora-kits.example/updates/</link>
+    <pubDate>Mon, 24 Aug 2026 09:50:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1006</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Corpus updates</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">A visible freshness log for the deterministic facts an agent may retrieve.</p>
+<!-- /wp:paragraph -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}},"color":{"background":"#f8fafc"},"border":{"left":{"color":"#0891b2","width":"4px"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-left-color:#0891b2;border-left-width:4px;background-color:#f8fafc;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading"><time datetime="2026-08-24">24 August 2026</time></h2>
+<!-- /wp:heading --><p>Agent access policy reviewed: four read-only tools, no action or transaction surface.</p></div>
+<!-- /wp:group -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}},"color":{"background":"#f8fafc"},"border":{"left":{"color":"#16a34a","width":"4px"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-left-color:#16a34a;border-left-width:4px;background-color:#f8fafc;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading"><time datetime="2026-08-23">23 August 2026</time></h2>
+<!-- /wp:heading --><p>EU shipping, verified education discount, return window, and parts warranty checked against the canonical policy page.</p></div>
+<!-- /wp:group -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"20px","right":"20px","bottom":"20px","left":"20px"}},"color":{"background":"#f8fafc"},"border":{"left":{"color":"#7c3aed","width":"4px"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-left-color:#7c3aed;border-left-width:4px;background-color:#f8fafc;padding-top:20px;padding-right:20px;padding-bottom:20px;padding-left:20px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading"><time datetime="2026-08-22">22 August 2026</time></h2>
+<!-- /wp:heading --><p>Pro scope clarified: EUR 449, LiDAR, ROS 2, and self-directed labs with no fixed project count.</p></div>
+<!-- /wp:group -->
+<!-- wp:paragraph -->
+<p><strong>Freshness rule:</strong> use the canonical Products, Shipping &amp; education, AK-E17, and Agent access pages for exact facts. This log records review dates; it does not replace those pages.</p>
+<!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[Dated review notes for the Aurora Kits demonstration corpus.]]></excerpt:encoded>
+    <wp:post_id>1006</wp:post_id><wp:post_date><![CDATA[2026-08-24 09:50:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 09:50:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[updates]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>4</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-updates-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Integrate</title>
+    <link>https://aurora-kits.example/integrate/</link>
+    <pubDate>Mon, 24 Aug 2026 10:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1007</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Integrate this pattern on WordPress</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">The content and the tool layer have separate responsibilities.</p>
+<!-- /wp:paragraph -->
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#ecfeff"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#ecfeff;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">WordPress owns the corpus</h2>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li>Published pages and posts hold the source facts.</li><li>Page titles, headings, dates, and links make ownership visible.</li><li>Drafts and private content stay outside the public corpus.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"color":{"background":"#f0fdf4"},"border":{"radius":"12px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:12px;background-color:#f0fdf4;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Corsen Context owns the interface</h2>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li>MCP exposes the selected public corpus over JSON-RPC.</li><li>WebMCP can register the same selected tools inside a compatible page.</li><li>The owner can disable a surface, a tool, a post type, or a path.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Owner checklist</h2>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li>Install the current candidate from its documented source.</li><li>Enable pretty permalinks.</li><li>Select only public post types intended for agents.</li><li>Expose the four read-only tools required by the demo.</li><li>Keep the in-page bridge same-origin and credential-free.</li><li>Use the current browser-origin-trial or development setup when the browser requires it.</li><li>Test search_site first, then pass the exact returned absolute URL to get_page_content.</li><li>Disable WebMCP or the selected tools to prove owner revocation.</li></ul>
+<!-- /wp:list -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Expected two-tool path</h2>
+<!-- /wp:heading -->
+<!-- wp:code -->
+<pre class="wp-block-code"><code>search_site({"query":"AK-E17 Maker arm calibration","limit":10})
+→ choose the same-origin absolute URL returned by the site
+get_page_content({"uri":"that exact absolute URL"})</code></pre>
+<!-- /wp:code -->
+<!-- wp:paragraph -->
+<p>This is a verification sequence, not a simulated agent response. The tools remain read-only throughout it.</p>
+<!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[How WordPress content and the Corsen Context read-only interface fit together.]]></excerpt:encoded>
+    <wp:post_id>1007</wp:post_id><wp:post_date><![CDATA[2026-08-24 10:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 10:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[integrate]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>5</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-integrate-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Agent access</title>
+    <link>https://aurora-kits.example/agent-access/</link>
+    <pubDate>Mon, 24 Aug 2026 10:10:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?page_id=1008</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Agent access: Can / Cannot</h1>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"fontSize":"large"} -->
+<p class="has-large-font-size">A plain-language boundary for site owners, visitors, and agents.</p>
+<!-- /wp:paragraph -->
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"28px","right":"28px","bottom":"28px","left":"28px"}},"color":{"background":"#f0fdf4"},"border":{"radius":"14px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:14px;background-color:#f0fdf4;padding-top:28px;padding-right:28px;padding-bottom:28px;padding-left:28px"><!-- wp:heading -->
+<h2 class="wp-block-heading">Can</h2>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li><strong>Search</strong> the selected published pages and posts by keyword.</li><li><strong>Read</strong> one public, same-origin page URL returned by the site.</li><li><strong>List</strong> the selected public content types with bounded pagination.</li><li><strong>Map</strong> the selected public corpus through a bounded sitemap.</li><li><strong>Quote the source boundary</strong> and treat returned website content as untrusted.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column -->
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:group {"style":{"spacing":{"padding":{"top":"28px","right":"28px","bottom":"28px","left":"28px"}},"color":{"background":"#fff1f2"},"border":{"radius":"14px"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-background" style="border-radius:14px;background-color:#fff1f2;padding-top:28px;padding-right:28px;padding-bottom:28px;padding-left:28px"><!-- wp:heading -->
+<h2 class="wp-block-heading">Cannot</h2>
+<!-- /wp:heading -->
+<!-- wp:list -->
+<ul><li><strong>Create, edit, or delete</strong> WordPress content.</li><li><strong>Order, pay, reserve, submit, or approve</strong> anything.</li><li><strong>Read</strong> drafts, private or password-protected items, excluded paths, or unselected post types.</li><li><strong>Receive</strong> visitor cookies, account credentials, or an MCP API key from the in-page bridge.</li><li><strong>Use get_page_content cross-origin</strong> or treat annotations as a security guarantee.</li><li><strong>Invent missing terms</strong> or turn fictional facts into commercial offers.</li></ul>
+<!-- /wp:list --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Owner revocation</h2>
+<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>The site owner can disable Corsen Context, disable MCP or WebMCP, uncheck any tool, remove a post type, or exclude a path. After a change, the owner should verify the public endpoint and compatible browser again.</p>
+<!-- /wp:paragraph -->
+<!-- wp:paragraph -->
+<p><strong>Content safety:</strong> tool output comes from a website and must be treated as untrusted content. Read-only annotations describe intended behavior; they do not replace client-side security review.</p>
+<!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[The exact read-only access boundary for the Aurora Kits demonstration.]]></excerpt:encoded>
+    <wp:post_id>1008</wp:post_id><wp:post_date><![CDATA[2026-08-24 10:10:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-24 10:10:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[agent-access]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>6</wp:menu_order><wp:post_type><![CDATA[page]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[page-agent-access-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Choose the right Aurora kit</title>
+    <link>https://aurora-kits.example/choose-the-right-aurora-kit/</link>
+    <pubDate>Tue, 18 Aug 2026 08:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?p=1101</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} --><h1 class="wp-block-heading">Choose the right Aurora kit</h1><!-- /wp:heading -->
+<!-- wp:paragraph --><p><time datetime="2026-08-18">Published 18 August 2026</time></p><!-- /wp:paragraph -->
+<!-- wp:paragraph {"fontSize":"large"} --><p class="has-large-font-size">Start with the learning format, then select only the hardware the group needs.</p><!-- /wp:paragraph -->
+<!-- wp:heading --><h2 class="wp-block-heading">Three questions</h2><!-- /wp:heading -->
+<!-- wp:list {"ordered":true} --><ol><li>Does the learner need a structured first path from age 10 with no soldering? Choose Explorer v2: EUR 89 and 24 guided projects.</li><li>Does the project need a camera and articulated arm? Choose Maker: EUR 179 and 30 guided projects.</li><li>Does an experienced lab specifically need LiDAR and ROS 2? Choose Pro: EUR 449 and self-directed labs.</li></ol><!-- /wp:list -->
+<!-- wp:paragraph --><p>Use the <a href="/products/">Products page</a> as the canonical source. Aurora Kits is fictional; no selection on this page is a commercial recommendation or offer.</p><!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[A deterministic three-question product-selection path.]]></excerpt:encoded>
+    <wp:post_id>1101</wp:post_id><wp:post_date><![CDATA[2026-08-18 08:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-18 08:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[choose-the-right-aurora-kit]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[post]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <category domain="category" nicename="aurora-guides"><![CDATA[Aurora guides]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[post-choose-kit-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Explorer v2: plan the first 24 projects</title>
+    <link>https://aurora-kits.example/explorer-v2-first-24-projects/</link>
+    <pubDate>Wed, 19 Aug 2026 08:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?p=1102</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} --><h1 class="wp-block-heading">Explorer v2: plan the first 24 projects</h1><!-- /wp:heading -->
+<!-- wp:paragraph --><p><time datetime="2026-08-19">Published 19 August 2026</time></p><!-- /wp:paragraph -->
+<!-- wp:paragraph --><p>Explorer v2 costs EUR 89, has age guidance of 10+, and contains 24 guided projects. No soldering is required.</p><!-- /wp:paragraph -->
+<!-- wp:heading --><h2 class="wp-block-heading">Four learning stages</h2><!-- /wp:heading -->
+<!-- wp:list --><ul><li><strong>Projects 1–6:</strong> movement and safe stops.</li><li><strong>Projects 7–12:</strong> line-sensor input.</li><li><strong>Projects 13–18:</strong> distance-sensor decisions.</li><li><strong>Projects 19–24:</strong> combine sensing and movement in Python.</li></ul><!-- /wp:list -->
+<!-- wp:paragraph --><p>The four stage ranges total the canonical count of 24 Explorer v2 projects.</p><!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[A four-stage plan covering all 24 Explorer v2 projects.]]></excerpt:encoded>
+    <wp:post_id>1102</wp:post_id><wp:post_date><![CDATA[2026-08-19 08:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-19 08:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[explorer-v2-first-24-projects]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[post]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <category domain="category" nicename="aurora-guides"><![CDATA[Aurora guides]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[post-explorer-24-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Maker camera privacy checklist</title>
+    <link>https://aurora-kits.example/maker-camera-privacy-checklist/</link>
+    <pubDate>Thu, 20 Aug 2026 08:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?p=1103</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} --><h1 class="wp-block-heading">Maker camera privacy checklist</h1><!-- /wp:heading -->
+<!-- wp:paragraph --><p><time datetime="2026-08-20">Published 20 August 2026</time></p><!-- /wp:paragraph -->
+<!-- wp:paragraph --><p>The fictional Maker kit costs EUR 179 and includes a camera, an articulated arm, and 30 guided projects. A human owner must define how its camera is used.</p><!-- /wp:paragraph -->
+<!-- wp:heading --><h2 class="wp-block-heading">Before a classroom session</h2><!-- /wp:heading -->
+<!-- wp:list --><ul><li>Point the camera only at the intended test area.</li><li>Keep faces, names, screens, and personal documents outside the frame.</li><li>Use a local sample object for the vision exercise.</li><li>Delete unneeded captures according to the organization's own policy.</li><li>Stop the session if the framing cannot be controlled.</li></ul><!-- /wp:list -->
+<!-- wp:paragraph --><p>This public checklist is educational content. The read-only website tools cannot turn on the camera, capture an image, or inspect the local kit.</p><!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[A human-owned privacy checklist for the fictional Maker camera.]]></excerpt:encoded>
+    <wp:post_id>1103</wp:post_id><wp:post_date><![CDATA[2026-08-20 08:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-20 08:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[maker-camera-privacy-checklist]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[post]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <category domain="category" nicename="aurora-guides"><![CDATA[Aurora guides]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[post-camera-privacy-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Prepare an arm calibration session</title>
+    <link>https://aurora-kits.example/prepare-an-arm-calibration-session/</link>
+    <pubDate>Fri, 21 Aug 2026 08:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?p=1104</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} --><h1 class="wp-block-heading">Prepare an arm calibration session</h1><!-- /wp:heading -->
+<!-- wp:paragraph --><p><time datetime="2026-08-21">Published 21 August 2026</time></p><!-- /wp:paragraph -->
+<!-- wp:paragraph --><p>This resource prepares the workspace for the Maker kit. It does not replace or extend the canonical three-step AK-E17 procedure.</p><!-- /wp:paragraph -->
+<!-- wp:heading --><h2 class="wp-block-heading">Preparation checklist</h2><!-- /wp:heading -->
+<!-- wp:list --><ul><li>Use a stable, level work surface.</li><li>Clear the arm's movement area.</li><li>Ask a human to inspect the cable and arm for visible damage before power is applied.</li><li>Have the local control app ready.</li><li>Open <a href="/guides/ak-e17/">AK-E17 — Maker arm calibration</a> and follow only its three fixed steps.</li></ul><!-- /wp:list -->
+<!-- wp:paragraph --><p>If damage is visible, keep the kit powered off and use the guide's human escalation condition.</p><!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[Workspace preparation before the separate fixed AK-E17 procedure.]]></excerpt:encoded>
+    <wp:post_id>1104</wp:post_id><wp:post_date><![CDATA[2026-08-21 08:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-21 08:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[prepare-an-arm-calibration-session]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[post]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <category domain="category" nicename="aurora-guides"><![CDATA[Aurora guides]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[post-arm-prep-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>Pro LiDAR and ROS 2 lab setup</title>
+    <link>https://aurora-kits.example/pro-lidar-ros2-lab-setup/</link>
+    <pubDate>Sat, 22 Aug 2026 08:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?p=1105</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} --><h1 class="wp-block-heading">Pro LiDAR and ROS 2 lab setup</h1><!-- /wp:heading -->
+<!-- wp:paragraph --><p><time datetime="2026-08-22">Published 22 August 2026</time></p><!-- /wp:paragraph -->
+<!-- wp:paragraph --><p>The fictional Pro kit costs EUR 449, includes LiDAR, and uses ROS 2 with Python or C++. It is intended for age 16+ and self-directed labs; it has no fixed project count.</p><!-- /wp:paragraph -->
+<!-- wp:heading --><h2 class="wp-block-heading">Lab prerequisites</h2><!-- /wp:heading -->
+<!-- wp:list --><ul><li>A supervised workspace with a clear LiDAR scan area.</li><li>A supported local ROS 2 development environment.</li><li>Comfort with Python or C++ and command-line diagnostics.</li><li>A written stop condition for unexpected movement.</li><li>A human lab owner responsible for network, hardware, and safety decisions.</li></ul><!-- /wp:list -->
+<!-- wp:paragraph --><p>The website tools can retrieve this public scope. They cannot connect to ROS 2, control the kit, or inspect the lab network.</p><!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[Scope and prerequisites for the fictional Pro LiDAR and ROS 2 kit.]]></excerpt:encoded>
+    <wp:post_id>1105</wp:post_id><wp:post_date><![CDATA[2026-08-22 08:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-22 08:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[pro-lidar-ros2-lab-setup]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[post]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <category domain="category" nicename="aurora-guides"><![CDATA[Aurora guides]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[post-pro-lidar-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+
+  <item>
+    <title>School club launch checklist</title>
+    <link>https://aurora-kits.example/school-club-launch-checklist/</link>
+    <pubDate>Sun, 23 Aug 2026 08:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[aurora-kits]]></dc:creator>
+    <guid isPermaLink="false">https://aurora-kits.example/?p=1106</guid>
+    <description></description>
+    <content:encoded><![CDATA[
+<!-- wp:heading {"level":1} --><h1 class="wp-block-heading">School club launch checklist</h1><!-- /wp:heading -->
+<!-- wp:paragraph --><p><time datetime="2026-08-23">Published 23 August 2026</time></p><!-- /wp:paragraph -->
+<!-- wp:paragraph --><p>Use this fictional checklist to assign human ownership before a school or club uses a robotics kit.</p><!-- /wp:paragraph -->
+<!-- wp:heading --><h2 class="wp-block-heading">Launch checks</h2><!-- /wp:heading -->
+<!-- wp:list --><ul><li>Name a responsible adult for storage, sessions, and escalation.</li><li>Choose a kit from the canonical <a href="/products/">Products page</a>.</li><li>Review the camera checklist before a Maker vision session.</li><li>Record which public guides learners may use.</li><li>Review the fictional <a href="/shipping-education/">shipping and education terms</a>: EU delivery 2–4 business days and free; verified school or club discount 20%; returns 30 days; parts warranty 2 years.</li><li>Keep private learner records outside the public demonstration corpus.</li></ul><!-- /wp:list -->
+<!-- wp:paragraph --><p>A read-only agent can retrieve this checklist but cannot verify an organization, approve a discount, place an order, or access learner records.</p><!-- /wp:paragraph -->
+    ]]></content:encoded>
+    <excerpt:encoded><![CDATA[A human-ownership checklist for a fictional school robotics club.]]></excerpt:encoded>
+    <wp:post_id>1106</wp:post_id><wp:post_date><![CDATA[2026-08-23 08:00:00]]></wp:post_date><wp:post_date_gmt><![CDATA[2026-08-23 08:00:00]]></wp:post_date_gmt>
+    <wp:comment_status><![CDATA[closed]]></wp:comment_status><wp:ping_status><![CDATA[closed]]></wp:ping_status><wp:post_name><![CDATA[school-club-launch-checklist]]></wp:post_name><wp:status><![CDATA[publish]]></wp:status><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><wp:post_type><![CDATA[post]]></wp:post_type><wp:post_password><![CDATA[]]></wp:post_password><wp:is_sticky>0</wp:is_sticky>
+    <category domain="category" nicename="aurora-guides"><![CDATA[Aurora guides]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[aurora_fixture_id]]></wp:meta_key><wp:meta_value><![CDATA[post-school-club-v1]]></wp:meta_value></wp:postmeta>
+  </item>
+</channel>
+</rss>

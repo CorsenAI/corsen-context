@@ -1,120 +1,227 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Corsen Context — WebMCP diagnostic</title>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; background: #0d1117; color: #e6edf3; }
-  h1 { font-size: 1.3rem; }
-  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-  td { border: 1px solid #30363d; padding: .5rem .75rem; vertical-align: top; }
-  td:first-child { white-space: nowrap; color: #8b949e; }
-  .ok { color: #3fb950; font-weight: 600; }
-  .ko { color: #f85149; font-weight: 600; }
-  .warn { color: #d29922; font-weight: 600; }
-  pre { background: #161b22; border: 1px solid #30363d; padding: .75rem; overflow-x: auto; font-size: .8rem; white-space: pre-wrap; }
-  button { background: #238636; color: #fff; border: 0; padding: .5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 1rem; }
-  small { color: #8b949e; }
-</style>
-</head>
-<body>
-<h1>Corsen Context — WebMCP diagnostic</h1>
-<p><small>Open this page in a WebMCP-capable browser: Chrome with
-<code>chrome://flags/#enable-webmcp-testing</code> enabled (relaunch required),
-Chrome with a valid origin-trial token, or an agent browser with built-in
-WebMCP support. Everything runs locally; nothing is sent anywhere.</small></p>
-
-<table id="report"></table>
-<button id="rerun">Run checks again</button>
-<h2 style="font-size:1.05rem">Raw log</h2>
-<pre id="log"></pre>
-
-<script>
-(function () {
-  var logEl = document.getElementById('log');
-  var report = document.getElementById('report');
-
-  function log(msg) {
-    logEl.textContent += msg + '\n';
-  }
-
-  function row(label, cls, value) {
-    var tr = document.createElement('tr');
-    var td1 = document.createElement('td');
-    var td2 = document.createElement('td');
-    td1.textContent = label;
-    td2.className = cls;
-    td2.textContent = value;
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-    report.appendChild(tr);
-  }
-
-  async function run() {
-    report.textContent = '';
-    logEl.textContent = '';
-    log('UA: ' + navigator.userAgent);
-
-    var docMC = 'modelContext' in document ? document.modelContext : null;
-    var navMC = 'modelContext' in navigator ? navigator.modelContext : null;
-
-    row('document.modelContext', docMC ? 'ok' : 'ko', docMC ? 'present' : 'absent');
-    row('navigator.modelContext (deprecated alias)', navMC ? 'ok' : 'warn', navMC ? 'present' : 'absent');
-
-    var mc = docMC || navMC;
-    if (!mc) {
-      row('verdict', 'ko', 'WebMCP is not exposed in this browser. Enable the flag or serve an origin-trial token, then reload.');
-      return;
-    }
-
-    row('registerTool', typeof mc.registerTool === 'function' ? 'ok' : 'ko', typeof mc.registerTool);
-    row('getTools', typeof mc.getTools === 'function' ? 'ok' : 'warn', typeof mc.getTools);
-
-    // Register a local echo tool using the exact shape the Corsen Context
-    // bridge uses: name/description/inputSchema/annotations/execute.
-    var registered = false;
-    try {
-      await mc.registerTool({
-        name: 'corsen_diagnostic_echo',
-        description: 'Diagnostic echo tool registered by the Corsen Context test page.',
-        inputSchema: {
-          type: 'object',
-          properties: { text: { type: 'string', description: 'Text to echo back' } },
-          required: ['text']
-        },
-        annotations: { readOnlyHint: true, untrustedContentHint: true },
-        execute: function (input) {
-          return Promise.resolve('echo: ' + (input && input.text ? input.text : ''));
-        }
-      });
-      registered = true;
-      row('registerTool({...annotations})', 'ok', 'accepted our exact bridge shape');
-      log('registerTool resolved.');
-    } catch (e) {
-      row('registerTool({...annotations})', 'ko', 'rejected: ' + (e && e.message ? e.message : e));
-      log('registerTool threw: ' + e);
-    }
-
-    if (registered && typeof mc.getTools === 'function') {
-      try {
-        var tools = await mc.getTools();
-        row('getTools() count', 'ok', String(tools.length));
-        log('getTools -> ' + tools.length + ' tool(s).');
-      } catch (e) {
-        row('getTools()', 'warn', 'threw: ' + (e && e.message ? e.message : e));
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Corsen Context — WebMCP diagnostic</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 720px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        background: #0d1117;
+        color: #e6edf3;
       }
-    }
+      h1 {
+        font-size: 1.3rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1rem 0;
+      }
+      td {
+        border: 1px solid #30363d;
+        padding: 0.5rem 0.75rem;
+        vertical-align: top;
+      }
+      td:first-child {
+        white-space: nowrap;
+        color: #8b949e;
+      }
+      .ok {
+        color: #3fb950;
+        font-weight: 600;
+      }
+      .ko {
+        color: #f85149;
+        font-weight: 600;
+      }
+      .warn {
+        color: #d29922;
+        font-weight: 600;
+      }
+      pre {
+        background: #161b22;
+        border: 1px solid #30363d;
+        padding: 0.75rem;
+        overflow-x: auto;
+        font-size: 0.8rem;
+        white-space: pre-wrap;
+      }
+      button {
+        background: #238636;
+        color: #fff;
+        border: 0;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+      small {
+        color: #8b949e;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Corsen Context — WebMCP diagnostic</h1>
+    <p>
+      <small
+        >Open this page in a WebMCP-capable browser: Chrome with
+        <code>chrome://flags/#enable-webmcp-testing</code> enabled (relaunch required), Chrome with
+        a valid origin-trial token, or an agent browser with built-in WebMCP support. This
+        self-contained test registers a local echo tool. It does not call a Corsen Context MCP
+        endpoint or inspect site content. Browser setup and agent availability are separate
+        requirements.</small
+      >
+    </p>
 
-    row('verdict', registered ? 'ok' : 'ko',
-      registered
-        ? 'This browser accepts the Corsen Context bridge. Ask the in-page agent to call corsen_diagnostic_echo to complete the loop.'
-        : 'API present but registration failed - copy the raw log.');
-  }
+    <table id="report"></table>
+    <button id="rerun">Run checks again</button>
+    <h2 style="font-size: 1.05rem">Raw log</h2>
+    <pre id="log"></pre>
 
-  document.getElementById('rerun').addEventListener('click', run);
-  run();
-})();
-</script>
-</body>
+    <script>
+      (function () {
+        var logEl = document.getElementById('log');
+        var report = document.getElementById('report');
+        var runNumber = 0;
+        var previousToolName = '';
+
+        function log(msg) {
+          logEl.textContent += msg + '\n';
+        }
+
+        function row(label, cls, value) {
+          var tr = document.createElement('tr');
+          var td1 = document.createElement('td');
+          var td2 = document.createElement('td');
+          td1.textContent = label;
+          td2.className = cls;
+          td2.textContent = value;
+          tr.appendChild(td1);
+          tr.appendChild(td2);
+          report.appendChild(tr);
+        }
+
+        async function run() {
+          runNumber += 1;
+          report.textContent = '';
+          logEl.textContent = '';
+          log('UA: ' + navigator.userAgent);
+
+          var docMC = 'modelContext' in document ? document.modelContext : null;
+          var navMC = 'modelContext' in navigator ? navigator.modelContext : null;
+
+          row('document.modelContext', docMC ? 'ok' : 'ko', docMC ? 'present' : 'absent');
+          row(
+            'navigator.modelContext (compatibility alias)',
+            navMC ? 'ok' : 'warn',
+            navMC ? 'present' : 'absent',
+          );
+
+          var mc = docMC || navMC;
+          if (!mc) {
+            row(
+              'verdict',
+              'ko',
+              'WebMCP is not exposed in this document. Check the current browser flag or exact-origin trial enrollment, relaunch if required, and reload.',
+            );
+            return;
+          }
+
+          row(
+            'registerTool',
+            typeof mc.registerTool === 'function' ? 'ok' : 'ko',
+            typeof mc.registerTool,
+          );
+          row('getTools', typeof mc.getTools === 'function' ? 'ok' : 'warn', typeof mc.getTools);
+
+          if (previousToolName && typeof mc.unregisterTool === 'function') {
+            try {
+              await mc.unregisterTool(previousToolName);
+              log('Unregistered previous tool: ' + previousToolName);
+            } catch (e) {
+              log('Could not unregister previous tool: ' + (e && e.message ? e.message : e));
+            }
+          } else if (previousToolName) {
+            log(
+              'unregisterTool is unavailable; the previous diagnostic tool may remain registered until reload.',
+            );
+          }
+
+          // Use a unique name on every run so the rerun button cannot fail only
+          // because the previous diagnostic registration still exists.
+          var toolName = 'corsen_diagnostic_echo_' + runNumber;
+          var registered = false;
+          try {
+            await mc.registerTool({
+              name: toolName,
+              description: 'Return supplied diagnostic text without reading or changing site data.',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  text: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 200,
+                    description: 'Text to echo back',
+                  },
+                },
+                required: ['text'],
+                additionalProperties: false,
+              },
+              annotations: { readOnlyHint: true, untrustedContentHint: true },
+              execute: function (input) {
+                return Promise.resolve('echo: ' + (input && input.text ? input.text : ''));
+              },
+            });
+            registered = true;
+            previousToolName = toolName;
+            row('registered tool', 'ok', toolName);
+            log('registerTool resolved for ' + toolName + '.');
+          } catch (e) {
+            row('registerTool()', 'ko', 'rejected: ' + (e && e.message ? e.message : e));
+            log('registerTool threw: ' + e);
+          }
+
+          if (registered && typeof mc.getTools === 'function') {
+            try {
+              var tools = await mc.getTools();
+              var count = tools && typeof tools.length === 'number' ? tools.length : 'unknown';
+              var found =
+                Array.isArray(tools) &&
+                tools.some(function (tool) {
+                  return tool && tool.name === toolName;
+                });
+              row(
+                'getTools()',
+                found ? 'ok' : 'warn',
+                found
+                  ? 'diagnostic tool listed (' + count + ' total)'
+                  : 'returned ' + count + ' tool(s); diagnostic name not confirmed',
+              );
+              log('getTools -> ' + count + ' tool(s).');
+            } catch (e) {
+              row('getTools()', 'warn', 'threw: ' + (e && e.message ? e.message : e));
+            }
+          }
+
+          row(
+            'verdict',
+            registered ? 'ok' : 'ko',
+            registered
+              ? 'The browser accepted a local tool with the bridge field shape. Ask the in-page agent to call ' +
+                  toolName +
+                  '. This does not test the project MCP endpoint or content policy.'
+              : 'The API is present but local tool registration failed. Copy the raw log and record the exact browser/client version.',
+          );
+        }
+
+        document.getElementById('rerun').addEventListener('click', run);
+        run();
+      })();
+    </script>
+  </body>
 </html>

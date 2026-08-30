@@ -18,8 +18,8 @@ function printHelp() {
 
   Commands:
     init        Detect framework, create config & integration files
-    generate    Force regeneration of llms.txt and llms-full.txt
-    doctor      Check if your site is AI-ready (validate setup)
+    generate    Generate llms.txt from a live site (--full adds llms-full.txt)
+    doctor      Diagnose public discovery, MCP, and WebMCP surfaces
 
   Options:
     --help      Show this help message

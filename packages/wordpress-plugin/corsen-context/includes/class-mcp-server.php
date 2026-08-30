@@ -29,6 +29,61 @@ class Corsen_Context_MCP_Server {
 	}
 
 	/**
+	 * Return the canonical public URL for this WordPress REST route.
+	 *
+	 * WordPress may expose REST through `/wp-json/`, a filtered prefix, or the
+	 * `?rest_route=` query form used with plain permalinks. Every discovery and
+	 * browser surface must use this helper instead of constructing a path.
+	 */
+	public static function endpoint_url(): string {
+		return rest_url( 'corsen-context/v1/mcp' );
+	}
+
+	/**
+	 * Dispatch the MCP route before WordPress parses its JSON body.
+	 *
+	 * Core validates JSON parameters before route callbacks. Handling POST here
+	 * preserves the endpoint's security order (Origin, media negotiation, rate
+	 * limit, authentication, then bounded parsing) and keeps parse failures in
+	 * the documented JSON-RPC envelope. OPTIONS is intercepted here because Core
+	 * otherwise answers it with the generic REST preflight handler.
+	 *
+	 * @param mixed            $response Existing pre-dispatch response.
+	 * @param \WP_REST_Server  $server   REST server (unused).
+	 * @param \WP_REST_Request $request  REST request.
+	 * @return mixed
+	 */
+	public function handle_pre_dispatch_request( $response, \WP_REST_Server $server, \WP_REST_Request $request ) {
+		unset( $server );
+		if (
+			null !== $response ||
+			'/corsen-context/v1/mcp' !== $request->get_route()
+		) {
+			return $response;
+		}
+		if ( 'POST' === $request->get_method() ) {
+			return $this->handle_request( $request );
+		}
+		if ( 'OPTIONS' !== $request->get_method() ) {
+			return $response;
+		}
+
+		$origin = trim( (string) $request->get_header( 'Origin' ) );
+		if ( ! Corsen_Context_Security::validate_origin( $origin ) ) {
+			return $this->http_error_response( 403, 'Invalid Origin' );
+		}
+
+		$preflight = Corsen_Context_Security::add_security_headers( new \WP_REST_Response( null, 204 ) );
+		$preflight->header( 'Access-Control-Allow-Methods', 'POST, OPTIONS' );
+		$preflight->header( 'Access-Control-Allow-Headers', 'Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, Authorization' );
+		$preflight->header( 'Vary', 'Origin' );
+		if ( '' !== $origin ) {
+			$preflight->header( 'Access-Control-Allow-Origin', $origin );
+		}
+		return $preflight;
+	}
+
+	/**
 	 * Handle GET for Streamable HTTP clients when server-side SSE is unavailable.
 	 *
 	 * @param \WP_REST_Request $request REST request.
@@ -56,8 +111,8 @@ class Corsen_Context_MCP_Server {
 			return $this->http_error_response( 403, 'Invalid Origin' );
 		}
 
-		$content_type = strtolower( trim( (string) $request->get_header( 'Content-Type' ) ) );
-		if ( ! str_starts_with( $content_type, 'application/json' ) ) {
+		$content_type = strtolower( trim( explode( ';', (string) $request->get_header( 'Content-Type' ), 2 )[0] ) );
+		if ( 'application/json' !== $content_type ) {
 			return $this->http_error_response( 415, 'Content-Type must be application/json' );
 		}
 
@@ -102,16 +157,32 @@ class Corsen_Context_MCP_Server {
 
 		$raw_body = $request->get_body();
 		if ( strlen( $raw_body ) > self::MAX_BODY_SIZE ) {
-			return $this->error_response( null, -32600, 'Request body too large' );
+			return $this->error_response( null, -32600, 'Request body too large', 413 );
 		}
 
+		$body_object = json_decode( $raw_body );
+		if ( JSON_ERROR_NONE !== json_last_error() ) {
+			return $this->error_response( null, -32700, 'Parse error', 400 );
+		}
+		if ( ! is_object( $body_object ) ) {
+			return $this->error_response( null, -32600, 'Invalid Request', 400 );
+		}
 		$body = $request->get_json_params();
 		if ( ! is_array( $body ) ) {
-			return $this->error_response( null, -32700, 'Parse error' );
+			return $this->error_response( null, -32600, 'Invalid Request', 400 );
 		}
 
 		if ( $this->is_json_too_deep( $body ) ) {
-			return $this->error_response( null, -32600, 'JSON nesting too deep' );
+			return $this->error_response( null, -32600, 'JSON nesting too deep', 400 );
+		}
+		if ( property_exists( $body_object, 'params' ) && ! is_object( $body_object->params ) ) {
+			return $this->error_response( null, -32600, 'Invalid Request' );
+		}
+		if (
+			! property_exists( $body_object, 'method' ) &&
+			( property_exists( $body_object, 'result' ) || property_exists( $body_object, 'error' ) )
+		) {
+			return $this->error_response( null, -32600, 'Unexpected JSON-RPC response', 400 );
 		}
 
 		// Validate JSON-RPC structure.
@@ -121,17 +192,28 @@ class Corsen_Context_MCP_Server {
 			! isset( $body['method'] ) ||
 			! is_string( $body['method'] ) ||
 			'' === trim( $body['method'] ) ||
-			( isset( $body['params'] ) && ! is_array( $body['params'] ) )
+			( array_key_exists( 'params', $body ) && ! is_array( $body['params'] ) )
 		) {
 			return $this->error_response( null, -32600, 'Invalid Request' );
 		}
-		if ( isset( $body['id'] ) && ( is_array( $body['id'] ) || is_bool( $body['id'] ) ) ) {
+		if (
+			array_key_exists( 'id', $body ) &&
+			! is_string( $body['id'] ) &&
+			! is_int( $body['id'] ) &&
+			! is_float( $body['id'] )
+		) {
 			return $this->error_response( null, -32600, 'Invalid Request id' );
 		}
 		$method          = sanitize_text_field( $body['method'] );
 		$params          = is_array( $body['params'] ?? null ) ? $body['params'] : array();
 		$id              = $body['id'] ?? null;
 		$is_notification = ! array_key_exists( 'id', $body );
+		if ( ! $this->has_object_tool_arguments( $body_object, $method ) ) {
+			return $this->error_response( $id, -32602, 'Tool arguments must be an object' );
+		}
+		if ( ! $this->has_valid_initialize_params( $body_object, $method ) ) {
+			return $this->error_response( $id, -32602, 'Invalid initialize parameters' );
+		}
 
 		if ( 'initialize' !== $method ) {
 			$protocol_header = trim( (string) $request->get_header( 'MCP-Protocol-Version' ) );
@@ -149,6 +231,55 @@ class Corsen_Context_MCP_Server {
 		}
 
 		return $this->dispatch( $method, $params, $id );
+	}
+
+	/**
+	 * Preserve the JSON object/list distinction lost by associative decoding.
+	 *
+	 * @param object $body_object Raw request decoded without associative arrays.
+	 * @param string $method      Sanitized JSON-RPC method.
+	 */
+	private function has_object_tool_arguments( object $body_object, string $method ): bool {
+		if (
+			'tools/call' !== $method ||
+			! isset( $body_object->params ) ||
+			! is_object( $body_object->params ) ||
+			! property_exists( $body_object->params, 'arguments' )
+		) {
+			return true;
+		}
+
+		return is_object( $body_object->params->arguments );
+	}
+
+	/**
+	 * Preserve and validate the object shapes required by InitializeRequest.
+	 *
+	 * @param object $body_object Raw request decoded without associative arrays.
+	 * @param string $method      Sanitized JSON-RPC method.
+	 */
+	private function has_valid_initialize_params( object $body_object, string $method ): bool {
+		if ( 'initialize' !== $method ) {
+			return true;
+		}
+		if ( ! isset( $body_object->params ) || ! is_object( $body_object->params ) ) {
+			return false;
+		}
+
+		$params      = get_object_vars( $body_object->params );
+		$client_info = $params['clientInfo'] ?? null;
+		if ( ! is_object( $client_info ) ) {
+			return false;
+		}
+		$client = get_object_vars( $client_info );
+
+		$valid =
+			$this->is_bounded_string( $params['protocolVersion'] ?? null, 1, 50 ) &&
+			isset( $params['capabilities'] ) &&
+			is_object( $params['capabilities'] ) &&
+			$this->is_bounded_string( $client['name'] ?? null, 1, 200 ) &&
+			$this->is_bounded_string( $client['version'] ?? null, 1, 100 );
+		return $valid;
 	}
 
 	/**
@@ -187,12 +318,13 @@ class Corsen_Context_MCP_Server {
 	private function handle_initialize( array $params, $id ): \WP_REST_Response {
 
 		if (
-			empty( $params['protocolVersion'] ) ||
-		! is_string( $params['protocolVersion'] ) ||
+			! $this->is_bounded_string( $params['protocolVersion'] ?? null, 1, 50 ) ||
 			! isset( $params['capabilities'] ) ||
 			! is_array( $params['capabilities'] ) ||
 			! isset( $params['clientInfo'] ) ||
-			! is_array( $params['clientInfo'] )
+			! is_array( $params['clientInfo'] ) ||
+			! $this->is_bounded_string( $params['clientInfo']['name'] ?? null, 1, 200 ) ||
+			! $this->is_bounded_string( $params['clientInfo']['version'] ?? null, 1, 100 )
 		) {
 			return $this->error_response( $id, -32602, 'Invalid initialize parameters' );
 		}
@@ -225,16 +357,29 @@ class Corsen_Context_MCP_Server {
 	 * Handle tools/call.
 	 */
 	private function handle_call_tool( array $params, $id ): \WP_REST_Response {
-		$tool_name = sanitize_text_field( $params['name'] ?? '' );
-		$arguments = is_array( $params['arguments'] ?? null ) ? $params['arguments'] : array();
-
-		if ( '' === $tool_name ) {
+		if ( ! isset( $params['name'] ) || ! is_string( $params['name'] ) || '' === trim( $params['name'] ) ) {
 			return $this->error_response( $id, -32602, 'Missing tool name' );
+		}
+		$tool_name     = sanitize_text_field( $params['name'] );
+		$raw_arguments = array_key_exists( 'arguments', $params ) ? $params['arguments'] : array();
+
+		// The CallToolRequest arguments member itself must be an object. Values
+		// inside a valid object are tool input and use CallToolResult.isError.
+		if ( ! is_array( $raw_arguments ) ) {
+			return $this->error_response( $id, -32602, 'Tool arguments must be an object' );
 		}
 
 		// Honor the configured tool set (parity with the core config.mcp.tools).
 		if ( ! in_array( $tool_name, $this->get_enabled_tools(), true ) ) {
-			return $this->error_response( $id, -32601, 'Tool not found: ' . $tool_name );
+			return $this->error_response( $id, -32602, 'Tool not found: ' . $tool_name );
+		}
+
+		$arguments = $this->validate_tool_arguments( $tool_name, $raw_arguments );
+		if ( null === $arguments ) {
+			return $this->tool_error_response(
+				$id,
+				'Invalid tool parameters. Check this tool\'s inputSchema from tools/list and retry with only documented fields, types, and bounds.'
+			);
 		}
 
 		// Never cache rendered page content. the_content, shortcodes, dynamic
@@ -252,30 +397,21 @@ class Corsen_Context_MCP_Server {
 
 		switch ( $tool_name ) {
 			case 'search_site':
-				$query = sanitize_text_field( $arguments['query'] ?? '' );
-				$limit = min( max( intval( $arguments['limit'] ?? 10 ), 1 ), 50 );
-				if ( empty( $query ) ) {
-					return $this->error_response( $id, -32602, 'Missing required parameter: query' );
-				}
-				$result = $this->search_site( $query, $limit );
+				$result = $this->search_site( $arguments['query'], $arguments['limit'] );
 				break;
 
 			case 'get_page_content':
-				$uri = sanitize_text_field( $arguments['uri'] ?? '' );
-				if ( '' === $uri ) {
-					return $this->error_response( $id, -32602, 'Missing required parameter: uri' );
-				}
-				$result = $this->get_page_content( $uri );
+				$result = $this->get_page_content( $arguments['uri'] );
 				if ( null === $result ) {
-					return $this->error_response( $id, -32002, 'Resource not found' );
+					return $this->tool_error_response(
+						$id,
+						'Resource not found or not exposed. Use a URL returned by search_site, list_content, or get_sitemap.'
+					);
 				}
 				break;
 
 			case 'list_content':
-				$type   = sanitize_text_field( $arguments['type'] ?? 'page' );
-				$page   = max( intval( $arguments['page'] ?? 1 ), 1 );
-				$limit  = min( max( intval( $arguments['limit'] ?? 20 ), 1 ), 100 );
-				$result = $this->list_content( $type, $page, $limit );
+				$result = $this->list_content( $arguments['type'], $arguments['page'], $arguments['limit'] );
 				break;
 
 			case 'get_sitemap':
@@ -283,7 +419,7 @@ class Corsen_Context_MCP_Server {
 				break;
 
 			default:
-				return $this->error_response( $id, -32601, 'Tool not found: ' . $tool_name );
+				return $this->error_response( $id, -32602, 'Tool not found: ' . $tool_name );
 		}
 
 		if ( $cacheable ) {
@@ -292,6 +428,128 @@ class Corsen_Context_MCP_Server {
 		}
 
 		return $this->tool_result_response( $id, $result );
+	}
+
+	/**
+	 * Validate and normalize one tool's arguments against its public contract.
+	 *
+	 * JSON numbers such as 1.0 are accepted when they are mathematically
+	 * integral. Numeric strings, booleans, fractions, unknown properties and
+	 * out-of-range values are rejected rather than coerced or clamped.
+	 *
+	 * @param string $tool_name Tool name.
+	 * @param mixed  $arguments Raw arguments value.
+	 * @return array<string,mixed>|null Normalized arguments, or null when invalid.
+	 */
+	private function validate_tool_arguments( string $tool_name, $arguments ): ?array {
+		if ( ! is_array( $arguments ) ) {
+			return null;
+		}
+
+		switch ( $tool_name ) {
+			case 'search_site':
+				if (
+					! $this->has_only_argument_keys( $arguments, array( 'query', 'limit' ) ) ||
+					! array_key_exists( 'query', $arguments ) ||
+					! $this->is_bounded_string( $arguments['query'], 1, 500 )
+				) {
+					return null;
+				}
+				$limit = array_key_exists( 'limit', $arguments )
+					? $this->normalize_integer( $arguments['limit'], 1, 50 )
+					: 10;
+				if ( null === $limit ) {
+					return null;
+				}
+				return array(
+					'query' => $arguments['query'],
+					'limit' => $limit,
+				);
+
+			case 'get_page_content':
+				if (
+					! $this->has_only_argument_keys( $arguments, array( 'uri' ) ) ||
+					! array_key_exists( 'uri', $arguments ) ||
+					! $this->is_bounded_string( $arguments['uri'], 1, 2000 )
+				) {
+					return null;
+				}
+				return array( 'uri' => $arguments['uri'] );
+
+			case 'list_content':
+				if ( ! $this->has_only_argument_keys( $arguments, array( 'type', 'page', 'limit' ) ) ) {
+					return null;
+				}
+
+				$type = array_key_exists( 'type', $arguments ) ? $arguments['type'] : 'page';
+				if ( ! $this->is_bounded_string( $type, 1, 50 ) ) {
+					return null;
+				}
+				$page  = array_key_exists( 'page', $arguments )
+					? $this->normalize_integer( $arguments['page'], 1, 5000 )
+					: 1;
+				$limit = array_key_exists( 'limit', $arguments )
+					? $this->normalize_integer( $arguments['limit'], 1, 100 )
+					: 20;
+				if ( null === $page || null === $limit ) {
+					return null;
+				}
+				return array(
+					'type'  => $type,
+					'page'  => $page,
+					'limit' => $limit,
+				);
+
+			case 'get_sitemap':
+				return empty( $arguments ) ? array() : null;
+
+			default:
+				return null;
+		}
+	}
+
+	/**
+	 * Check that an argument object contains no unknown properties.
+	 *
+	 * @param array<string|int,mixed> $arguments Arguments to inspect.
+	 * @param string[]                $allowed   Allowed property names.
+	 * @return bool True when every property is allowed.
+	 */
+	private function has_only_argument_keys( array $arguments, array $allowed ): bool {
+		return empty( array_diff( array_keys( $arguments ), $allowed ) );
+	}
+
+	/** Validate a UTF-8 string using JSON Schema's Unicode code-point length. */
+	private function is_bounded_string( $value, int $minimum, int $maximum ): bool {
+		if ( ! is_string( $value ) ) {
+			return false;
+		}
+		$length = preg_match_all( '/./us', $value );
+		if ( false === $length ) {
+			return false;
+		}
+		return $length >= $minimum && $length <= $maximum;
+	}
+
+	/** Normalize an integer-valued JSON number without coercing other types. */
+	private function normalize_integer( $value, int $minimum, ?int $maximum = null ): ?int {
+		if ( is_int( $value ) ) {
+			$integer = $value;
+		} elseif (
+			is_float( $value ) &&
+			is_finite( $value ) &&
+			floor( $value ) === $value &&
+			$value <= PHP_INT_MAX
+		) {
+			$integer = (int) $value;
+		} else {
+			return null;
+		}
+
+		if ( $integer < $minimum || ( null !== $maximum && $integer > $maximum ) ) {
+			return null;
+		}
+		return $integer;
 	}
 
 	/**
@@ -305,15 +563,37 @@ class Corsen_Context_MCP_Server {
 
 	/** Wrap a tool result in the standard MCP content envelope. */
 	private function tool_result_response( $id, $result ): \WP_REST_Response {
+		$encoded = wp_json_encode( $result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		if ( ! is_string( $encoded ) ) {
+			return $this->tool_error_response( $id, 'Unable to encode the tool result as UTF-8 JSON.' );
+		}
+
 		return $this->success_response(
 			$id,
 			array(
 				'content' => array(
 					array(
 						'type' => 'text',
-						'text' => wp_json_encode( $result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ),
+						'text' => $encoded,
 					),
 				),
+				'isError' => false,
+			)
+		);
+	}
+
+	/** Return an actionable MCP tool error without turning it into a protocol error. */
+	private function tool_error_response( $id, string $message ): \WP_REST_Response {
+		return $this->success_response(
+			$id,
+			array(
+				'content' => array(
+					array(
+						'type' => 'text',
+						'text' => $message,
+					),
+				),
+				'isError' => true,
 			)
 		);
 	}
@@ -322,6 +602,13 @@ class Corsen_Context_MCP_Server {
 	 * Handle resources/list.
 	 */
 	private function handle_list_resources( array $params, $id ): \WP_REST_Response {
+		$offset = 0;
+		if ( array_key_exists( 'cursor', $params ) ) {
+			$offset = $this->decode_cursor( $params['cursor'] );
+			if ( null === $offset ) {
+				return $this->error_response( $id, -32602, 'Invalid cursor' );
+			}
+		}
 
 		$post_types = $this->get_allowed_post_types();
 		$remaining  = $this->get_max_pages();
@@ -360,11 +647,6 @@ class Corsen_Context_MCP_Server {
 			}
 		}
 
-		$offset = $this->decode_cursor( $params['cursor'] ?? null );
-		if ( null === $offset ) {
-			return $this->error_response( $id, -32602, 'Invalid cursor' );
-		}
-
 		$page_size = min( max( intval( apply_filters( 'corsen_context_resources_page_size', self::RESOURCES_PAGE_SIZE ) ), 1 ), 200 );
 		$result    = array( 'resources' => array_slice( $resources, $offset, $page_size ) );
 		$next      = $offset + $page_size;
@@ -379,7 +661,14 @@ class Corsen_Context_MCP_Server {
 	 * Handle resources/read.
 	 */
 	private function handle_read_resource( array $params, $id ): \WP_REST_Response {
-		$uri      = sanitize_text_field( $params['uri'] ?? '' );
+		if (
+			! array_key_exists( 'uri', $params ) ||
+			! $this->is_bounded_string( $params['uri'], 1, 2000 )
+		) {
+			return $this->error_response( $id, -32602, 'Missing resource URI' );
+		}
+
+		$uri      = sanitize_text_field( $params['uri'] );
 		$resolved = $this->resolve_public_url( $uri );
 		if ( null === $resolved ) {
 			return $this->error_response( $id, -32002, 'Resource not found' );
@@ -614,15 +903,15 @@ class Corsen_Context_MCP_Server {
 				continue;
 			}
 			$meta    = Corsen_Context_Content_Converter::get_post_metadata( $post );
-			$content = wp_strip_all_tags( $post->post_content );
+			$content = Corsen_Context_Content_Converter::content_to_plain_text( $post->post_content );
 			$snippet = '';
 
-			$pos = stripos( $content, $query );
-			if ( false !== $pos ) {
+			$pos = Corsen_Context_Content_Converter::utf8_stripos( $content, $query );
+			if ( null !== $pos ) {
 				$start   = max( 0, $pos - 80 );
-				$snippet = substr( $content, $start, 200 );
+				$snippet = Corsen_Context_Content_Converter::utf8_substr( $content, $start, 200 );
 			} else {
-				$snippet = substr( $content, 0, 200 );
+				$snippet = Corsen_Context_Content_Converter::utf8_substr( $content, 0, 200 );
 			}
 
 			$results[] = array(
@@ -678,7 +967,13 @@ class Corsen_Context_MCP_Server {
 			);
 		}
 		if ( ! in_array( $type, $allowed, true ) ) {
-			$type = $allowed[0];
+			return array(
+				'items'   => array(),
+				'total'   => 0,
+				'page'    => $page,
+				'limit'   => $limit,
+				'hasMore' => false,
+			);
 		}
 
 		$query = new \WP_Query(
@@ -761,61 +1056,81 @@ class Corsen_Context_MCP_Server {
 				'name'        => 'search_site',
 				'description' => 'Search this site\'s public content by keyword and get matching pages with titles, URLs and text snippets. Use this first when the user asks about something on this site and you do not know which page covers it. Read-only: returns content, never changes anything.',
 				'inputSchema' => array(
-					'type'       => 'object',
-					'properties' => array(
+					'type'                 => 'object',
+					'properties'           => array(
 						'query' => array(
 							'type'        => 'string',
+							'minLength'   => 1,
+							'maxLength'   => 500,
 							'description' => 'Keywords to search for, in the site\'s own language. Use the user\'s words.',
 						),
 						'limit' => array(
-							'type'        => 'number',
+							'type'        => 'integer',
+							'minimum'     => 1,
+							'maximum'     => 50,
+							'default'     => 10,
 							'description' => 'Maximum number of results to return (1-50, default 10).',
 						),
 					),
-					'required'   => array( 'query' ),
+					'required'             => array( 'query' ),
+					'additionalProperties' => false,
 				),
 			),
 			array(
 				'name'        => 'get_page_content',
 				'description' => 'Read one page of this site in full, as clean markdown with its title, description and dates. Use this after search_site or get_sitemap to read a specific page. Read-only.',
 				'inputSchema' => array(
-					'type'       => 'object',
-					'properties' => array(
+					'type'                 => 'object',
+					'properties'           => array(
 						'uri' => array(
 							'type'        => 'string',
+							'minLength'   => 1,
+							'maxLength'   => 2000,
 							'description' => 'The page\'s absolute URL on this site, exactly as returned by search_site, list_content or get_sitemap.',
 						),
 					),
-					'required'   => array( 'uri' ),
+					'required'             => array( 'uri' ),
+					'additionalProperties' => false,
 				),
 			),
 			array(
 				'name'        => 'list_content',
 				'description' => 'Browse this site\'s public content by type (e.g. page, post, product) with pagination. Use to enumerate what the site publishes when a keyword search is too narrow. Read-only.',
 				'inputSchema' => array(
-					'type'       => 'object',
-					'properties' => array(
+					'type'                 => 'object',
+					'properties'           => array(
 						'type'  => array(
 							'type'        => 'string',
+							'minLength'   => 1,
+							'maxLength'   => 50,
+							'default'     => 'page',
 							'description' => 'The content type to list: post, page, product, or any custom type the site exposes.',
 						),
 						'page'  => array(
-							'type'        => 'number',
-							'description' => 'Result page number (default 1).',
+							'type'        => 'integer',
+							'minimum'     => 1,
+							'maximum'     => 5000,
+							'default'     => 1,
+							'description' => 'Result page number (1-5000, default 1).',
 						),
 						'limit' => array(
-							'type'        => 'number',
+							'type'        => 'integer',
+							'minimum'     => 1,
+							'maximum'     => 100,
+							'default'     => 20,
 							'description' => 'Items per page (1-100, default 20).',
 						),
 					),
+					'additionalProperties' => false,
 				),
 			),
 			array(
 				'name'        => 'get_sitemap',
-				'description' => 'Get the structured sitemap of this site\'s public content: every URL with its title, type and last-modified date. Use for a complete overview of what the site exposes to agents. Read-only.',
+				'description' => 'Get a bounded structured sitemap of this site\'s public content, with each exposed URL\'s title, type and last-modified date, up to the owner\'s configured content limit. Use for a broad overview of what the site exposes to agents. Read-only.',
 				'inputSchema' => array(
-					'type'       => 'object',
-					'properties' => new \stdClass(),
+					'type'                 => 'object',
+					'properties'           => new \stdClass(),
+					'additionalProperties' => false,
 				),
 			),
 		);
@@ -842,10 +1157,7 @@ class Corsen_Context_MCP_Server {
 	/** Decode and authenticate a resources/list cursor. */
 	private function decode_cursor( $cursor ): ?int {
 
-		if ( null === $cursor || '' === $cursor ) {
-			return 0;
-		}
-		if ( ! is_string( $cursor ) || strlen( $cursor ) > 256 ) {
+		if ( ! is_string( $cursor ) || '' === $cursor || strlen( $cursor ) > 256 ) {
 			return null;
 		}
 
@@ -907,17 +1219,7 @@ class Corsen_Context_MCP_Server {
 		);
 	}
 
-	private function error_response( $id, int $code, string $message ): \WP_REST_Response {
-		$status = match ( $code ) {
-			-32700  => 400,
-			-32600  => 400,
-			-32601  => 404,
-			-32602  => 400,
-			-32000  => 429,
-			-32002  => 404,
-			default => 500,
-		};
-
+	private function error_response( $id, int $code, string $message, int $status = 200 ): \WP_REST_Response {
 		return Corsen_Context_Security::add_security_headers(
 			new \WP_REST_Response(
 				array(

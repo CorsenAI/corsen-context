@@ -13,6 +13,7 @@ final class WebMCPEmitterTest extends TestCase {
 	protected function tearDown(): void {
 		$GLOBALS['corsen_test_options'] = array();
 		$GLOBALS['corsen_test_filters'] = array();
+		unset( $GLOBALS['corsen_test_rest_url'] );
 	}
 
 	/** @return array<int,array<string,mixed>> */
@@ -67,6 +68,19 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringNotContainsString( 'exposedTo', $this->script() );
 	}
 
+	public function test_invalid_or_cross_origin_endpoint_is_rejected_before_registration_or_fetch(): void {
+		$script = $this->script();
+		$guard  = 'if (endpointUrl.origin !== window.location.origin) return;';
+
+		$this->assertStringContainsString( 'new URL(endpoint, window.location.href)', $script );
+		$this->assertStringContainsString( "endpointUrl.protocol !== 'http:'", $script );
+		$this->assertStringContainsString( 'if (endpointUrl.username || endpointUrl.password) return;', $script );
+		$this->assertStringContainsString( $guard, $script );
+		$this->assertLessThan( strpos( $script, 'var mc =' ), strpos( $script, $guard ) );
+		$this->assertLessThan( strpos( $script, 'return fetch(endpoint' ), strpos( $script, $guard ) );
+		$this->assertLessThan( strpos( $script, 'mc.registerTool(' ), strpos( $script, $guard ) );
+	}
+
 	public function test_bridge_sends_no_credentials_and_targets_the_plugin_endpoint(): void {
 		$script = $this->script();
 		$this->assertStringContainsString( "credentials: 'omit'", $script );
@@ -75,16 +89,43 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringContainsString( 'https://example.com/wp-json/corsen-context/v1/mcp', $script );
 	}
 
-	public function test_bridge_sends_the_protocol_version_header_the_endpoint_requires(): void {
+	public function test_bridge_completes_the_mcp_lifecycle_before_tool_calls(): void {
 		$script = $this->script();
-		$this->assertStringContainsString( "'MCP-Protocol-Version': protocolVersion", $script );
+		$this->assertStringContainsString( "'Accept': 'application/json, text/event-stream'", $script );
+		$this->assertStringContainsString( "body.method !== 'initialize'", $script );
+		$this->assertStringContainsString( "headers['MCP-Protocol-Version'] = protocolVersion", $script );
+		$this->assertStringContainsString( "method: 'initialize'", $script );
+		$this->assertStringContainsString( "method: 'notifications/initialized'", $script );
+		$this->assertStringContainsString( 'res.status !== 202', $script );
+		$this->assertStringContainsString( 'AbortSignal.timeout(8000)', $script );
+		$this->assertStringContainsString( 'return waitForInitialization(signal)', $script );
+		$this->assertStringContainsString( 'tool execution aborted', $script );
 		$this->assertStringContainsString( '"' . Corsen_Context_MCP_Server::protocol_version() . '"', $script );
+		$this->assertLessThan( strpos( $script, "method: 'tools/call'" ), strpos( $script, "method: 'initialize'" ) );
+		$this->assertLessThan( strpos( $script, "method: 'tools/call'" ), strpos( $script, "method: 'notifications/initialized'" ) );
 	}
 
 	public function test_execute_forwards_the_abort_signal_to_fetch(): void {
 		$script = $this->script();
 		$this->assertStringContainsString( 'options && options.signal', $script );
 		$this->assertStringContainsString( 'signal: signal || null', $script );
+	}
+
+	public function test_execute_rejects_mcp_tool_errors_with_the_actionable_text(): void {
+		$script = $this->script();
+
+		$this->assertStringContainsString( 'body.result.isError', $script );
+		$this->assertStringContainsString( 'Array.isArray(body.result.content)', $script );
+		$this->assertStringContainsString( '.filter(Boolean)', $script );
+		$this->assertStringContainsString( "throw new Error(errorText || 'Corsen Context: tool execution failed')", $script );
+		$this->assertLessThan( strpos( $script, 'var content = body && body.result' ), strpos( $script, 'body.result.isError' ) );
+	}
+
+	public function test_registration_promise_rejections_are_handled(): void {
+		$script = $this->script();
+		$this->assertStringContainsString( 'Promise.resolve(mc.registerTool({', $script );
+		$this->assertStringContainsString( ')).catch(function (error) {', $script );
+		$this->assertStringContainsString( 'WebMCP registration failed for', $script );
 	}
 
 	public function test_carries_annotations_to_the_agent(): void {
@@ -179,6 +220,26 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringContainsString( '<meta http-equiv="origin-trial" content="TESTTOKEN123=">', $out );
 		$this->assertStringContainsString( '<script>', $out );
 		$this->assertStringContainsString( 'mc.registerTool(', $out );
+	}
+
+	public function test_render_uses_the_canonical_wordpress_rest_url(): void {
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'enabled'        => true,
+			'mcp_enabled'    => true,
+			'webmcp_enabled' => true,
+		);
+		$GLOBALS['corsen_test_rest_url'] = static fn( string $path ): string => 'https://example.com/?rest_route=/' . ltrim( $path, '/' );
+
+		ob_start();
+		( new Corsen_Context_WebMCP() )->render();
+		$out = (string) ob_get_clean();
+
+		$this->assertSame(
+			'https://example.com/?rest_route=/corsen-context/v1/mcp',
+			Corsen_Context_MCP_Server::endpoint_url()
+		);
+		$this->assertStringContainsString( 'https://example.com/?rest_route=/corsen-context/v1/mcp', $out );
+		$this->assertStringNotContainsString( '/wp-json/corsen-context/v1/mcp', $out );
 	}
 
 	public function test_renders_nothing_at_all_when_disabled(): void {

@@ -21,13 +21,34 @@ function server() {
 
 describe('DoS guards', () => {
   it('validateBodySize throws over the limit', () => {
-    const big = { jsonrpc: '2.0', method: 'ping', id: 1, params: { blob: 'x'.repeat(MAX_BODY_SIZE) } };
+    const big = {
+      jsonrpc: '2.0',
+      method: 'ping',
+      id: 1,
+      params: { blob: 'x'.repeat(MAX_BODY_SIZE) },
+    };
     expect(() => validateBodySize(big)).toThrow('Request body too large');
     expect(() => validateBodySize({ jsonrpc: '2.0', method: 'ping', id: 1 })).not.toThrow();
   });
 
+  it('measures the serialized request in UTF-8 bytes', () => {
+    const multibyte = {
+      jsonrpc: '2.0',
+      method: 'ping',
+      id: 1,
+      params: { blob: '界'.repeat(40_000) },
+    };
+    expect(JSON.stringify(multibyte).length).toBeLessThan(MAX_BODY_SIZE);
+    expect(() => validateBodySize(multibyte)).toThrow('Request body too large');
+  });
+
   it('rejects an oversized request body via handleRequest', async () => {
-    const big = { jsonrpc: '2.0', method: 'ping', id: 1, params: { blob: 'x'.repeat(MAX_BODY_SIZE) } };
+    const big = {
+      jsonrpc: '2.0',
+      method: 'ping',
+      id: 1,
+      params: { blob: 'x'.repeat(MAX_BODY_SIZE) },
+    };
     const res = await server().handleRequest(big);
     expect(res!.error).toBeDefined();
     expect(res!.error!.message).toBe('Request body too large');
@@ -42,7 +63,12 @@ describe('DoS guards', () => {
       cursor.child = next;
       cursor = next;
     }
-    const res = await server().handleRequest({ jsonrpc: '2.0', method: 'ping', id: 1, params: deep });
+    const res = await server().handleRequest({
+      jsonrpc: '2.0',
+      method: 'ping',
+      id: 1,
+      params: deep,
+    });
     expect(res!.error).toBeDefined();
     expect(res!.error!.message).toBe('JSON nesting too deep');
   });

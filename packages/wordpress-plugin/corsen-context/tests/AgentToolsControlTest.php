@@ -19,7 +19,7 @@ final class AgentToolsControlTest extends TestCase {
 		return Corsen_Context_Admin::instance();
 	}
 
-	// --- Sanitisation: the setting can never hold an unknown or empty tool set.
+	// --- Sanitisation: unknown tools never survive; an explicit empty set is valid.
 
 	public function test_sanitize_keeps_only_known_tools(): void {
 		$out = $this->admin()->sanitize_settings(
@@ -28,18 +28,27 @@ final class AgentToolsControlTest extends TestCase {
 		$this->assertSame( array( 'search_site', 'get_sitemap' ), $out['enabled_tools'] );
 	}
 
-	public function test_sanitize_falls_back_to_all_tools_when_none_selected(): void {
+	public function test_sanitize_preserves_an_explicit_empty_tool_set(): void {
 		$out = $this->admin()->sanitize_settings( array( 'enabled_tools' => array() ) );
-		$this->assertSame(
-			array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' ),
-			$out['enabled_tools']
-		);
+		$this->assertSame( array(), $out['enabled_tools'] );
 	}
 
 	public function test_sanitize_defaults_to_all_tools_when_absent(): void {
 		$out = $this->admin()->sanitize_settings( array() );
 		$this->assertContains( 'search_site', $out['enabled_tools'] );
 		$this->assertCount( 4, $out['enabled_tools'] );
+	}
+
+	public function test_tools_ui_posts_an_explicit_empty_selection(): void {
+		ob_start();
+		$this->admin()->render_enabled_tools();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString(
+			'name="corsen_context_settings[enabled_tools][]" value=""',
+			$html
+		);
+		$this->assertStringContainsString( 'Uncheck all to expose no callable tools.', $html );
 	}
 
 	// --- End to end: disabling a tool removes it from the WebMCP bridge too.

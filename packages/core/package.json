@@ -1,7 +1,7 @@
 {
   "name": "@corsenai/corsen-context",
-  "version": "1.3.0",
-  "description": "Universal AI Context Layer — MCP Server + Enhanced llms.txt for any website",
+  "version": "2.0.0",
+  "description": "Owner-controlled public content tools for MCP, WebMCP, llms.txt, and sitemaps",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",
   "homepage": "https://github.com/CorsenAI/corsen-context",
@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0",
-    "fast-xml-parser": "^4.5.0",
+    "fast-xml-parser": "^5.7.0",
     "pino": "^10.3.1",
     "turndown": "^7.2.0",
     "zod": "^3.24.0"
@@ -64,11 +64,14 @@
     }
   },
   "devDependencies": {
+    "@upstash/redis": "^1.38.3",
     "@types/node": "^22.0.0",
     "@types/turndown": "^5.0.5",
-    "tsup": "^8.3.0",
-    "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "undici": "^7.29.0",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public"
@@ -78,6 +81,6 @@
   },
   "sideEffects": false,
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.12.0"
   }
 }

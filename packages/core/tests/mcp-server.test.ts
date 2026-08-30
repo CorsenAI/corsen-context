@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MCPServer } from '../src/mcp-server.js';
 import { resolveConfig } from '../src/config.js';
-import type { ContentProvider, ContentListItem, PageContent, SearchResult } from '../src/types.js';
+import type {
+  ContentProvider,
+  ContentListItem,
+  PageContent,
+  RateLimitStore,
+  SearchResult,
+} from '../src/types.js';
 
 const mockPages: ContentListItem[] = [
   {
@@ -72,12 +78,66 @@ describe('MCP Server', () => {
     const res = await server.handleRequest({
       jsonrpc: '2.0',
       method: 'initialize',
+      params: {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: 'test-client', version: '1.0.0' },
+      },
       id: 1,
     });
     expect(res).not.toBeNull();
     expect(res!.error).toBeUndefined();
     expect((res!.result as any).protocolVersion).toBe('2025-11-25');
     expect((res!.result as any).serverInfo.name).toBe('corsen-context');
+  });
+
+  it('rejects initialize when required client parameters are missing or malformed', async () => {
+    const invalidParams = [
+      undefined,
+      {},
+      { protocolVersion: '2025-11-25', capabilities: {} },
+      {
+        protocolVersion: '2025-11-25',
+        capabilities: [],
+        clientInfo: { name: 'test-client', version: '1.0.0' },
+      },
+      {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: '', version: '1.0.0' },
+      },
+      {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: '😀'.repeat(201), version: '1.0.0' },
+      },
+    ];
+
+    for (const params of invalidParams) {
+      const res = await server.handleRequest({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        ...(params === undefined ? {} : { params }),
+        id: 1,
+      });
+      expect(res?.error?.code).toBe(-32602);
+    }
+  });
+
+  it('counts initialize metadata bounds in Unicode code points', async () => {
+    const res = await server.handleRequest({
+      jsonrpc: '2.0',
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-11-25',
+        capabilities: {},
+        clientInfo: { name: '😀'.repeat(200), version: '1.0.0' },
+      },
+      id: 1,
+    });
+
+    expect(res?.error).toBeUndefined();
+    expect((res?.result as any).serverInfo.name).toBe('corsen-context');
   });
 
   it('handles ping', async () => {
@@ -111,6 +171,63 @@ describe('MCP Server', () => {
     expect(tools.map((t: any) => t.name)).toContain('get_page_content');
     expect(tools.map((t: any) => t.name)).toContain('list_content');
     expect(tools.map((t: any) => t.name)).toContain('get_sitemap');
+  });
+
+  it('short-circuits direct requests when the owner disables MCP', async () => {
+    let providerCalls = 0;
+    let rateLimitCalls = 0;
+    const disabledProvider: ContentProvider = {
+      async getPages() {
+        providerCalls += 1;
+        throw new Error('provider must not be reached');
+      },
+      async getPageContent() {
+        providerCalls += 1;
+        throw new Error('provider must not be reached');
+      },
+      async searchContent() {
+        providerCalls += 1;
+        throw new Error('provider must not be reached');
+      },
+    };
+    const rateLimitStore: RateLimitStore = {
+      async getTimestamps() {
+        rateLimitCalls += 1;
+        throw new Error('rate limiter must not be reached');
+      },
+      async addTimestamp() {
+        rateLimitCalls += 1;
+        throw new Error('rate limiter must not be reached');
+      },
+      async cleanup() {},
+    };
+    const disabledServer = new MCPServer(
+      resolveConfig({
+        siteUrl: 'https://example.com',
+        mcp: { enabled: false },
+        security: { apiKey: 'configured-key' },
+      }),
+      disabledProvider,
+      { rateLimitStore },
+    );
+
+    const res = await disabledServer.handleRequest(
+      {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: 'search_site', arguments: { query: 'hello' } },
+        id: 'disabled-1',
+      },
+      '203.0.113.10',
+    );
+
+    expect(res).toEqual({
+      jsonrpc: '2.0',
+      error: { code: -32003, message: 'MCP is disabled by the site owner' },
+      id: 'disabled-1',
+    });
+    expect(providerCalls).toBe(0);
+    expect(rateLimitCalls).toBe(0);
   });
 
   it('handles tools/call search_site', async () => {
@@ -171,6 +288,35 @@ describe('MCP Server', () => {
     expect(sitemap).toHaveLength(3);
   });
 
+  it('returns Invalid params when tools/call names an unavailable tool', async () => {
+    const res = await server.handleRequest({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'not_a_tool', arguments: {} },
+      id: 61,
+    });
+
+    expect(res?.error).toEqual({ code: -32602, message: 'Tool not found: not_a_tool' });
+  });
+
+  it('uses Invalid params for the defensive unknown-tool dispatch fallback', async () => {
+    const fallbackServer = new MCPServer(
+      resolveConfig({
+        siteUrl: 'https://example.com',
+        mcp: { tools: ['future_tool'] },
+      }),
+      mockProvider,
+    );
+    const res = await fallbackServer.handleRequest({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'future_tool', arguments: {} },
+      id: 62,
+    });
+
+    expect(res?.error).toEqual({ code: -32602, message: 'Unknown tool: future_tool' });
+  });
+
   it('handles resources/list', async () => {
     const res = await server.handleRequest({
       jsonrpc: '2.0',
@@ -196,6 +342,9 @@ describe('MCP Server', () => {
     const res = await server.handleRequest({ invalid: true });
     expect(res!.error).toBeDefined();
     expect(res!.error!.code).toBe(-32600);
+
+    const nullId = await server.handleRequest({ jsonrpc: '2.0', method: 'ping', id: null });
+    expect(nullId!.error!.code).toBe(-32600);
   });
 
   it('returns security headers', () => {
@@ -246,9 +395,19 @@ describe('MCP Server', () => {
       async getPages() {
         return [
           { url: 'https://example.com/public', title: 'Public', description: 'ok', type: 'page' },
-          { url: 'https://example.com/private/roadmap', title: 'Private', description: 'no', type: 'page' },
+          {
+            url: 'https://example.com/private/roadmap',
+            title: 'Private',
+            description: 'no',
+            type: 'page',
+          },
           { url: 'https://example.com/blog/post', title: 'Post', description: 'no', type: 'post' },
-          { url: 'https://other.example.com/leak', title: 'Other', description: 'no', type: 'page' },
+          {
+            url: 'https://other.example.com/leak',
+            title: 'Other',
+            description: 'no',
+            type: 'page',
+          },
         ];
       },
       async getPageContent(url: string): Promise<PageContent | null> {
@@ -262,9 +421,27 @@ describe('MCP Server', () => {
       },
       async searchContent(_query: string, _limit: number): Promise<SearchResult[]> {
         return [
-          { url: 'https://example.com/public', title: 'Public', description: 'ok', snippet: 'ok', score: 1 },
-          { url: 'https://example.com/private/roadmap', title: 'Private', description: 'no', snippet: 'no', score: 1 },
-          { url: 'https://other.example.com/leak', title: 'Other', description: 'no', snippet: 'no', score: 1 },
+          {
+            url: 'https://example.com/public',
+            title: 'Public',
+            description: 'ok',
+            snippet: 'ok',
+            score: 1,
+          },
+          {
+            url: 'https://example.com/private/roadmap',
+            title: 'Private',
+            description: 'no',
+            snippet: 'no',
+            score: 1,
+          },
+          {
+            url: 'https://other.example.com/leak',
+            title: 'Other',
+            description: 'no',
+            snippet: 'no',
+            score: 1,
+          },
         ];
       },
     };
@@ -309,8 +486,12 @@ describe('MCP Server', () => {
       params: { name: 'get_page_content', arguments: { uri: 'resource://private/roadmap' } },
       id: 14,
     });
-    expect(excluded!.error?.code).toBe(-32002);
+    expect(excluded!.error).toBeUndefined();
+    expect((excluded!.result as any).isError).toBe(true);
+    expect((excluded!.result as any).content[0].text).toContain('not exposed');
 
-    await expect(filteredServer.getPageContent('https://other.example.com/leak')).resolves.toBeNull();
+    await expect(
+      filteredServer.getPageContent('https://other.example.com/leak'),
+    ).resolves.toBeNull();
   });
 });

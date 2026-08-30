@@ -2,467 +2,443 @@
 
 # Corsen Context
 
-### Make any website AI-native in 30 seconds
-
-**The Universal AI Context Layer — MCP Server + Enhanced llms.txt + Smart Sitemap**
+### Owner-controlled public content for MCP and WebMCP
 
 [![CI](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml/badge.svg)](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-4ade80)](https://modelcontextprotocol.io)
-[![WebMCP](https://img.shields.io/badge/WebMCP-origin_trial-8b5cf6)](https://webmachinelearning.github.io/webmcp/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org/)
+[![WebMCP](https://img.shields.io/badge/WebMCP-draft-8b5cf6)](https://webmachinelearning.github.io/webmcp/)
 
-AI agents can't read your website. HTML is noise. Corsen Context fixes that.
+Four read-only tools let compatible agents search, browse, and read the public
+content a site owner chooses to expose. MCP serves clients outside the page;
+WebMCP registers the same contract for agents running inside it; `llms.txt`
+separately publishes a bounded static overview.
 
-Give Claude, ChatGPT, Cursor, and Grok clean, structured access to your content — no scraping, no parsing, no guessing.
-
-[Quick Start](#quick-start) · [How It Works](#how-it-works) · [WordPress](#wordpress-30-seconds) · [Next.js](#nextjs-2-minutes) · [CLI](#cli) · [Security](#security)
+[Quick start](#quick-start) · [Architecture](#architecture) ·
+[Integrations](docs/INTEGRATIONS.md) · [Demo runbook](docs/DEMO-RUNBOOK.md) ·
+[Verification](#verification) ·
+[Security](#security-boundary)
 
 </div>
 
----
+## Why
 
-## The Problem
+Web pages are designed for people. An agent that has only the rendered DOM
+must rediscover navigation, extract text, and infer which URL contains the
+answer. Corsen Context gives the site an explicit, owner-governed read path:
 
-AI agents visit your website and see this:
+1. `search_site` finds relevant public pages.
+2. `get_page_content` reads one returned URL as clean Markdown.
+3. `list_content` browses an allowed public content type.
+4. `get_sitemap` returns a bounded overview up to the owner's configured
+   content limit.
 
-```html
-<div class="wp-block-group has-global-padding"><div class="wp-block-group__inner-container">
-<nav class="navbar mega-menu--v2"><ul id="menu-main" class="nav navbar-nav">...
+The tools reduce reliance on DOM extraction. Their results are still
+site-authored, untrusted content that a consuming agent must evaluate.
+
+## Architecture
+
+```text
+Owner-selected public content
+          │
+          ├── GET /llms.txt
+          │      bounded static publication/discovery surface
+          │
+          └── four-tool server contract
+                 ├── POST /v1/mcp
+                 │      MCP JSON-RPC interface
+                 └── document.modelContext
+                        WebMCP registration; calls return to same-origin MCP
 ```
 
-They need this:
+Within a TypeScript integration, WebMCP forwards execution to that
+integration's MCP endpoint. WordPress implements the same manifest-defined
+contract independently in PHP. Automated parity tests compare tool names,
+descriptions, input schemas, and WebMCP annotations against
+[`tools.manifest.json`](tools.manifest.json).
 
-```markdown
-# Your Company
-> We build developer tools for API management.
+The project can also emit discovery hints in `robots.txt`, `llms.txt`, an HTML
+`<link rel="mcp">` element, or a `/.well-known/mcp` document. These are
+project conventions rather than universally consumed discovery standards;
+some clients still require direct endpoint configuration.
 
-## Products
-- [API Gateway](https://yoursite.com/products/gateway) - High-performance API gateway
-- [Dashboard](https://yoursite.com/products/dashboard) - Real-time monitoring
+## Tool contract
+
+| Tool               | Purpose                                                     | Important bounds                            |
+| ------------------ | ----------------------------------------------------------- | ------------------------------------------- |
+| `search_site`      | Search public content and return matching URLs and snippets | query 1–500 Unicode code points; limit 1–50 |
+| `get_page_content` | Read one same-site public URL as Markdown                   | URI 1–2000 Unicode code points              |
+| `list_content`     | Browse one allowed public content type                      | page 1–5000; limit 1–100                    |
+| `get_sitemap`      | Return a bounded structured overview                        | no input properties                         |
+
+Unknown properties, wrong scalar types, fractions where integers are required,
+and out-of-range values produce an MCP tool result with `isError: true` and an
+actionable message. A malformed `tools/call` envelope, including a non-object
+`arguments` member, remains JSON-RPC error `-32602`. Tool definitions shown by
+MCP do not carry WebMCP-only annotations.
+
+WebMCP registrations include `readOnlyHint` and `untrustedContentHint`. These
+are advisory metadata for the client, not a security barrier. Read-only
+behavior comes from the server implementation and content provider.
+
+The generated browser bridge registers each manifest-backed tool through the
+WebMCP API. This is the actual registration path, shortened only to keep the
+example focused:
+
+```js
+document.modelContext.registerTool({
+  name: tool.name,
+  description: tool.description,
+  inputSchema: tool.inputSchema,
+  annotations: tool.annotations,
+  execute: (input, options) => call(tool.name, input, options?.signal),
+});
 ```
 
-**Corsen Context bridges that gap — automatically.**
+The complete implementation, including same-origin transport, abort forwarding,
+response validation, and registration failure isolation, is in
+[`packages/core/src/webmcp.ts`](packages/core/src/webmcp.ts).
 
----
+## Integration shapes
 
-## How It Works
+The repository contains ten reference and deployment targets, but they are not
+all the same kind of product. A public target is current only when
+`pnpm verify:live` succeeds against the deployed URL:
 
-Corsen Context creates two layers that AI agents can discover and use:
+| Stack              | Integration delivered to the site owner                            |
+| ------------------ | ------------------------------------------------------------------ |
+| WordPress          | Native PHP plugin                                                  |
+| Next.js App Router | npm 2.0.0 candidate plus complete example                          |
+| Astro              | npm 2.0.0 candidate plus complete SSR example                      |
+| Express            | Framework-agnostic core plus reference server                      |
+| Static HTML        | Build-time assets plus one same-origin Node endpoint               |
+| Ghost              | Deployable read-only Node bridge over the Content API              |
+| Strapi             | Deployable read-only Node bridge over a documented collection      |
+| Directus           | Deployable read-only Node bridge with an explicit published filter |
+| Wagtail            | Deployable read-only Node bridge adapted to a named page model     |
+| MediaWiki          | Deployable read-only Node bridge over the Action API               |
 
-```
-One tool definition  →  three surfaces
+The five CMS bridges are reference services, not native CMS plugins or
+extensions. They can act as a frontend or run as a same-origin sidecar. See
+[`docs/CMS-BRIDGE-DEPLOYMENT.md`](docs/CMS-BRIDGE-DEPLOYMENT.md) before using
+one on an existing site.
 
-AI Agent (Claude, ChatGPT, Cursor, Grok)
-    │
-    ├─── GET /llms.txt              ← Static: instant overview of your site
-    ├─── GET /llms-full.txt         ← Static: full markdown of all pages (opt-in)
-    │
-    ├─── POST /v1/mcp               ← Dynamic: for agents outside the browser
-    │        (JSON-RPC 2.0, MCP 2025-11-25)
-    │
-    └─── document.modelContext      ← WebMCP: for an agent running inside the page
-             (same tools, registered in-browser)
-```
+## Quick start
 
-### Discovery Flow
+### Next.js App Router
 
-AI agents find your site through standard channels:
+The repository currently tracks npm candidate `2.0.0`; the public npm registry
+still serves `1.3.0` until the candidate is published. The command below
+therefore installs the public stable release, not proof of this checkout. Use
+`pnpm verify:examples:candidate` from a clone to test the exact local candidate.
 
-1. **robots.txt** — `MCP: https://yoursite.com/v1/mcp`
-2. **llms.txt** — Credit line at the bottom includes the MCP endpoint URL
-3. **HTML head** — `<link rel="mcp" href="/v1/mcp" />`
-4. **/.well-known/mcp** — Discovery document built by the core `generateWellKnownMcp()` helper (serve it yourself; the WordPress plugin does not expose this route)
-
-### MCP Tools Available
-
-| Tool | What it does |
-|------|-------------|
-| `search_site` | Search content by keyword — returns matching pages with context snippets |
-| `get_page_content` | Get any page as clean markdown with title, description, dates, metadata |
-| `list_content` | Browse content by type (page, post, product) with pagination |
-| `get_sitemap` | Full structured sitemap with URLs, titles, types, last modified dates |
-
-Targets **MCP 2025-11-25**: `initialize`, `ping`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`. The endpoint speaks JSON-RPC 2.0 over POST and returns JSON responses — no SSE streaming transport.
-
-### WebMCP (agents inside the browser)
-
-The same four tools are also exposed through [WebMCP](https://webmachinelearning.github.io/webmcp/) — the browser API (`document.modelContext`, a W3C Community Group draft, in Chrome origin trial) that lets a page register tools with an agent running inside it. The bridge never reimplements a tool: it registers the definitions and forwards every call to `/v1/mcp`, so there is **one implementation behind every surface**, checked by a cross-runtime parity test against [`tools.manifest.json`](tools.manifest.json).
-
-Because a page's content comes from authors, comments and imports, every tool is annotated `readOnlyHint` and `untrustedContentHint`: a consuming agent is told to treat tool output as data, not instructions. The bridge is same-origin only, refuses to register inside a frame, and sends no credentials.
-
-- **WordPress** — enable *WebMCP* in Settings; paste a Chrome origin-trial token if you serve one. No JavaScript to write.
-- **Next.js** — mount `createWebMCPScriptHandler` on a route and load it with `<script src="/webmcp.js" defer>` (see `examples/nextjs-app-router`).
-- **Astro** — same handler, mounted as `src/pages/webmcp.js.ts`.
-- **Express** — serve `generateWebMCPScript()` from a `/webmcp.js` route (see `examples/express-basic`).
-- **An existing CMS** — wrap its HTTP API once as a `ContentProvider` and every surface lights up: see the Ghost (`examples/ghost-cms`), Strapi (`examples/strapi-cms`), Directus (`examples/directus-cms`), Wagtail (`examples/wagtail-cms`) and MediaWiki (`examples/mediawiki-cms`) examples.
-- **A static site** — generate `llms.txt` and the bridge at build time, keep exactly one function for `POST /v1/mcp` (see `examples/static-html`).
-- **Any site** — `generateWebMCPScript()` from the core returns the bridge as a string.
-
----
-
-## Quick Start
-
-### WordPress (30 seconds)
-
-1. Install the **Corsen Context** plugin from [WordPress.org](https://wordpress.org/plugins/corsen-context/)
-2. Activate it
-3. That's it
-
-Your site now has:
-- `/llms.txt` — structured overview of all published content
-- `/wp-json/corsen-context/v1/mcp` — read-only MCP endpoint (4 tools, JSON-RPC 2.0)
-- **WebMCP** — the same tools in the browser via `document.modelContext` (opt-in, Settings > Corsen Context)
-- Dashboard widget showing AI context status
-- Yoast SEO + Rank Math metadata integration
-
-Optional and off by default: `/llms-full.txt` — a bounded full-content export (item, byte, and regeneration-lock limits). Enable it in **Settings > Corsen Context**.
-
-Zero config. Works out of the box with sensible defaults.
-
-### Next.js (2 minutes)
+Publishing the candidate is a separate manual operation. A push to `main` may
+prepare a Changesets version pull request but cannot publish to npm. The publish
+workflow requires an exact confirmed `main` commit/version, runs through the
+`npm-publish` GitHub environment, rejects long-lived npm credentials, and uses
+npm trusted publishing through OIDC. Trusted-publisher setup for every package
+must still be verified on npm before publication.
 
 ```bash
 npm install @corsenai/corsen-context @corsenai/corsen-context-nextjs
 ```
 
-**App Router** — create `app/v1/mcp/route.ts`:
+Implement a `ContentProvider` for the public pages the site intends to expose,
+then mount the MCP route:
 
 ```typescript
+// app/v1/mcp/route.ts
 import { createMCPHandler } from '@corsenai/corsen-context-nextjs';
+import { corsenConfig } from '@/lib/corsen-context.server';
 import { siteProvider } from '@/lib/corsen-provider';
 
-const { POST, OPTIONS } = createMCPHandler(
-  { siteUrl: 'https://yoursite.com' },
-  siteProvider,
-);
-
-export { POST, OPTIONS };
+export const { GET, POST, OPTIONS } = createMCPHandler(corsenConfig, siteProvider);
 ```
 
-**Pages Router** — create `pages/v1/mcp.ts`:
+Mount the WebMCP bridge:
 
 ```typescript
-import { CorsenContext } from '@corsenai/corsen-context';
+// app/webmcp.js/route.ts
+import { createWebMCPScriptHandler } from '@corsenai/corsen-context-nextjs';
+import { corsenConfig } from '@/lib/corsen-context.server';
+import { siteProvider } from '@/lib/corsen-provider';
 
-const cc = new CorsenContext({ siteUrl: 'https://yoursite.com' }, myProvider);
-
-export default async function handler(req, res) {
-  const server = cc.createMCPServer();
-  const result = await server.handleRequest(req.body);
-  if (result === null) return res.status(204).end(); // notification
-  res.json(result);
-}
+export const GET = createWebMCPScriptHandler(corsenConfig, siteProvider);
 ```
 
-### Any Framework (5 minutes)
+Load it once from the root layout:
 
-```typescript
-import express from 'express';
-import { CorsenContext } from '@corsenai/corsen-context';
-
-const app = express();
-app.use(express.json()); // Required for MCP endpoint
-
-const cc = new CorsenContext({
-  siteUrl: 'https://yoursite.com',
-}, myContentProvider);
-
-// Serve /llms.txt
-app.get('/llms.txt', async (req, res) => {
-  res.type('text/plain').send(await cc.generateLlmsTxt());
-});
-
-// MCP endpoint (versioned)
-app.post('/v1/mcp', async (req, res) => {
-  const server = cc.createMCPServer();
-  const result = await server.handleRequest(req.body);
-  if (result === null) return res.status(204).end();
-  res.json(result);
-});
+```tsx
+<script src="/webmcp.js" defer />
 ```
 
-Works with Express, Fastify, Hono, Koa, Astro, SvelteKit, Nuxt, or any HTTP server.
+The complete local reference is in
+[`examples/nextjs-app-router`](examples/nextjs-app-router).
 
----
+For Next.js, import the Corsen Context configuration directly into route
+handlers from a server-only module. `withCorsenContext` adds enabled static
+rewrites but does not serialize the configuration into `nextConfig.env` or the
+client bundle. Never put an MCP API key in a `NEXT_PUBLIC_*` variable.
 
-## CLI
+### Astro, Express, and static HTML
 
-Auto-detect your framework, scaffold config and route files in one command:
+- [`packages/astro-adapter`](packages/astro-adapter) provides MCP,
+  `llms.txt`, and WebMCP script handlers for an Astro SSR project.
+- [`examples/express-basic`](examples/express-basic) shows the
+  framework-agnostic core in one same-origin Express server.
+- [`examples/static-html`](examples/static-html) builds HTML, `llms.txt`, and
+  `webmcp.js`, then serves them beside the MCP endpoint.
 
-```bash
-npx @corsenai/corsen-context-cli init
-```
+Each example documents its canonical site URL, content-provider replacement,
+and browser/API-key boundary.
 
-This creates:
-- `corsen-context.config.mjs` with sensible defaults
-- Framework-specific route files (Next.js App/Pages Router, Express, Astro)
-- Content provider template
+The static-HTML build removes stale static context/WebMCP assets and page
+script tags when the corresponding build variables are disabled. On a purely
+static host, changing an environment variable at runtime has no effect:
+rebuild, redeploy, and purge any CDN copy to complete revocation.
 
-Other commands:
+### WordPress
 
-```bash
-# Generate llms.txt from a live site
-npx @corsenai/corsen-context-cli generate --url https://yoursite.com
+The plugin source is
+[`packages/wordpress-plugin/corsen-context`](packages/wordpress-plugin/corsen-context).
+It publishes owner-selected public post types, path exclusions, `llms.txt`, an
+MCP endpoint, and opt-in WebMCP. Check the version shown on WordPress.org
+before installation: a public stable version older than `1.4.1` does not
+contain this candidate's strict WebMCP contract.
 
-# Check if your site is AI-ready
-npx @corsenai/corsen-context-cli doctor --url https://yoursite.com
-```
+For a source install, package only the `corsen-context` plugin directory,
+upload the ZIP through **Plugins > Add New > Upload Plugin**, activate it, and
+review **Settings > Corsen Context** before enabling WebMCP. The deterministic
+candidate builder and clean-install receipt are documented in
+[`docs/WORDPRESS-PACKAGING.md`](docs/WORDPRESS-PACKAGING.md). A portable
+8-page/6-post demonstration corpus and its rollback instructions are in
+[`examples/wordpress-aurora`](examples/wordpress-aurora).
 
-The `doctor` command checks: HTTPS, llms.txt, sitemap.xml, robots.txt MCP reference, and MCP endpoint availability.
+## Content provider
 
----
-
-## Content Provider
-
-For non-WordPress sites, you implement a `ContentProvider` — a simple interface that tells Corsen Context how to access your pages:
+Non-WordPress integrations implement a small interface backed by the site's
+own public CMS, database, or build data:
 
 ```typescript
 import type { ContentProvider } from '@corsenai/corsen-context';
 
-const myProvider: ContentProvider = {
+const siteProvider: ContentProvider = {
   async getPages() {
     return [
-      { url: 'https://yoursite.com/', title: 'Home', description: 'Welcome', type: 'page' },
-      { url: 'https://yoursite.com/blog/post-1', title: 'First Post', description: '...', type: 'post' },
+      {
+        url: 'https://www.example.com/docs/start',
+        title: 'Getting started',
+        description: 'Installation guide',
+        type: 'page',
+      },
     ];
   },
 
   async getPageContent(url) {
-    // Fetch and return page as markdown
-    return { url, title: '...', description: '...', markdown: '# ...', metadata: {} };
+    // Resolve only an allowed public URL and return clean Markdown.
+    return { url, title: 'Getting started', markdown: '# Getting started', metadata: {} };
   },
 
   async searchContent(query, limit) {
-    // Return matching results
-    return [{ url: '...', title: '...', description: '...', snippet: '...', score: 1 }];
+    // Return at most `limit` matching public entries.
+    return [];
   },
 };
 ```
 
-The WordPress plugin does this automatically from your WP database.
+The provider is part of the security boundary. It must enforce publication
+status, tenant/visibility rules, canonical URLs, and field allowlists for the
+specific source system.
 
----
-
-## Configuration
-
-All adapters share the same config schema (validated with Zod):
+## Safe configuration baseline
 
 ```javascript
-// corsen-context.config.mjs
 export default {
-  siteUrl: 'https://yoursite.com',
-  siteName: 'My Site',
-  description: 'Short description for AI agents.',
-
+  siteUrl: 'https://www.example.com',
   mcp: {
     enabled: true,
     endpoint: '/v1/mcp',
     tools: ['search_site', 'get_page_content', 'list_content', 'get_sitemap'],
   },
-
-  static: { generateLlmsTxt: true, includeFullContent: true },
-
+  static: {
+    generateLlmsTxt: true,
+    includeFullContent: false,
+    maxOutputBytes: 5_242_880,
+  },
   content: {
-    postTypes: ['post', 'page', 'product'],
-    excludePaths: ['/admin', '/cart', '/checkout'],
+    postTypes: ['post', 'page'],
+    excludePaths: ['/account', '/cart', '/checkout'],
     maxPages: 500,
   },
-
   security: {
-    rateLimit: 100,          // requests per minute per IP
-    burstLimit: 10,          // max requests per second
-    allowedOrigins: [],      // CORS whitelist (empty = allow all origins)
-    trustProxy: false,       // only trust X-Forwarded-For behind a known proxy
-    // apiKey via CORSEN_CONTEXT_API_KEY env var
+    rateLimit: 100,
+    burstLimit: 10,
+    allowedOrigins: [],
+    trustProxy: false,
   },
-
-  cache: { enabled: true, ttl: 3600, driver: 'memory' }, // or 'redis' for production
-
-  credit: true,              // "Powered by Corsen Context" in generated files
+  cache: { enabled: true, ttl: 3600, driver: 'memory' },
+  credit: true,
 };
 ```
 
----
+`llms-full.txt` is an explicit bounded opt-in, not a default requirement.
+`static.generateLlmsTxt: false` disables both `CorsenContext` static generation
+methods; the supplied HTTP handlers return `404` for `/llms.txt` and
+`/llms-full.txt`.
+`static.includeFullContent` defaults to `false`, so `/llms-full.txt` also
+returns `404` until the owner enables it explicitly. `maxOutputBytes` defaults
+to 5 MiB and accepts 64 KiB through 10 MiB. Both returned exports are capped at
+that UTF-8 byte limit without splitting a code point; full-content iteration
+returns as soon as the next block would exceed the budget. A truncation notice is
+appended when the complete output would exceed the limit.
 
-## Production Deployment
+Generated static metadata and Markdown destinations are normalized and escaped.
+Full-content page bodies are passed through from the provider and are explicitly
+untrusted site-authored data; the generator does not claim to neutralize them.
 
-For single-instance or dev setups, Corsen Context works out of the box with in-memory cache and rate limiting. For production (Vercel, multi-instance, Kubernetes), plug in Redis:
+`content.maxPages` defaults to 500 and accepts 1 through 5000. It bounds the
+corpus exposed by `list_content`, `get_sitemap`, `resources/list`, and the
+static exports; it is separate from the per-call `limit` fields in the tool
+contract.
 
-### Environment Variables
+`mcp.enabled: false` is authoritative for the supplied integrations: MCP
+`GET`, `POST`, and `OPTIONS` routes and the WebMCP script route return `404`,
+and the core rejects direct MCP dispatch before invoking the provider. Static
+exports remain independently controlled by the `static` settings.
 
-Copy `.env.example` to `.env`:
+### HTTP transport contract
+
+The supplied Next.js, Astro, Express, static-HTML, and CMS handlers expose a
+stateless JSON transport. They validate `Origin` before parsing, require an
+`application/json` request content type, require a compatible JSON `Accept`
+header when one is sent, rate-limit before optional authentication, and parse
+at most 100 KiB from the actual request body. Malformed JSON returns a bounded
+JSON-RPC parse error; an oversized body returns `413`; valid non-request JSON
+is rejected as an invalid request. `GET` returns `405` with `Allow: POST`, a
+valid `OPTIONS` preflight returns `204`, and accepted notifications return
+`202` with an empty body. The transport does not implement SSE, resumability,
+or session identifiers.
+
+### WebMCP versus API-key mode
+
+The in-page bridge is same-origin and intentionally sends no cookies, visitor
+credentials, or API key. Choose one mode for an endpoint:
+
+- WebMCP: public, read-only, rate-limited MCP endpoint backed only by public
+  content; or
+- authenticated MCP: set `CORSEN_CONTEXT_API_KEY` for server-side clients and
+  omit the public WebMCP bridge.
+
+Never embed an API key in `webmcp.js`, HTML, or a public environment variable.
+
+For distributed deployments, supply Redis-compatible cache and rate-limit
+stores. Forwarded client-IP headers must only be trusted behind a proxy you
+control.
+
+Every supplied CMS reference bridge caps each upstream fetch at 10 seconds.
+All five keep successful provider results in a process-local memory cache and
+coalesce concurrent cache misses. Ghost, Strapi, Directus, and Wagtail use a
+fixed 60-second TTL; MediaWiki defaults to 30 seconds and accepts
+`MW_CACHE_TTL_MS` values from 1,000 to 300,000 milliseconds. Upstream changes
+can remain absent until that process's TTL expires; replicas do not share this
+cache or an invalidation channel. These bridges disable the core page-body
+cache, so the provider TTL is their only freshness layer.
+
+## Browser availability
+
+WebMCP is an evolving Community Group draft and browser/client support varies.
+The source contains an imperative `document.modelContext.registerTool` bridge;
+that alone does not make the API available in every browser. Follow
+[`docs/WEBMCP-BROWSER-SETUP.md`](docs/WEBMCP-BROWSER-SETUP.md) for the current
+development flag, compatible-client, and public origin-trial paths.
+
+## Verification
+
+Repository checks:
 
 ```bash
-CORSEN_CONTEXT_API_KEY=your-secret-key    # Protect your MCP endpoint
-REDIS_URL=redis://localhost:6379          # Or your Upstash/ElastiCache URL
-LOG_LEVEL=info                            # fatal|error|warn|info|debug|trace
+pnpm install --frozen-lockfile
+pnpm test
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm verify:examples:candidate
 ```
 
-### Redis Setup (Upstash or any Redis)
-
-```typescript
-import { CorsenContext, RedisCache, RedisRateLimitStore } from '@corsenai/corsen-context';
-import { Redis } from '@upstash/redis'; // or ioredis, etc.
-
-const redis = new Redis({
-  url: process.env.REDIS_URL,
-  token: process.env.REDIS_TOKEN, // Upstash only
-});
-
-// Pluggable cache + rate limiter
-const cache = new RedisCache(redis, { prefix: 'corsen:cache:' });
-const rateLimitStore = new RedisRateLimitStore(redis, { prefix: 'corsen:rl:' });
-
-const cc = new CorsenContext(
-  { siteUrl: 'https://yoursite.com', cache: { driver: 'redis' } },
-  myProvider,
-  cache,
-);
-
-const server = cc.createMCPServer({ rateLimitStore });
-```
-
-### Structured Logging
-
-Logs are JSON by default (Pino). Pipe through `pino-pretty` in dev:
+WordPress checks:
 
 ```bash
-node server.js | npx pino-pretty
+pnpm build:wordpress
+pnpm verify:wordpress
+pnpm verify:wordpress:aurora
+
+cd packages/wordpress-plugin/corsen-context
+composer install
+composer run lint
+composer run test:unit
 ```
 
-In production, logs include method, duration, status, and security events:
+Public deployments can be checked against the repository manifest:
 
-```json
-{"level":"info","module":"mcp","method":"tools/call","durationMs":12,"status":"ok","msg":"request_handled"}
-{"level":"warn","module":"mcp","ip":"1.2.3.4","msg":"rate_limit_exceeded"}
+```bash
+pnpm verify:live
 ```
 
-Sensitive fields (`apiKey`, `authorization`, `password`, `token`) are automatically redacted.
+The live verifier fetches public discovery/bridge surfaces, initializes MCP,
+compares exact tool names/descriptions/input schemas, and executes a bounded
+site-specific `search_site` to `get_page_content` chain. The WordPress receipts
+create isolated disposable sites, install the exact candidate ZIP, and verify
+both uninstall and endpoint removal; the Aurora mode also imports the public
+WXR corpus. A hosted demo does not by itself prove that a third party can
+install an integration, so clean-room installation receipts remain separate
+from live-deployment and browser evidence.
 
-### Custom Logger
+## Security boundary
 
-```typescript
-import { createLogger } from '@corsenai/corsen-context';
+- strict input schemas and runtime validation in TypeScript and PHP;
+- same-origin WebMCP endpoint resolution, frame refusal, and no credentials;
+- rate limiting before optional authentication;
+- bounded request bodies, JSON depth, result counts, and export sizes;
+- same-site URL checks and path/content exposure policies;
+- generated metadata/destination escaping, with page bodies still treated as
+  untrusted site-authored content;
+- structured logs with secrets redacted and client identifiers hashed.
 
-const logger = createLogger({ level: 'debug', name: 'my-app' });
-const server = cc.createMCPServer({ rateLimitStore, logger });
-```
+The core cannot infer private status hidden behind every CMS or membership
+plugin. Configure the provider and WordPress exposure filters for the site's
+actual visibility model. See [SECURITY.md](SECURITY.md).
 
----
+## Packages and examples
 
-## Security
+- `@corsenai/corsen-context` — framework-agnostic TypeScript core
+- `@corsenai/corsen-context-nextjs` — Next.js adapter
+- `@corsenai/corsen-context-astro` — Astro adapter
+- `@corsenai/corsen-context-cli` — initialization, generation, and diagnosis
+- `packages/wordpress-plugin/corsen-context` — native WordPress plugin
+- `examples/` — ten reference and deployment targets
 
-Built-in, not bolt-on:
-
-- **SSRF protection (DNS-aware)** — Resolves DNS and verifies every resolved IP is public before fetching (fail-closed). Blocks all private/internal IPs (IPv4 + IPv6, including IPv4-mapped/embedded forms + carrier-grade NAT). When `undici` is installed it also pins the connection to the vetted IP at the socket level (keeping the hostname for TLS), closing the DNS rebinding window
-- **Rate limiting** — Sliding window, 100 req/min default, burst protection (10/sec). Keyed on the socket IP by default; forwarding headers (`X-Forwarded-For`) are only trusted when `security.trustProxy` is enabled. Pluggable store: in-memory (dev) or **Redis** (production, distributed)
-- **API key auth** — Timing-safe comparison + optional **ApiKeyManager** with SHA-256 hashed keys, scopes, daily quotas, expiry, and revocation
-- **Input validation** — Every parameter validated with Zod. Body size limit (100 KB), JSON depth limit (10), request timeout (8s)
-- **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, `CSP`, `no-store` on all MCP responses
-- **Structured logging** — Pino-based, JSON output. Security events (rate limit hits, auth failures, DoS rejections) logged with context
-- **Content ACL** — Only published, public content is exposed. Never drafts, trash, or private pages
-- **No redirects** — MCP endpoints never follow redirects (`redirect: 'error'`)
-- **Client IP extraction** — Socket IP by default; when `trustProxy` is enabled: CF-Connecting-IP > X-Real-IP > X-Forwarded-For
-
-See [SECURITY.md](SECURITY.md) for the full security specification.
-
----
-
-## Supported Frameworks
-
-| Framework | Integration | Setup Time |
-|-----------|------------|------------|
-| **WordPress** | Full plugin, zero config | 30 sec |
-| **Next.js** (App Router) | `@corsenai/corsen-context-nextjs` adapter | 2 min |
-| **Next.js** (Pages Router) | CLI-scaffolded API route | 2 min |
-| **Astro** | `@corsenai/corsen-context-astro` adapter | 2 min |
-| **Express** | CLI-scaffolded routes | 5 min |
-| **Fastify / Hono / Koa / SvelteKit / Nuxt** | Core library directly (no adapter yet) | 5 min |
-| **Static sites** | CLI generator (`generate`) | 1 min |
-
-The CLI's `init` command scaffolds ready-to-edit route files for Next.js, Express, and Astro. Other frameworks use the framework-agnostic core library directly.
-
-Coming soon: dedicated SvelteKit/Nuxt adapters, Laravel, Django, Shopify.
-
----
-
-## Project Structure
-
-```
-corsen-context/
-├── packages/
-│   ├── core/                 # @corsenai/corsen-context — TypeScript library
-│   │   ├── src/
-│   │   │   ├── mcp-server.ts     # MCP JSON-RPC 2.0 server
-│   │   │   ├── llms-txt.ts       # llms.txt + llms-full.txt generators
-│   │   │   ├── sitemap.ts        # Sitemap XML parser + discovery
-│   │   │   ├── converter.ts      # HTML → clean Markdown
-│   │   │   ├── security.ts       # SSRF (DNS-aware), rate limiting, CORS, API keys
-│   │   │   ├── content-policy.ts # Public-content ACL (origin, exclusions, types)
-│   │   │   ├── providers.ts      # Batteries-included ContentProvider helpers
-│   │   │   ├── discovery.ts      # robots.txt / .well-known/mcp / <link> generators
-│   │   │   ├── cache.ts          # In-memory cache driver
-│   │   │   ├── redis-cache.ts    # Redis cache driver (production)
-│   │   │   ├── redis-rate-limit.ts # Redis rate limit store (production)
-│   │   │   ├── logger.ts         # Pino structured logging
-│   │   │   ├── config.ts         # Zod config schema
-│   │   │   ├── version.ts        # Single-source version + protocol constants
-│   │   │   └── types.ts          # All TypeScript types
-│   │   └── tests/                # vitest suite (run `pnpm test`)
-│   │
-│   ├── nextjs-adapter/       # @corsenai/corsen-context-nextjs
-│   │   └── src/
-│   │       ├── handlers.ts       # MCP + SSE + llms.txt handlers
-│   │       └── with-corsen-context.ts  # next.config wrapper
-│   │
-│   ├── cli/                  # @corsenai/corsen-context-cli
-│   │   └── src/
-│   │       ├── init.ts           # Framework detection + scaffolding
-│   │       ├── generate.ts       # llms.txt generation from live site
-│   │       └── doctor.ts         # AI readiness checker
-│   │
-│   └── wordpress-plugin/     # Corsen Context for WordPress
-│       └── corsen-context/
-│           ├── corsen-context.php
-│           └── includes/         # MCP server, llms generator, admin, security
-│
-├── LICENSE                   # MIT
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── README.md
-```
-
----
-
-## Roadmap
-
-- More framework adapters (Astro, SvelteKit, Nuxt)
-- MCP Registry listing
-- Community adapter program
-
----
+The CLI `init` command scaffolds MCP routes and a provider template for its
+supported frameworks. Add the documented WebMCP script route and page
+injection separately; `doctor` diagnoses public surfaces but does not install
+them.
 
 ## Contributing
 
-We welcome contributions — especially new framework adapters! See [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md). New integrations must include strict
+contract parity, same-origin WebMCP routing, install instructions, and a clean
+build/test receipt.
 
 ## License
 
-[MIT](LICENSE) — free for personal and commercial use.
+[MIT](LICENSE), for personal and commercial use.
 
-Every generated `llms.txt` and MCP response includes:
-
-> **Powered by Corsen Context** · Built by Corsen AI · [github.com/CorsenAI/corsen-context](https://github.com/CorsenAI/corsen-context)
-
----
+When enabled, the optional credit appears in generated `llms.txt` exports. It
+is not injected into MCP tool results.
 
 <div align="center">
 
-**Built by [Corsen AI](https://corsen.ai)** · European AI, sovereign by design
-
-[GitHub](https://github.com/CorsenAI/corsen-context) · [Website](https://corsen.ai) · [Report Issue](https://github.com/CorsenAI/corsen-context/issues)
+Built by [Corsen AI](https://corsen.ai) ·
+[GitHub](https://github.com/CorsenAI/corsen-context) ·
+[Report an issue](https://github.com/CorsenAI/corsen-context/issues)
 
 </div>

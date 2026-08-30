@@ -1,21 +1,22 @@
 import type { ReactNode } from 'react';
+import './demo.css';
 
 export const metadata = {
-  title: 'Corsen Context — Next.js WebMCP demo',
-  description: 'A site made agent-native over MCP, llms.txt and WebMCP.',
+  title: 'Aurora Kits — Next.js WebMCP use-case gallery',
+  description: 'Read-only product, support, policy, and guide workflows over four WebMCP tools.',
 };
 
+// Resolve owner revocation at request time so the HTML and transport cannot
+// drift when the deployment flag changes.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
   return (
     <html lang="en">
       <head>
-        {/*
-          The WebMCP bridge. It registers this site's tools with an agent
-          running inside the page (document.modelContext) and forwards every
-          call to /v1/mcp. Served by the Next.js adapter — no inline script,
-          so it stays compatible with a strict CSP.
-        */}
-        <script src="/webmcp.js" defer />
+        {/* Same-origin bridge: every browser tool call is forwarded to POST /v1/mcp. */}
+        {mcpEnabled && <script src="/webmcp.js" defer />}
       </head>
       <body>{children}</body>
     </html>

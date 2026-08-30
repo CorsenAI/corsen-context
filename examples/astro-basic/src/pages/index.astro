@@ -1,47 +1,17 @@
 ---
-// Landing page. The <script> below is the whole WebMCP integration: it loads
-// the bridge, which registers this site's tools with an agent running inside
-// the page (document.modelContext). Every execute() calls back into /v1/mcp.
+import AuroraPage from '../components/AuroraPage.astro';
+import { demoPages } from '../lib/provider';
+const page = demoPages.find((item) => item.path === '/');
+const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Corsen Context — Astro WebMCP demo</title>
-    <meta name="description" content="A site made agent-native over MCP, llms.txt and WebMCP." />
-    <script src="/webmcp.js" defer></script>
+    <title>Aurora Kits — Astro WebMCP use-case gallery</title>
+    <meta name="description" content="Read-only product, support, policy, and guide workflows over four WebMCP tools." />
+    {mcpEnabled && <script src="/webmcp.js" defer></script>}
+    {mcpEnabled && <script src="/webmcp-status.js" defer></script>}
   </head>
-  <body>
-    <main style="max-width:680px;margin:0 auto;padding:2rem;font-family:system-ui;line-height:1.5">
-      <h1>Corsen Context — Astro WebMCP demo</h1>
-      <p>
-        This page is agent-native. The same four tools are exposed over three
-        surfaces from a single definition — no scraping, no guessing the DOM.
-      </p>
-
-      <ul>
-        <li><a href="/llms.txt">/llms.txt</a> — static overview for discovery</li>
-        <li><code>POST /v1/mcp</code> — MCP endpoint for agents outside the browser</li>
-        <li><code>document.modelContext</code> — WebMCP, for an agent running inside this page</li>
-      </ul>
-
-      <h2>Ask the agent</h2>
-      <p>
-        In a WebMCP-capable browser (Chrome with
-        <code>chrome://flags/#enable-webmcp-testing</code>, or an agent browser
-        with built-in support), the agent can call these tools directly:
-      </p>
-      <ul>
-        <li><code>search_site</code> — search content by keyword</li>
-        <li><code>get_page_content</code> — read a page as clean markdown</li>
-        <li><code>list_content</code> — browse by type</li>
-        <li><code>get_sitemap</code> — the structured sitemap</li>
-      </ul>
-      <p>Try: <em>“Search this site for AI context, then summarise the top result.”</em></p>
-
-      <p style="margin-top:2rem;color:#888;font-size:14px">
-        Powered by Corsen Context — Built by Corsen AI
-      </p>
-    </main>
-  </body>
+  <body>{page && <AuroraPage page={page} />}</body>
 </html>

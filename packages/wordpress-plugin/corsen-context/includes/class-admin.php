@@ -60,7 +60,7 @@ class Corsen_Context_Admin {
 			'corsen_context_general',
 			array(
 				'field' => 'enabled',
-				'label' => 'Enable the AI context layer',
+				'label' => 'Enable the public context layer',
 			)
 		);
 		add_settings_field(
@@ -116,17 +116,6 @@ class Corsen_Context_Admin {
 			array(
 				'field'       => 'webmcp_origin_trial_token',
 				'description' => 'Optional. Chrome only exposes WebMCP during the origin trial when the page serves this token; agents with built-in WebMCP support need none. Register your origin at developer.chrome.com/origintrials.',
-			)
-		);
-		add_settings_field(
-			'agent_forms_enabled',
-			'Agent-callable forms',
-			array( $this, 'render_checkbox' ),
-			'corsen-context',
-			'corsen_context_general',
-			array(
-				'field' => 'agent_forms_enabled',
-				'label' => 'Forms built with the [corsen_agent_form] shortcode become declarative WebMCP tools (the agent fills them; the visitor stays the one who sends). Off: the same forms stay human-only.',
 			)
 		);
 		add_settings_section(
@@ -247,20 +236,16 @@ class Corsen_Context_Admin {
 		$input     = is_array( $input ) ? $input : array();
 		$sanitized = array();
 
-		$sanitized['enabled']             = ! empty( $input['enabled'] );
-		$sanitized['mcp_enabled']         = ! empty( $input['mcp_enabled'] );
-		$sanitized['llms_txt_enabled']    = ! empty( $input['llms_txt_enabled'] );
-		$sanitized['llms_full_enabled']   = ! empty( $input['llms_full_enabled'] );
-		$sanitized['credit']              = ! empty( $input['credit'] );
-		$sanitized['include_author']      = ! empty( $input['include_author'] );
-		$sanitized['webmcp_enabled']      = ! empty( $input['webmcp_enabled'] );
-		$sanitized['agent_forms_enabled'] = ! empty( $input['agent_forms_enabled'] );
-		$all_tools                        = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
-		$requested_tools                  = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? $all_tools ) );
-		$sanitized['enabled_tools']       = array_values( array_intersect( $all_tools, $requested_tools ) );
-		if ( empty( $sanitized['enabled_tools'] ) ) {
-			$sanitized['enabled_tools'] = $all_tools;
-		}
+		$sanitized['enabled']                   = ! empty( $input['enabled'] );
+		$sanitized['mcp_enabled']               = ! empty( $input['mcp_enabled'] );
+		$sanitized['llms_txt_enabled']          = ! empty( $input['llms_txt_enabled'] );
+		$sanitized['llms_full_enabled']         = ! empty( $input['llms_full_enabled'] );
+		$sanitized['credit']                    = ! empty( $input['credit'] );
+		$sanitized['include_author']            = ! empty( $input['include_author'] );
+		$sanitized['webmcp_enabled']            = ! empty( $input['webmcp_enabled'] );
+		$all_tools                              = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
+		$requested_tools                        = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? $all_tools ) );
+		$sanitized['enabled_tools']             = array_values( array_intersect( $all_tools, $requested_tools ) );
 		$sanitized['webmcp_origin_trial_token'] = substr( (string) preg_replace( '/[^A-Za-z0-9+\/=]/', '', (string) ( $input['webmcp_origin_trial_token'] ?? '' ) ), 0, 4096 );
 		// Constrain persisted post types to publicly-registered types so a
 		// crafted POST can't expose a private/internal type via MCP.
@@ -322,7 +307,7 @@ class Corsen_Context_Admin {
 		echo '<h2 style="margin-top:0;font-size:15px;">Agent Access &mdash; what agents can see and do</h2>';
 
 		if ( ! $on ) {
-			echo '<p><strong>Corsen Context is off.</strong> No agent can reach any tool or content on this site.</p></div>';
+			echo '<p><strong>Corsen Context is off.</strong> No agent can reach content through Corsen Context tools.</p></div>';
 			return;
 		}
 
@@ -330,7 +315,6 @@ class Corsen_Context_Admin {
 			array( 'MCP endpoint (agents outside the browser)', $mcp ),
 			array( 'WebMCP (agents inside the page)', $webmcp ),
 			array( 'llms.txt discovery', $llms ),
-			array( 'Agent-callable forms (declarative WebMCP)', $on && ! empty( $settings['agent_forms_enabled'] ) ),
 		);
 		echo '<table class="widefat striped" style="margin-bottom:10px;"><tbody>';
 		foreach ( $rows as $row ) {
@@ -343,15 +327,12 @@ class Corsen_Context_Admin {
 		}
 		echo '</tbody></table>';
 
-		if ( ! empty( $settings['agent_forms_enabled'] ) ) {
-			echo '<p style="margin:6px 0;"><strong>Agents can:</strong> read your published content, and fill only the forms you explicitly marked agent-callable with <code>[corsen_agent_form]</code>. Everything else stays human-only.</p>';
-		} else {
-			echo '<p style="margin:6px 0;"><strong>Agents can:</strong> read only. They look up and read your published content. They cannot create, edit, delete, or click anything &mdash; every tool is marked read-only and untrusted-content.</p>';
-		}
+		echo '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read only. They look up and read your selected published content. These tools cannot create, edit, delete, purchase, submit, or click &mdash; every exposed tool is marked read-only and untrusted-content.</p>';
 
+		$exposed_tools = array_values( array_intersect( $all_tools, (array) $tools ) );
 		printf(
 			'<p style="margin:6px 0;"><strong>Tools exposed:</strong> %s</p>',
-			esc_html( implode( ', ', array_intersect( $all_tools, (array) $tools ) ) )
+			esc_html( empty( $exposed_tools ) ? 'None' : implode( ', ', $exposed_tools ) )
 		);
 		printf(
 			'<p style="margin:6px 0;"><strong>Content types agents can see:</strong> %s</p>',
@@ -359,21 +340,18 @@ class Corsen_Context_Admin {
 		);
 		if ( ! empty( $excluded ) ) {
 			printf(
-				'<p style="margin:6px 0;"><strong>Paths hidden from agents:</strong> %s</p>',
+				'<p style="margin:6px 0;"><strong>Paths hidden from Corsen Context tools:</strong> %s</p>',
 				esc_html( implode( ', ', $excluded ) )
 			);
 		}
 
 		echo '<p class="description" style="margin:6px 0 0;">Change any of these below, then Save.</p>';
-		if ( ! empty( $settings['agent_forms_enabled'] ) ) {
-			Corsen_Context_Agent_Forms::render_submissions();
-		}
 		echo '</div>';
 	}
 
 	/** Intro copy for the Agent Tools section. */
 	public function render_tools_intro(): void {
-		echo '<p>Choose exactly which tools AI agents may call. Every tool is <strong>read-only</strong> &mdash; agents can look up and read your published content, but can never create, edit, delete, or click anything on your site.</p>';
+		echo '<p>Choose exactly which Corsen Context tools agents may call. Every tool is <strong>read-only</strong> &mdash; through these tools, agents can look up and read your selected published content but cannot create, edit, delete, purchase, submit, or click.</p>';
 	}
 
 	/** Per-tool checkboxes bound to the enabled_tools setting. */
@@ -386,6 +364,8 @@ class Corsen_Context_Admin {
 			'get_sitemap'      => 'Return the structured sitemap',
 		);
 		$enabled  = $settings['enabled_tools'] ?? array_keys( $all );
+		// Preserve an explicit empty selection when every checkbox is cleared.
+		echo '<input type="hidden" name="corsen_context_settings[enabled_tools][]" value="" />';
 		foreach ( $all as $tool => $desc ) {
 			$checked = in_array( $tool, $enabled, true );
 			printf(
@@ -396,7 +376,7 @@ class Corsen_Context_Admin {
 				esc_html( $desc )
 			);
 		}
-		echo '<p class="description">Applies to every surface at once: MCP, WebMCP, and the sitemap. Unchecking all re-enables all four (a site with zero tools is never useful).</p>';
+		echo '<p class="description">MCP and WebMCP expose the same selected set. Uncheck all to expose no callable tools.</p>';
 	}
 
 	public function render_text( array $args ): void {
@@ -480,7 +460,7 @@ class Corsen_Context_Admin {
 				<?php else : ?>
 					<span>llms-full.txt disabled</span> |
 				<?php endif; ?>
-				<strong>MCP:</strong> <code><?php echo esc_html( $site_url . '/wp-json/corsen-context/v1/mcp' ); ?></code>
+				<strong>MCP:</strong> <code><?php echo esc_html( Corsen_Context_MCP_Server::endpoint_url() ); ?></code>
 			</div>
 
 			<?php $this->render_access_panel( $settings ); ?>

@@ -9,6 +9,8 @@ describe('Config', () => {
     expect(config.mcp.enabled).toBe(true);
     expect(config.mcp.endpoint).toBe('/v1/mcp');
     expect(config.static.generateLlmsTxt).toBe(true);
+    expect(config.static.includeFullContent).toBe(false);
+    expect(config.static.maxOutputBytes).toBe(5 * 1024 * 1024);
     expect(config.security.rateLimit).toBe(100);
     expect(config.cache.enabled).toBe(true);
     expect(config.cache.ttl).toBe(3600);
@@ -33,7 +35,6 @@ describe('Config', () => {
     expect(config.credit).toBe(false);
   });
 
-
   it('uses CORSEN_CONTEXT_API_KEY when security.apiKey is not provided', () => {
     const previous = process.env.CORSEN_CONTEXT_API_KEY;
     process.env.CORSEN_CONTEXT_API_KEY = 'env-secret';
@@ -56,6 +57,18 @@ describe('Config', () => {
   it('rejects negative rate limit', () => {
     expect(() =>
       resolveConfig({ siteUrl: 'https://example.com', security: { rateLimit: -1 } }),
+    ).toThrow();
+  });
+
+  it('bounds static corpus size and output bytes', () => {
+    expect(() =>
+      resolveConfig({ siteUrl: 'https://example.com', content: { maxPages: 5001 } }),
+    ).toThrow();
+    expect(() =>
+      resolveConfig({ siteUrl: 'https://example.com', static: { maxOutputBytes: 65535 } }),
+    ).toThrow();
+    expect(() =>
+      resolveConfig({ siteUrl: 'https://example.com', static: { maxOutputBytes: 10485761 } }),
     ).toThrow();
   });
 });

@@ -43,7 +43,7 @@ export interface JSONRPCRequest {
   jsonrpc: '2.0';
   method: string;
   params?: Record<string, unknown>;
-  id?: string | number | null;
+  id?: string | number;
 }
 
 export interface JSONRPCResponse {
@@ -66,6 +66,7 @@ export interface MCPToolDefinition {
     type: 'object';
     properties: Record<string, unknown>;
     required?: string[];
+    additionalProperties?: boolean;
   };
 }
 
@@ -108,9 +109,10 @@ export interface RateLimitStore {
   addTimestamp(key: string, timestamp: number): Promise<void>;
   cleanup(): Promise<void>;
   /**
-   * Optional atomic prune + record + count. When present, the RateLimiter uses
-   * this instead of the getTimestamps()/addTimestamp() pair to avoid the
-   * check-then-add race. Returns counts that INCLUDE the current request.
+   * Optional combined record + count path. When present, the RateLimiter uses
+   * it instead of getTimestamps()/addTimestamp(). Implementations document
+   * whether their backing store makes the whole operation atomic. Returned
+   * counts INCLUDE the current request.
    */
   hit?(
     key: string,
@@ -120,22 +122,44 @@ export interface RateLimitStore {
   ): Promise<{ windowCount: number; burstCount: number }>;
 }
 
-// --- Redis Client Interface (compatible with ioredis, @upstash/redis, etc.) ---
+// --- Redis client contracts ---
 
-export interface RedisClient {
-  get(key: string): Promise<string | null>;
-  // Supports both the @upstash/redis object form (`{ ex }`) and the ioredis
-  // variadic form (`'EX', seconds`) so TTLs are honored on either client.
-  set(
-    key: string,
-    value: string,
-    options?: { ex?: number } | 'EX',
-    ttlSeconds?: number,
-  ): Promise<unknown>;
+/** Commands required by RedisCache. SET with EX makes value + TTL one atomic write. */
+export interface RedisCacheClient {
+  get(key: string): Promise<unknown | null>;
+  set(key: string, value: string, options: { ex: number }): Promise<unknown>;
   del(...keys: string[]): Promise<number>;
-  incr(key: string): Promise<number>;
+}
+
+/** Numeric sorted-set bound accepted by Redis and the Upstash TypeScript SDK. */
+export type RedisScoreBoundary = number | '-inf' | '+inf' | `(${number}`;
+
+/**
+ * Upstash-compatible sorted-set shape used by RedisRateLimitStore. ioredis
+ * callers can use adaptIORedisClient() to normalize its variadic commands.
+ */
+export interface RedisRateLimitClient {
   expire(key: string, seconds: number): Promise<number | boolean>;
-  // Sorted set commands (for atomic rate limiting)
+  zadd(key: string, entry: { score: number; member: string }): Promise<number | null>;
+  zremrangebyscore(key: string, min: RedisScoreBoundary, max: RedisScoreBoundary): Promise<number>;
+  zcard(key: string): Promise<number>;
+  zrange(
+    key: string,
+    min: RedisScoreBoundary,
+    max: RedisScoreBoundary,
+    options: { byScore: true },
+  ): Promise<string[]>;
+}
+
+/** Direct @upstash/redis-compatible client contract. */
+export interface RedisClient extends RedisCacheClient, RedisRateLimitClient {}
+
+/** Minimal ioredis surface normalized by adaptIORedisClient(). */
+export interface IORedisClient {
+  get(key: string): Promise<unknown | null>;
+  set(key: string, value: string, mode: 'EX', ttlSeconds: number): Promise<unknown>;
+  del(...keys: string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<number | boolean>;
   zadd(key: string, score: number, member: string): Promise<number>;
   zremrangebyscore(key: string, min: number | string, max: number | string): Promise<number>;
   zcard(key: string): Promise<number>;

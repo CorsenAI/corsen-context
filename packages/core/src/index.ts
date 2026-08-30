@@ -2,7 +2,7 @@ import type pino from 'pino';
 import type { ContentProvider, CacheDriver, RateLimitStore } from './types.js';
 import type { CorsenContextConfig } from './config.js';
 import { resolveConfig } from './config.js';
-import { MCPServer } from './mcp-server.js';
+import { MCPServer, cachePolicyNamespace } from './mcp-server.js';
 import { generateLlmsTxt, generateLlmsFullTxt } from './llms-txt.js';
 import { parseSitemap, discoverSitemap } from './sitemap.js';
 import { htmlToMarkdown, extractMetadata } from './converter.js';
@@ -24,6 +24,12 @@ export class CorsenContext {
   ) {
     this.config = resolveConfig(userConfig);
     this.provider = provider;
+    if (this.config.cache.driver === 'redis' && !cache) {
+      throw new Error(
+        'Corsen Context: cache.driver is "redis" but no CacheDriver was injected. ' +
+          'REDIS_URL is not consumed automatically; pass a RedisCache instance or use driver: "memory".',
+      );
+    }
     this.cache = cache || new MemoryCache();
     // A single shared store so rate-limit state persists across the per-request
     // MCPServer instances every adapter creates. Pass a Redis store for
@@ -32,10 +38,16 @@ export class CorsenContext {
   }
 
   async generateLlmsTxt(): Promise<string> {
+    if (!this.config.static.generateLlmsTxt) {
+      throw new Error('llms.txt is disabled by the owner configuration');
+    }
     return generateLlmsTxt(this.config, this.provider);
   }
 
   async generateLlmsFullTxt(): Promise<string> {
+    if (!this.config.static.generateLlmsTxt || !this.config.static.includeFullContent) {
+      throw new Error('llms-full.txt is disabled by the owner configuration');
+    }
     return generateLlmsFullTxt(this.config, this.provider);
   }
 
@@ -50,10 +62,12 @@ export class CorsenContext {
   /** Drop the cached body for a single page URL (wire to CMS update/delete hooks). */
   async invalidatePage(url: string): Promise<void> {
     const pageUrl = resolvePublicPageUrl(url, this.config);
-    if (pageUrl) await this.cache.delete(`page:${pageUrl}`);
+    if (pageUrl) {
+      await this.cache.delete(`${cachePolicyNamespace(this.config)}page:${pageUrl}`);
+    }
   }
 
-  /** Clear all cached MCP responses. Call after bulk content changes. */
+  /** Clear all cached page bodies. Call after bulk content changes. */
   async clearCache(): Promise<void> {
     await this.cache.clear();
   }
@@ -80,7 +94,13 @@ export class CorsenContext {
 }
 
 // Re-export everything
-export { MCPServer, API_VERSION, MAX_BODY_SIZE, MAX_JSON_DEPTH, REQUEST_TIMEOUT_MS } from './mcp-server.js';
+export {
+  MCPServer,
+  API_VERSION,
+  MAX_BODY_SIZE,
+  MAX_JSON_DEPTH,
+  REQUEST_TIMEOUT_MS,
+} from './mcp-server.js';
 export { CORSEN_CONTEXT_VERSION, MCP_PROTOCOL_VERSION } from './version.js';
 export { createLogger, getLogger, setLogger, securityLogger, mcpLogger } from './logger.js';
 export type { LogLevel, LoggerOptions, Logger } from './logger.js';
@@ -99,6 +119,7 @@ export { htmlToMarkdown, extractMetadata } from './converter.js';
 export { MemoryCache } from './cache.js';
 export { RedisCache } from './redis-cache.js';
 export { RedisRateLimitStore } from './redis-rate-limit.js';
+export { adaptIORedisClient } from './redis-client.js';
 export {
   RateLimiter,
   MemoryRateLimitStore,
@@ -123,15 +144,8 @@ export {
   filterPublicPages,
   filterPublicSearchResults,
 } from './content-policy.js';
-export {
-  createInMemoryProvider,
-  createSitemapProvider,
-} from './providers.js';
-export {
-  generateRobotsTxt,
-  generateWellKnownMcp,
-  mcpLinkTag,
-} from './discovery.js';
+export { createInMemoryProvider, createSitemapProvider } from './providers.js';
+export { generateRobotsTxt, generateWellKnownMcp, mcpLinkTag } from './discovery.js';
 export { resolveConfig, corsenContextConfigSchema } from './config.js';
 export type { CorsenContextConfig, ResolvedConfig } from './config.js';
 export type {
@@ -149,7 +163,10 @@ export type {
   MCPCapabilities,
   RateLimitResult,
   RateLimitStore,
+  RedisCacheClient,
   RedisClient,
+  RedisRateLimitClient,
+  IORedisClient,
   ApiKeyRecord,
 } from './types.js';
 export { CREDIT_LINE, SECURITY_HEADERS, JSONRPC_ERRORS } from './types.js';

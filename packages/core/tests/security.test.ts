@@ -269,12 +269,32 @@ describe('Rate Limit Key Building', () => {
 describe('CORS Validation', () => {
   it('allows any origin when whitelist is empty', () => {
     expect(validateOrigin('https://evil.com', [])).toBe(true);
+    expect(validateOrigin(undefined, [])).toBe(true);
+    expect(validateOrigin('ftp://evil.com', [])).toBe(false);
   });
 
   it('validates against whitelist', () => {
     const allowed = ['https://mysite.com', 'https://admin.mysite.com'];
     expect(validateOrigin('https://mysite.com', allowed)).toBe(true);
     expect(validateOrigin('https://evil.com', allowed)).toBe(false);
+  });
+
+  it('normalizes configured origins, default ports, and trailing paths', () => {
+    expect(validateOrigin('https://mysite.com', ['https://mysite.com:443/path/'])).toBe(true);
+    expect(validateOrigin('http://mysite.com', ['http://mysite.com:80/'])).toBe(true);
+  });
+
+  it('rejects non-HTTP, credential-bearing, opaque, and CRLF origins', () => {
+    const allowed = ['https://mysite.com'];
+    expect(validateOrigin('https://user:pass@mysite.com', allowed)).toBe(false);
+    expect(validateOrigin('null', allowed)).toBe(false);
+    expect(validateOrigin('ftp://mysite.com', ['ftp://mysite.com'])).toBe(false);
+    expect(validateOrigin('blob:https://mysite.com/id', ['blob:https://mysite.com/id'])).toBe(
+      false,
+    );
+    expect(validateOrigin('https://mysite.com\r\n', allowed)).toBe(false);
+    expect(validateOrigin('https://mysite.com', ['https://mysite.com\n'])).toBe(false);
+    expect(validateOrigin('https://mysite.com', ['https://user:pass@mysite.com'])).toBe(false);
   });
 
   it('rejects missing origin when whitelist is set', () => {

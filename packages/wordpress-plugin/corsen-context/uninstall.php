@@ -18,6 +18,8 @@ delete_option( 'corsen_context_cache_version' );
 delete_option( 'corsen_context_db_version' );
 delete_option( 'corsen_context_rewrite_version' );
 delete_option( 'corsen_context_llms_full_generation_lock' );
+// Removed experimental form storage from 1.4.0.
+delete_option( 'corsen_context_form_submissions' );
 // Remove cached llms.txt files.
 delete_transient( 'corsen_context_llms_txt' );
 delete_transient( 'corsen_context_llms_full_txt' );

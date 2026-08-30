@@ -1,10 +1,12 @@
 import { createMCPHandler } from '@corsenai/corsen-context-nextjs';
-import { demoProvider } from '../../../lib/provider';
+import { demoProvider, SITE_URL } from '../../../lib/provider';
 
 const config = {
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://demo.example.com',
+  siteUrl: SITE_URL,
+  mcp: { enabled: process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false' },
+  security: { trustProxy: process.env.TRUST_PROXY === '1' },
 };
 
-const { POST, OPTIONS } = createMCPHandler(config, demoProvider);
+const { GET, POST, OPTIONS } = createMCPHandler(config, demoProvider);
 
-export { POST, OPTIONS };
+export { GET, POST, OPTIONS };

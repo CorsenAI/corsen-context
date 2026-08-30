@@ -1,52 +1,440 @@
 name: Release
 
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+    && format('Publish npm {0} from {1}', inputs.expected_version, inputs.expected_commit)
+    || format('Prepare release from {0}', github.sha) }}
+
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Full 40-character commit SHA from main to publish
+        required: true
+        type: string
+      expected_version:
+        description: Exact shared package version to publish (for example, 2.0.0)
+        required: true
+        type: string
+      confirmation:
+        description: Type PUBLISH NPM exactly
+        required: true
+        type: string
+
+# Every job starts without a token capability and opts into only what it needs.
+permissions: {}
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: corsen-context-release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
-
 jobs:
-  release:
+  select-version-mode:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the pushed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Install release tooling without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Select Changesets mode
+        id: select-mode
+        uses: changesets/action/select-mode@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+
+  version-pr:
+    if: needs.select-version-mode.outputs.mode == 'version'
+    needs: select-version-mode
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Node 24 ships npm >= 11.5, required for npm trusted publishing (OIDC).
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
           node-version: 24
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Install release tooling without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Create or update the version PR
+        uses: changesets/action/version@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
+          pr-base-branch: main
+
+  prepare-publish:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      pack-dir-artifact-id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+      candidate_manifest: ${{ steps.candidate_manifest.outputs.candidate_manifest }}
+      mode: ${{ steps.select-mode.outputs.mode }}
+    env:
+      DISPATCH_HEAD: ${{ github.sha }}
+      EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      NPM_CONFIG_USERCONFIG: /dev/null
+      RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Validate the manual release request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Refusing to publish: run this workflow from main." >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_CONFIRMATION" != "PUBLISH NPM" ]]; then
+            echo "Refusing to publish: confirmation text does not match." >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing to publish: expected_commit must be a full lowercase SHA." >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Refusing to publish: expected_version is not a supported SemVer value." >&2
+            exit 1
+          fi
+          if [[ -n "${NPM_TOKEN:-}" || -n "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "Refusing to prepare a release with a long-lived npm credential." >&2
+            exit 1
+          fi
+
+      - name: Check out the confirmed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.expected_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify the checked-out commit is on main history
+        shell: bash
+        run: bash .github/scripts/verify-release-ancestry.sh
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Verify release runtime versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 14)) process.exit(1)'
+          npm_version="$(npm --version)"
+          node -e 'const [major, minor, patch] = process.argv[1].split(".").map(Number); if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) process.exit(1)' "$npm_version"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build
-
-      # Publishing: granular NPM_TOKEN secret (scoped to the @corsenai packages).
-      # When trusted publishing (OIDC) is configured on npmjs.com for these
-      # packages, the token can be dropped — the id-token permission above is
-      # already in place for it.
-      - name: Create Release PR or publish to npm
-        uses: changesets/action@v1
-        with:
-          version: pnpm version-packages
-          publish: pnpm release
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+      - name: Verify package identities and requested version
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const expected = new Map([
+            ['packages/core/package.json', '@corsenai/corsen-context'],
+            ['packages/nextjs-adapter/package.json', '@corsenai/corsen-context-nextjs'],
+            ['packages/astro-adapter/package.json', '@corsenai/corsen-context-astro'],
+            ['packages/cli/package.json', '@corsenai/corsen-context-cli'],
+          ]);
+
+          for (const [file, expectedName] of expected) {
+            const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (pkg.name !== expectedName || pkg.version !== process.env.EXPECTED_VERSION) {
+              console.error(`Release identity mismatch in ${file}.`);
+              process.exit(1);
+            }
+            if (pkg.private === true || pkg.publishConfig?.access !== 'public') {
+              console.error(`Package is not configured for public publication: ${file}.`);
+              process.exit(1);
+            }
+            console.log(`Verified ${pkg.name}@${pkg.version}`);
+          }
+          NODE
+
+      - name: Run release quality gates
+        run: |
+          pnpm format:check
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm build
+
+      - name: Verify release receipt recovery scenarios
+        run: node --test .github/scripts/verify-npm-release.test.mjs
+
+      - name: Verify release commit ancestry scenarios
+        shell: bash
+        run: bash .github/scripts/verify-release-ancestry.test.sh
+
+      - name: Verify all examples with local candidate packages
+        run: pnpm verify:examples:candidate
+
+      - name: Verify a clean core and CLI tarball installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          work_dir="$(mktemp -d "${RUNNER_TEMP}/corsen-clean-install.XXXXXX")"
+          cleanup() {
+            case "$work_dir" in
+              "${RUNNER_TEMP}"/corsen-clean-install.*) rm -rf -- "$work_dir" ;;
+              *) echo "Refusing to remove unexpected temporary path: $work_dir" >&2 ;;
+            esac
+          }
+          trap cleanup EXIT
+
+          mkdir -p "$work_dir/packages" "$work_dir/consumer"
+          pnpm --dir packages/core pack --out "$work_dir/packages/core.tgz"
+          pnpm --dir packages/cli pack --out "$work_dir/packages/cli.tgz"
+          npm install \
+            --prefix "$work_dir/consumer" \
+            --ignore-scripts \
+            --no-save \
+            --package-lock=false \
+            --no-audit \
+            --no-fund \
+            --registry=https://registry.npmjs.org/ \
+            --userconfig=/dev/null \
+            "$work_dir/packages/core.tgz" \
+            "$work_dir/packages/cli.tgz"
+
+          node - "$work_dir/consumer" "$EXPECTED_VERSION" <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const [consumer, expectedVersion] = process.argv.slice(2);
+          const core = JSON.parse(
+            fs.readFileSync(
+              path.join(consumer, 'node_modules/@corsenai/corsen-context/package.json'),
+              'utf8',
+            ),
+          );
+          const cli = JSON.parse(
+            fs.readFileSync(
+              path.join(consumer, 'node_modules/@corsenai/corsen-context-cli/package.json'),
+              'utf8',
+            ),
+          );
+          if (
+            core.name !== '@corsenai/corsen-context' ||
+            core.version !== expectedVersion ||
+            cli.name !== '@corsenai/corsen-context-cli' ||
+            cli.version !== expectedVersion ||
+            cli.dependencies?.['@corsenai/corsen-context'] !== expectedVersion
+          ) {
+            throw new Error('The clean tarball installation has an unexpected package identity.');
+          }
+          NODE
+          diff -qr \
+            packages/core/dist \
+            "$work_dir/consumer/node_modules/@corsenai/corsen-context/dist"
+          diff -qr \
+            packages/cli/dist \
+            "$work_dir/consumer/node_modules/@corsenai/corsen-context-cli/dist"
+
+          cli="$work_dir/consumer/node_modules/.bin/corsen-context"
+          test "$("$cli" --version)" = "$EXPECTED_VERSION"
+          "$cli" --help > "$work_dir/help.txt"
+          test -s "$work_dir/help.txt"
+
+      - name: Build the complete candidate package manifest
+        id: candidate_manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          work_dir="$(mktemp -d "${RUNNER_TEMP}/corsen-candidate-manifest.XXXXXX")"
+          cleanup() {
+            case "$work_dir" in
+              "${RUNNER_TEMP}"/corsen-candidate-manifest.*) rm -rf -- "$work_dir" ;;
+              *) echo "Refusing to remove unexpected temporary path: $work_dir" >&2 ;;
+            esac
+          }
+          trap cleanup EXIT
+
+          pnpm --dir packages/core pack --out "$work_dir/core.tgz"
+          pnpm --dir packages/nextjs-adapter pack --out "$work_dir/nextjs.tgz"
+          pnpm --dir packages/astro-adapter pack --out "$work_dir/astro.tgz"
+          pnpm --dir packages/cli pack --out "$work_dir/cli.tgz"
+
+          CANDIDATE_CORE_TARBALL="$work_dir/core.tgz" \
+          CANDIDATE_NEXTJS_TARBALL="$work_dir/nextjs.tgz" \
+          CANDIDATE_ASTRO_TARBALL="$work_dir/astro.tgz" \
+          CANDIDATE_CLI_TARBALL="$work_dir/cli.tgz" \
+            node .github/scripts/verify-npm-release.mjs --create-manifest
+
+      - name: Select Changesets mode
+        id: select-mode
+        uses: changesets/action/select-mode@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+
+      - name: Require a publish-ready or verification-only Changesets state
+        env:
+          CHANGESETS_MODE: ${{ steps.select-mode.outputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$CHANGESETS_MODE" in
+            publish | none) ;;
+            version)
+              echo "Refusing to publish: merge the Changesets version PR first." >&2
+              exit 1
+              ;;
+            *)
+              echo "Refusing to publish: unsupported Changesets mode '$CHANGESETS_MODE'." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Verify an already completed npm release
+        if: steps.select-mode.outputs.mode == 'none'
+        env:
+          CANDIDATE_MANIFEST: ${{ steps.candidate_manifest.outputs.candidate_manifest }}
+        run: node .github/scripts/verify-npm-release.mjs --registry-verification-only
+
+      - name: Pack the publish-ready packages
+        id: pack
+        if: steps.select-mode.outputs.mode == 'publish'
+        uses: changesets/action/pack@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
+
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && needs.prepare-publish.outputs.mode == 'publish'
+    needs: prepare-publish
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DISPATCH_HEAD: ${{ github.sha }}
+      EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      NPM_CONFIG_USERCONFIG: /dev/null
+      CANDIDATE_MANIFEST: ${{ needs.prepare-publish.outputs.candidate_manifest }}
+    steps:
+      - name: Check out the confirmed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.expected_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify the checked-out commit is on main history
+        shell: bash
+        run: bash .github/scripts/verify-release-ancestry.sh
+
+      - name: Set up Node.js for trusted publishing
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Reject long-lived npm credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${NPM_TOKEN:-}" || -n "${NODE_AUTH_TOKEN:-}" ]]; then
+            echo "Refusing to publish with a long-lived npm credential." >&2
+            exit 1
+          fi
+
+      - name: Verify npm trusted-publishing support
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm_version="$(npm --version)"
+          node -e 'const [major, minor, patch] = process.argv[1].split(".").map(Number); if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) process.exit(1)' "$npm_version"
+
+      - name: Install only the release tooling
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Download the approved package artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.prepare-publish.outputs.pack-dir-artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/approved-pack
+
+      - name: Verify approved package artifacts before publication
+        env:
+          APPROVED_PACK_DIR: ${{ runner.temp }}/approved-pack
+        run: node .github/scripts/verify-npm-release.mjs --pack-only
+
+      - name: Verify public registry state before publication
+        env:
+          APPROVED_PACK_DIR: ${{ runner.temp }}/approved-pack
+        run: node .github/scripts/verify-npm-release.mjs --registry-preflight
+
+      - name: Publish packed packages through npm OIDC
+        id: publish
+        uses: changesets/action/publish@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          pack-dir-artifact-id: ${{ needs.prepare-publish.outputs.pack-dir-artifact-id }}
+          create-github-releases: false
+          push-git-tags: false
+
+      - name: Verify the publication receipt
+        env:
+          APPROVED_PACK_DIR: ${{ runner.temp }}/approved-pack
+          PUBLISHED: ${{ steps.publish.outputs.published }}
+          PUBLISHED_PACKAGES: ${{ steps.publish.outputs.published-packages }}
+        run: node .github/scripts/verify-npm-release.mjs
+
+      - name: Record the verified release
+        shell: bash
+        run: |
+          {
+            echo "## Verified npm publication"
+            echo
+            echo "- Commit: \`$EXPECTED_COMMIT\`"
+            echo "- Version: \`$EXPECTED_VERSION\`"
+            echo "- Authentication: npm trusted publishing (OIDC)"
+            echo "- Long-lived npm credential: none"
+          } >> "$GITHUB_STEP_SUMMARY"

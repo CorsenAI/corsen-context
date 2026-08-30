@@ -20,9 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The dev toolchain (ESLint 9 ecosystem) requires Node >=20; published
-        # packages still declare runtime support for Node >=18.
-        node: [20, 22, 24]
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +47,28 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  example-candidates:
+    name: Examples with local candidate packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install monorepo dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify examples with local candidate packages
+        run: pnpm verify:examples:candidate
 
   php:
     name: WordPress plugin (PHP ${{ matrix.php }})

@@ -47,4 +47,17 @@ describe('createWebMCPScriptHandler (astro)', () => {
     );
     expect(await (await custom()).text()).toContain('"/api/mcp"');
   });
+
+  it('does not serve or generate the bridge when MCP is disabled', async () => {
+    const disabled = createWebMCPScriptHandler(
+      { siteUrl: 'https://example.com', mcp: { enabled: false } },
+      provider,
+    );
+    const res = await disabled();
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('Content-Type')).toBeNull();
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(await res.text()).toBe('');
+  });
 });

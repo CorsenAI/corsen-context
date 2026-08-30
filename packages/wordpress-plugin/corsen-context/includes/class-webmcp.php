@@ -89,9 +89,10 @@ class Corsen_Context_WebMCP {
 	 *   logged-in session.
 	 * - Every forwarded call carries the MCP-Protocol-Version header, which
 	 *   the endpoint requires on every request after initialize.
-	 * - Chrome 153+ passes an AbortSignal as execute's second argument; the
-	 *   bridge forwards it to fetch so a cancelled execution aborts the
-	 *   in-flight request.
+	 * - Chrome 153+ passes an AbortSignal as execute's second argument. Each
+	 *   caller can stop waiting for the shared handshake, and its tool fetch
+	 *   receives that signal. The handshake has an independent timeout so one
+	 *   cancellation cannot fail every concurrent execution.
 	 * - Definitions are encoded with JSON_HEX_TAG, so a hostile post title
 	 *   cannot close the script block and become markup.
 	 *
@@ -117,35 +118,146 @@ class Corsen_Context_WebMCP {
 
   if (window.top !== window.self) return;
 
+  // Resolve relative endpoints against the current page and fail closed if a
+  // filter supplied an invalid or cross-origin destination.
+  var endpointUrl;
+  if (typeof endpoint !== 'string' || endpoint.length === 0) return;
+  try {
+    endpointUrl = new URL(endpoint, window.location.href);
+  } catch (error) {
+    return;
+  }
+  if (endpointUrl.protocol !== 'http:' && endpointUrl.protocol !== 'https:') return;
+  if (endpointUrl.username || endpointUrl.password) return;
+  if (endpointUrl.origin !== window.location.origin) return;
+  endpoint = endpointUrl.href;
+
   // Chrome 150 moved the getter to document and kept navigator as a
   // deprecated alias; support both while the origin trial runs.
   var mc = document.modelContext || navigator.modelContext;
   if (!mc || typeof mc.registerTool !== 'function') return;
 
-  function call(name, args, signal) {
+  var nextRequestId = 1;
+  var initializationPromise = null;
+
+  function request(body, signal, isNotification) {
+    var headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream'
+    };
+    if (body.method !== 'initialize') {
+      headers['MCP-Protocol-Version'] = protocolVersion;
+    }
+
     return fetch(endpoint, {
       method: 'POST',
       credentials: 'omit',
       signal: signal || null,
-      // The endpoint rejects version-less calls: MCP requires the negotiated
-      // protocol version header on every request after initialize.
-      headers: {
-        'Content-Type': 'application/json',
-        'MCP-Protocol-Version': protocolVersion
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'tools/call',
-        params: { name: name, arguments: args || {} }
-      })
+      headers: headers,
+      body: JSON.stringify(body)
     })
       .then(function (res) {
+        if (isNotification) {
+          if (res.status !== 202) {
+            throw new Error('Corsen Context: MCP notification returned ' + res.status);
+          }
+          return null;
+        }
         if (!res.ok) throw new Error('Corsen Context: MCP endpoint returned ' + res.status);
         return res.json();
       })
+      .then(function (responseBody) {
+        if (isNotification) return null;
+        if (responseBody && responseBody.error) {
+          throw new Error(responseBody.error.message || 'MCP error');
+        }
+        return responseBody;
+      });
+  }
+
+  function ensureInitialized() {
+    if (!initializationPromise) {
+      var initializationSignal =
+        typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+          ? AbortSignal.timeout(8000)
+          : null;
+      initializationPromise = request({
+        jsonrpc: '2.0',
+        id: nextRequestId++,
+        method: 'initialize',
+        params: {
+          protocolVersion: protocolVersion,
+          capabilities: {},
+          clientInfo: { name: 'corsen-context-webmcp', version: '1.0.0' }
+        }
+      }, initializationSignal, false)
       .then(function (body) {
-        if (body && body.error) throw new Error(body.error.message || 'MCP error');
+        var negotiated = body && body.result && body.result.protocolVersion;
+        if (negotiated !== protocolVersion) {
+          throw new Error('Corsen Context: unsupported negotiated MCP version');
+        }
+        return request({
+          jsonrpc: '2.0',
+          method: 'notifications/initialized',
+          params: {}
+        }, initializationSignal, true);
+      })
+      .catch(function (error) {
+        initializationPromise = null;
+        throw error;
+      });
+    }
+    return initializationPromise;
+  }
+
+  function waitForInitialization(signal) {
+    var ready = ensureInitialized();
+    if (!signal) return ready;
+    if (signal.aborted) {
+      return Promise.reject(new Error('Corsen Context: tool execution aborted'));
+    }
+    if (typeof signal.addEventListener !== 'function') return ready;
+
+    return new Promise(function (resolve, reject) {
+      function cleanup() {
+        if (typeof signal.removeEventListener === 'function') {
+          signal.removeEventListener('abort', onAbort);
+        }
+      }
+      function onAbort() {
+        cleanup();
+        reject(new Error('Corsen Context: tool execution aborted'));
+      }
+      signal.addEventListener('abort', onAbort, { once: true });
+      ready.then(function (value) {
+        cleanup();
+        resolve(value);
+      }, function (error) {
+        cleanup();
+        reject(error);
+      });
+    });
+  }
+
+  function call(name, args, signal) {
+    return waitForInitialization(signal)
+      .then(function () {
+        return request({
+          jsonrpc: '2.0',
+          id: nextRequestId++,
+          method: 'tools/call',
+          params: { name: name, arguments: args || {} }
+        }, signal, false);
+      })
+      .then(function (body) {
+        if (body && body.result && body.result.isError) {
+          var errorContent = Array.isArray(body.result.content) ? body.result.content : [];
+          var errorText = errorContent
+            .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
+            .filter(Boolean)
+            .join('\\n');
+          throw new Error(errorText || 'Corsen Context: tool execution failed');
+        }
         var content = body && body.result && body.result.content;
         if (!Array.isArray(content)) return '';
         return content
@@ -155,13 +267,23 @@ class Corsen_Context_WebMCP {
   }
 
   tools.forEach(function (tool) {
-    mc.registerTool({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-      annotations: tool.annotations,
-      execute: function (input, options) { return call(tool.name, input, options && options.signal); }
-    });
+    try {
+      Promise.resolve(mc.registerTool({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        annotations: tool.annotations,
+        execute: function (input, options) { return call(tool.name, input, options && options.signal); }
+      })).catch(function (error) {
+        if (window.console && typeof window.console.warn === 'function') {
+          window.console.warn('Corsen Context: WebMCP registration failed for ' + tool.name, error);
+        }
+      });
+    } catch (error) {
+      if (window.console && typeof window.console.warn === 'function') {
+        window.console.warn('Corsen Context: WebMCP registration failed for ' + tool.name, error);
+      }
+    }
   });
 })();
 JS;
@@ -223,7 +345,7 @@ JS;
 
 		$script = self::build_script(
 			self::with_annotations( $tools ),
-			home_url( '/wp-json/corsen-context/v1/mcp' )
+			Corsen_Context_MCP_Server::endpoint_url()
 		);
 
 		if ( '' === $script ) {

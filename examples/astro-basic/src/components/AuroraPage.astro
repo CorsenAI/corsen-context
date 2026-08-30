@@ -1,0 +1,168 @@
+---
+import {
+  accessBoundary,
+  diagnostic,
+  integrationStacks,
+  integrationSteps,
+  policies,
+  products,
+  prompts,
+  resources,
+  type DemoPage,
+} from '../lib/provider';
+import '../styles/demo.css';
+
+interface Props { page: DemoPage }
+const { page } = Astro.props;
+const resource = resources.find((item) => item.path === page.path);
+const navigation = [
+  ['/', 'Overview'],
+  ['/products', 'Kits'],
+  ['/guides/ak-e17', 'Support'],
+  ['/shipping-education', 'Policies'],
+  ['/guides', 'Guides'],
+  ['/agent-access', 'Access'],
+  ['/integrate', 'Integrate'],
+] as const;
+const workflows = [
+  { path: '/products', eyebrow: 'Product discovery', title: 'Compare three kits from published facts', copy: 'Prices, age guidance, project counts, camera, arm, LiDAR, and ROS 2.' },
+  { path: '/guides/ak-e17', eyebrow: 'Support', title: 'Retrieve a fixed diagnostic sequence', copy: 'Three ordered steps and one explicit stop-and-escalate rule for AK-E17.' },
+  { path: '/shipping-education', eyebrow: 'Policy research', title: 'Answer a multi-policy question', copy: 'EU shipping, verified education discount, returns, and parts warranty.' },
+  { path: '/guides', eyebrow: 'Fresh content', title: 'Browse six dated guides', copy: 'Every guide is a real provider entry with its own retrievable URL.' },
+] as const;
+---
+
+<header class="site-header">
+  <a class="brand" href="/" aria-label="Aurora Kits home"><span aria-hidden="true">AK</span>Aurora Kits</a>
+  <nav aria-label="Demo pages">
+    <ul>
+      {navigation.map(([href, label]) => <li><a href={href} aria-current={page.path === href ? 'page' : undefined}>{label}</a></li>)}
+    </ul>
+  </nav>
+</header>
+
+<main>
+  {page.view === 'home' && <>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">WebMCP use-case gallery</p>
+        <h1>One useful website. Four explicit tools.</h1>
+        <p class="lede">Aurora Kits is a fictional robotics catalog built to show how a browser agent can research products, support, and policies through owner-published read-only data.</p>
+        <p class="demo-disclaimer">Aurora Kits is a fictional, deterministic demo corpus; prices/policies are not commercial offers.</p>
+        <p class="hero-links"><a class="primary-link" href="#try-prompts">Try a prompt</a><a class="secondary-link" href="/agent-access">Check the boundary</a></p>
+      </div>
+      <aside class="tool-panel" aria-labelledby="tool-panel-title">
+        <p class="eyebrow" id="tool-panel-title">Published interface</p>
+        <dl>
+          <div><dt>search_site</dt><dd>Find the relevant URL</dd></div>
+          <div><dt>get_page_content</dt><dd>Retrieve its clean content</dd></div>
+          <div><dt>list_content</dt><dd>Browse public records</dd></div>
+          <div><dt>get_sitemap</dt><dd>Map the public corpus</dd></div>
+        </dl>
+      </aside>
+      <aside class="browser-status" aria-live="polite"><p><strong>Browser WebMCP:</strong> <span data-webmcp-status>status not checked (JavaScript is unavailable)</span></p><a href="/integrate">Browser setup</a></aside>
+    </section>
+    <section class="section" id="try-prompts" aria-labelledby="prompt-title">
+      <p class="eyebrow">Try with your agent</p>
+      <h2 id="prompt-title">Three copyable research prompts</h2>
+      <p class="section-intro">Copy any prompt into your agent. The page does not simulate an answer or perform an action on your behalf.</p>
+      <ol class="prompt-rail">
+        {prompts.map((prompt, index) => {
+          const promptId = `research-prompt-${index + 1}`;
+          return <li><span aria-hidden="true">0{index + 1}</span><pre id={promptId}><code>{prompt}</code></pre><div class="prompt-actions"><button class="copy-button" type="button" aria-describedby={promptId} data-copy-prompt>Copy prompt</button><span class="copy-feedback" role="status" aria-live="polite" data-copy-feedback></span></div></li>;
+        })}
+      </ol>
+    </section>
+    <section class="section" aria-labelledby="workflow-title">
+      <p class="eyebrow">Different retrieval patterns</p><h2 id="workflow-title">A gallery of real content workflows</h2>
+      <div class="card-grid">
+        {workflows.map((workflow) => <article class="case-card"><p class="eyebrow">{workflow.eyebrow}</p><h3><a href={workflow.path}>{workflow.title}</a></h3><p>{workflow.copy}</p></article>)}
+      </div>
+    </section>
+    <section class="integration-callout" aria-labelledby="integration-callout-title">
+      <div><p class="eyebrow">For site owners</p><h2 id="integration-callout-title">Replace the demo provider with your content.</h2><p>The human pages and all four tools read from the same records, so URLs and answers stay aligned.</p></div>
+      <a class="primary-link" href="/integrate">View the Astro path</a>
+    </section>
+  </>}
+
+  {page.view === 'products' && <>
+    <header class="page-intro"><p class="eyebrow">Product discovery</p><h1>Compare Aurora robotics kits</h1><p class="lede">A compact fact table that can be retrieved from the same provider as this page.</p></header>
+    <div class="table-wrap"><table><caption>Published Aurora Kits comparison</caption><thead><tr><th scope="col">Kit</th><th scope="col">Price</th><th scope="col">Published facts</th></tr></thead><tbody>
+      {products.map((product) => <tr><th scope="row">{product.name}</th><td class="price">{product.price}</td><td><ul class="inline-facts">{product.facts.map((fact) => <li>{fact}</li>)}</ul></td></tr>)}
+    </tbody></table></div>
+    <aside class="evidence-note"><strong>Useful chain:</strong> search for “no soldering” or “LiDAR”, then retrieve this page with <code>get_page_content</code>.</aside>
+  </>}
+
+  {page.view === 'diagnostic' && <>
+    <header class="page-intro"><p class="eyebrow">Support diagnostic</p><h1>{diagnostic.code} — {diagnostic.title}</h1><p class="lede">The recovery sequence has exactly three steps. Its stop condition is part of the published record.</p></header>
+    <section class="diagnostic-card" aria-labelledby="steps-title"><div class="code-badge">{diagnostic.code}</div><h2 id="steps-title">Run once, in this order</h2><ol class="steps">{diagnostic.steps.map((step) => <li>{step}</li>)}</ol></section>
+    <aside class="escalation" aria-labelledby="escalation-title"><p class="eyebrow">Safety boundary</p><h2 id="escalation-title">When to stop and escalate</h2><p>{diagnostic.escalation}</p></aside>
+  </>}
+
+  {page.view === 'policies' && <>
+    <header class="page-intro"><p class="eyebrow">Policy research</p><h1>Four policies, one retrievable page</h1><p class="lede">A multi-part question can be answered from explicit policy records without a checkout or form action.</p></header>
+    <dl class="policy-grid">{policies.map((policy) => <div><dt>{policy.label}</dt><dd>{policy.value}</dd></div>)}</dl>
+  </>}
+
+  {page.view === 'resources' && <>
+    <header class="page-intro"><p class="eyebrow">Freshness and discovery</p><h1>Six dated guides</h1><p class="lede">Each guide has a stable provider URL, title, description, and publication date.</p></header>
+    <ol class="resource-grid">{resources.map((item) => <li><article><time datetime={item.date}>{item.date}</time><h2><a href={item.path}>{item.title}</a></h2><p>{item.description}.</p></article></li>)}</ol>
+  </>}
+
+  {page.view === 'access' && <>
+    <header class="page-intro"><p class="eyebrow">Owner control</p><h1>What the tools can and cannot access</h1><p class="lede">The public contract is intentionally read-only and limited to this site’s published corpus.</p></header>
+    <div class="boundary-grid">
+      <section class="boundary can" aria-labelledby="can-title"><p class="boundary-mark" aria-hidden="true">✓</p><h2 id="can-title">Can access</h2><ul>{accessBoundary.can.map((item) => <li>{item}</li>)}</ul></section>
+      <section class="boundary cannot" aria-labelledby="cannot-title"><p class="boundary-mark" aria-hidden="true">×</p><h2 id="cannot-title">Cannot access</h2><ul>{accessBoundary.cannot.map((item) => <li>{item}</li>)}</ul></section>
+    </div>
+  </>}
+
+  {page.view === 'integration' && <>
+    <header class="page-intro"><p class="eyebrow">Implementation comparison</p><h1>Compare integration patterns for your stack</h1><p class="lede">This page compares the Next.js, Astro, Express, and static HTML examples; it highlights the pattern rendered here.</p></header>
+    <section class="stack-selector" aria-label="Available integration patterns"><ul>{integrationStacks.map((stack) => <li class={stack.current ? 'current' : ''}><span class="stack-name">{stack.name}</span><span>{stack.detail}</span>{stack.current && <strong>Current example</strong>}</li>)}</ul></section>
+    <section class="setup-card" aria-labelledby="setup-title"><p class="eyebrow">Astro</p><h2 id="setup-title">Integration path</h2><ol class="steps compact">{integrationSteps.map((step) => <li>{step}</li>)}</ol></section>
+  </>}
+
+  {page.view === 'resource' && resource && <article class="resource-article"><p class="eyebrow">Aurora Kits guide</p><h1>{resource.title}</h1><p class="published">Published <time datetime={resource.date}>{resource.date}</time></p><p class="lede">{resource.description}.</p><div class="resource-copy">{resource.body}</div><p><a href="/guides">← Back to all six guides</a></p></article>}
+</main>
+
+<footer><p>Four read-only tools · <a href="/llms.txt">llms.txt</a> · <code>POST /v1/mcp</code> · WebMCP</p><p>Astro reference integration powered by Corsen Context.</p></footer>
+
+<script>
+  function fallbackCopy(text: string) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.append(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    if (!copied) throw new Error('Clipboard copy was rejected');
+  }
+
+  async function copyPrompt(button: HTMLButtonElement) {
+    const card = button.closest('li');
+    const prompt = card?.querySelector('code')?.textContent ?? '';
+    const feedback = card?.querySelector<HTMLElement>('[data-copy-feedback]');
+    if (!prompt || !feedback) return;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(prompt);
+      } else {
+        fallbackCopy(prompt);
+      }
+      button.textContent = 'Copied';
+      feedback.textContent = 'Prompt copied to the clipboard.';
+    } catch {
+      button.textContent = 'Try copying again';
+      feedback.textContent = 'Copy failed. Select the prompt text and copy it manually.';
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-prompt]').forEach((button) => {
+    button.addEventListener('click', () => copyPrompt(button));
+  });
+</script>

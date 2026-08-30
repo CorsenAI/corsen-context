@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import type {
   ContentProvider,
@@ -15,9 +16,11 @@ import type { ResolvedConfig } from './config.js';
 import {
   RateLimiter,
   validateJsonRpcRequest,
+  initializeParamsSchema,
   searchParamsSchema,
   getPageParamsSchema,
   listContentParamsSchema,
+  getSitemapParamsSchema,
   validateOrigin,
   validateApiKey,
   buildRateLimitKey,
@@ -47,9 +50,20 @@ export const REQUEST_TIMEOUT_MS = 8000;
 
 export function validateBodySize(body: unknown): void {
   const serialized = JSON.stringify(body);
-  if (serialized.length > MAX_BODY_SIZE) {
+  if (typeof serialized === 'string' && Buffer.byteLength(serialized, 'utf8') > MAX_BODY_SIZE) {
     throw new Error('Request body too large');
   }
+}
+
+/** Keep shared cache entries isolated when an owner changes exposure policy. */
+export function cachePolicyNamespace(config: ResolvedConfig): string {
+  const policy = JSON.stringify({
+    siteUrl: new URL(config.siteUrl).href,
+    postTypes: [...config.content.postTypes].sort(),
+    excludePaths: [...config.content.excludePaths].sort(),
+    maxPages: config.content.maxPages,
+  });
+  return `policy:${createHash('sha256').update(policy).digest('hex').slice(0, 16)}:`;
 }
 
 function checkJsonDepth(obj: unknown, currentDepth: number = 0): void {
@@ -68,6 +82,7 @@ export class MCPServer {
   private provider: ContentProvider;
   private rateLimiter: RateLimiter;
   private cache: CacheDriver;
+  private cacheNamespace: string;
   private log: pino.Logger;
 
   constructor(
@@ -87,6 +102,7 @@ export class MCPServer {
       options?.rateLimitStore,
     );
     this.cache = options?.cache || new MemoryCache();
+    this.cacheNamespace = cachePolicyNamespace(config);
     this.log = (options?.logger || getLogger()).child({ module: 'mcp' });
   }
 
@@ -97,17 +113,11 @@ export class MCPServer {
   getCorsHeaders(origin?: string): Record<string, string> {
     const headers: Record<string, string> = {};
 
-    // When no origins are configured, allow all origins (open API).
-    // When origins are configured, validate against the whitelist.
-    if (this.config.security.allowedOrigins.length === 0) {
-      headers['Access-Control-Allow-Origin'] = '*';
-      headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
-      headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-MCP-Key';
-      headers['Access-Control-Max-Age'] = '86400';
-    } else if (origin && validateOrigin(origin, this.config.security.allowedOrigins)) {
+    if (origin && this.validateRequestOrigin(origin)) {
       headers['Access-Control-Allow-Origin'] = origin;
       headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
-      headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-MCP-Key';
+      headers['Access-Control-Allow-Headers'] =
+        'Accept, Content-Type, Authorization, X-MCP-Key, MCP-Protocol-Version';
       headers['Access-Control-Max-Age'] = '86400';
       // The response body depends on the request Origin — signal shared caches
       // so they don't serve one origin's CORS headers to another.
@@ -116,11 +126,33 @@ export class MCPServer {
     return headers;
   }
 
+  /**
+   * Validate a browser Origin for the Streamable HTTP endpoint.
+   *
+   * Non-browser clients commonly omit Origin and remain accepted. When an
+   * Origin is present, MCP requires validation to prevent DNS rebinding. The
+   * canonical site origin is always allowed; operators can add explicit
+   * browser origins through security.allowedOrigins.
+   */
+  validateRequestOrigin(origin?: string): boolean {
+    if (!origin) return true;
+    const allowed = [new URL(this.config.siteUrl).origin, ...this.config.security.allowedOrigins];
+    return validateOrigin(origin, allowed);
+  }
+
   async checkRateLimit(
     clientIp: string,
     apiKey?: string,
   ): Promise<{ allowed: boolean; headers: Record<string, string> }> {
-    const key = buildRateLimitKey(clientIp, apiKey);
+    // A caller-supplied key only earns a separate bucket after it validates
+    // against the configured key. Public endpoints and invalid-key attempts
+    // always share the IP bucket, so rotating arbitrary header values cannot
+    // bypass throttling.
+    const validConfiguredKey =
+      this.config.security.apiKey && validateApiKey(apiKey, this.config.security.apiKey)
+        ? apiKey
+        : undefined;
+    const key = buildRateLimitKey(clientIp, validConfiguredKey);
     const result = await this.rateLimiter.check(key);
     const headers: Record<string, string> = {
       'X-RateLimit-Limit': String(this.config.security.rateLimit),
@@ -146,10 +178,29 @@ export class MCPServer {
     return valid;
   }
 
-  async handleRequest(body: unknown, clientIp?: string, apiKey?: string, options?: { skipRateLimit?: boolean }): Promise<JSONRPCResponse | null> {
+  async handleRequest(
+    body: unknown,
+    clientIp?: string,
+    apiKey?: string,
+    options?: { skipRateLimit?: boolean },
+  ): Promise<JSONRPCResponse | null> {
     const start = Date.now();
     let requestId: string | number | null = null;
     let method = 'unknown';
+
+    // Owner revocation is the outermost gate. Keep it ahead of validation,
+    // authentication, rate limiting and dispatch so a disabled MCP surface
+    // cannot touch the provider or consume a rate-limit bucket, even when the
+    // server is used directly instead of through an HTTP adapter.
+    if (!this.config.mcp.enabled) {
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        const candidateId = (body as Record<string, unknown>).id;
+        if (typeof candidateId === 'string' || typeof candidateId === 'number') {
+          requestId = candidateId;
+        }
+      }
+      return this.errorResponse(requestId, -32003, 'MCP is disabled by the site owner');
+    }
 
     try {
       // DoS protection
@@ -177,25 +228,41 @@ export class MCPServer {
       const isNotification = !('id' in (body as Record<string, unknown>));
       if (isNotification) {
         await this.dispatch(request);
-        this.log.debug({ method, type: 'notification', durationMs: Date.now() - start }, 'request_handled');
+        this.log.debug(
+          { method, type: 'notification', durationMs: Date.now() - start },
+          'request_handled',
+        );
         return null;
       }
 
       const result = await this.dispatch(request);
       const duration = Date.now() - start;
-      this.log.info({ method, id: requestId, durationMs: duration, status: 'ok' }, 'request_handled');
+      this.log.info(
+        { method, id: requestId, durationMs: duration, status: 'ok' },
+        'request_handled',
+      );
       return result;
     } catch (err) {
       const duration = Date.now() - start;
       if (err instanceof z.ZodError) {
         this.log.warn({ method, durationMs: duration, error: 'invalid_request' }, 'request_failed');
-        return this.errorResponse(requestId, JSONRPC_ERRORS.INVALID_REQUEST.code, 'Invalid JSON-RPC request');
+        return this.errorResponse(
+          requestId,
+          JSONRPC_ERRORS.INVALID_REQUEST.code,
+          'Invalid JSON-RPC request',
+        );
       }
-      if (err instanceof Error && (err.message === 'Request body too large' || err.message === 'JSON nesting too deep')) {
+      if (
+        err instanceof Error &&
+        (err.message === 'Request body too large' || err.message === 'JSON nesting too deep')
+      ) {
         this.log.warn({ method, durationMs: duration, error: err.message }, 'dos_rejected');
         return this.errorResponse(requestId, JSONRPC_ERRORS.INVALID_REQUEST.code, err.message);
       }
-      this.log.error({ method, durationMs: duration, error: err instanceof Error ? err.message : 'unknown' }, 'request_error');
+      this.log.error(
+        { method, durationMs: duration, error: err instanceof Error ? err.message : 'unknown' },
+        'request_error',
+      );
       return this.errorResponse(requestId, JSONRPC_ERRORS.INTERNAL_ERROR.code, 'Internal error');
     }
   }
@@ -231,13 +298,21 @@ export class MCPServer {
     params: Record<string, unknown> | undefined,
     id?: string | number | null,
   ): JSONRPCResponse {
+    const parsed = initializeParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return this.errorResponse(
+        id ?? null,
+        JSONRPC_ERRORS.INVALID_PARAMS.code,
+        'Invalid initialize parameters',
+      );
+    }
+
     this.log.info('mcp_initialized');
     // Version negotiation: echo the client's requested protocol version when we
     // support it, otherwise fall back to ours (MCP lets the client decide
     // whether to proceed after seeing the server's version).
-    const requested = typeof params?.protocolVersion === 'string' ? params.protocolVersion : null;
-    const protocolVersion =
-      requested === MCP_PROTOCOL_VERSION ? requested : MCP_PROTOCOL_VERSION;
+    const requested = parsed.data.protocolVersion;
+    const protocolVersion = requested === MCP_PROTOCOL_VERSION ? requested : MCP_PROTOCOL_VERSION;
 
     return this.successResponse(id ?? null, {
       protocolVersion,
@@ -247,8 +322,7 @@ export class MCPServer {
       },
       serverInfo: {
         name: 'corsen-context',
-        // Omit the exact version when fingerprinting is disabled.
-        ...(this.config.security.exposeVersion ? { version: CORSEN_CONTEXT_VERSION } : {}),
+        version: CORSEN_CONTEXT_VERSION,
       },
     });
   }
@@ -264,16 +338,34 @@ export class MCPServer {
     id?: string | number | null,
   ): Promise<JSONRPCResponse> {
     if (!params || typeof params.name !== 'string') {
-      return this.errorResponse(id ?? null, JSONRPC_ERRORS.INVALID_PARAMS.code, 'Missing tool name');
+      return this.errorResponse(
+        id ?? null,
+        JSONRPC_ERRORS.INVALID_PARAMS.code,
+        'Missing tool name',
+      );
     }
 
     const toolName = params.name;
-    const toolArgs = (params.arguments || {}) as Record<string, unknown>;
+    // Missing arguments are equivalent to an empty object for tools whose
+    // entire input is optional. Every supplied value still goes through its
+    // strict schema, so null, false, arrays and unknown properties are rejected.
+    const toolArgs: unknown = params.arguments === undefined ? {} : params.arguments;
+
+    // `arguments` itself is defined as an object by CallToolRequest. Violating
+    // that outer request shape is a protocol error; values inside a valid
+    // object are the tool's input and use CallToolResult.isError below.
+    if (toolArgs === null || typeof toolArgs !== 'object' || Array.isArray(toolArgs)) {
+      return this.errorResponse(
+        id ?? null,
+        JSONRPC_ERRORS.INVALID_PARAMS.code,
+        'Tool arguments must be an object',
+      );
+    }
 
     if (!this.config.mcp.tools.includes(toolName)) {
       return this.errorResponse(
         id ?? null,
-        JSONRPC_ERRORS.METHOD_NOT_FOUND.code,
+        JSONRPC_ERRORS.INVALID_PARAMS.code,
         `Tool not found: ${toolName}`,
       );
     }
@@ -292,7 +384,10 @@ export class MCPServer {
           const parsed = getPageParamsSchema.parse(toolArgs);
           result = await this.getPageContent(parsed.uri);
           if (!result) {
-            return this.errorResponse(id ?? null, -32002, 'Resource not found');
+            return this.toolErrorResponse(
+              id ?? null,
+              'Resource not found or not exposed. Use a URL returned by search_site, list_content, or get_sitemap.',
+            );
           }
           break;
         }
@@ -302,24 +397,40 @@ export class MCPServer {
           break;
         }
         case 'get_sitemap': {
+          getSitemapParamsSchema.parse(toolArgs);
           result = await this.getSitemap();
           break;
         }
         default:
-          return this.errorResponse(id ?? null, JSONRPC_ERRORS.METHOD_NOT_FOUND.code, `Unknown tool: ${toolName}`);
+          return this.errorResponse(
+            id ?? null,
+            JSONRPC_ERRORS.INVALID_PARAMS.code,
+            `Unknown tool: ${toolName}`,
+          );
       }
 
       this.log.debug({ tool: toolName, durationMs: Date.now() - toolStart }, 'tool_called');
 
       return this.successResponse(id ?? null, {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        isError: false,
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return this.errorResponse(id ?? null, JSONRPC_ERRORS.INVALID_PARAMS.code, 'Invalid tool parameters');
+        const issue = err.issues[0];
+        const field = issue && issue.path.length > 0 ? ` for "${issue.path.join('.')}"` : '';
+        const detail = issue?.message || 'input does not match the published schema';
+        return this.toolErrorResponse(id ?? null, `Invalid tool parameters${field}: ${detail}`);
       }
-      this.log.error({ tool: toolName, error: err instanceof Error ? err.message : 'unknown' }, 'tool_error');
-      return this.errorResponse(id ?? null, JSONRPC_ERRORS.INTERNAL_ERROR.code, 'Tool execution failed');
+      this.log.error(
+        { tool: toolName, error: err instanceof Error ? err.message : 'unknown' },
+        'tool_error',
+      );
+      return this.errorResponse(
+        id ?? null,
+        JSONRPC_ERRORS.INTERNAL_ERROR.code,
+        'Tool execution failed',
+      );
     }
   }
 
@@ -356,6 +467,9 @@ export class MCPServer {
     // Cursor pagination (MCP): cursor is an opaque base64 offset.
     const pageSize = MCPServer.RESOURCES_PAGE_SIZE;
     const offset = this.decodeCursor(params?.cursor);
+    if (offset === null) {
+      return this.errorResponse(id ?? null, JSONRPC_ERRORS.INVALID_PARAMS.code, 'Invalid cursor');
+    }
     const slice = all.slice(offset, offset + pageSize);
     const nextOffset = offset + pageSize;
     const result: { resources: typeof slice; nextCursor?: string } = { resources: slice };
@@ -366,18 +480,33 @@ export class MCPServer {
     return this.successResponse(id ?? null, result);
   }
 
-  private decodeCursor(cursor: unknown): number {
-    if (typeof cursor !== 'string' || !cursor) return 0;
-    const decoded = Number.parseInt(Buffer.from(cursor, 'base64').toString('utf8'), 10);
-    return Number.isInteger(decoded) && decoded >= 0 ? decoded : 0;
+  private decodeCursor(cursor: unknown): number | null {
+    if (cursor === undefined) return 0;
+    if (typeof cursor !== 'string' || cursor.length === 0) return null;
+
+    const value = Buffer.from(cursor, 'base64').toString('utf8');
+    if (!/^(0|[1-9]\d*)$/.test(value)) return null;
+    if (Buffer.from(value).toString('base64') !== cursor) return null;
+
+    const decoded = Number(value);
+    return Number.isSafeInteger(decoded) && decoded >= 0 ? decoded : null;
   }
 
   private async handleReadResource(
     params: Record<string, unknown> | undefined,
     id?: string | number | null,
   ): Promise<JSONRPCResponse> {
-    if (!params || typeof params.uri !== 'string') {
-      return this.errorResponse(id ?? null, JSONRPC_ERRORS.INVALID_PARAMS.code, 'Missing resource URI');
+    if (
+      !params ||
+      typeof params.uri !== 'string' ||
+      params.uri.trim().length === 0 ||
+      Array.from(params.uri).length > 2000
+    ) {
+      return this.errorResponse(
+        id ?? null,
+        JSONRPC_ERRORS.INVALID_PARAMS.code,
+        'Invalid resource URI',
+      );
     }
 
     const uri = params.uri as string;
@@ -410,45 +539,38 @@ export class MCPServer {
 
   private async cacheGet<T>(key: string): Promise<T | null> {
     if (!this.cacheEnabled) return null;
-    return this.cache.get<T>(key);
+    return this.cache.get<T>(`${this.cacheNamespace}${key}`);
   }
 
   private async cacheSet<T>(key: string, value: T): Promise<void> {
     if (!this.cacheEnabled) return;
-    await this.cache.set(key, value, this.config.cache.ttl);
+    await this.cache.set(`${this.cacheNamespace}${key}`, value, this.config.cache.ttl);
   }
 
   /**
    * Drop the cached body for a single page URL. Call this from your CMS's
-   * publish/update/delete hooks so edits and unpublishes propagate before the
-   * TTL expires (otherwise stale content can be served for up to cache.ttl).
+   * publish/update/delete hooks. Aggregate surfaces are intentionally read
+   * through so an unpublished URL is not retained behind an unenumerable key.
    */
   async invalidatePage(url: string): Promise<void> {
     const pageUrl = resolvePublicPageUrl(url, this.config);
-    if (pageUrl) await this.cache.delete(`page:${pageUrl}`);
+    if (pageUrl) await this.cache.delete(`${this.cacheNamespace}page:${pageUrl}`);
   }
 
   /**
-   * Clear all cached MCP responses (search, page, list, sitemap). Call after
-   * bulk content changes. No-op for cache drivers without prefix enumeration
-   * (see RedisCache.clear notes).
+   * Clear all cached page bodies. Cache drivers that cannot prove a complete
+   * purge reject instead of reporting success.
    */
   async clearCache(): Promise<void> {
     await this.cache.clear();
   }
 
   async searchSite(query: string, limit: number = 10) {
-    const cacheKey = `search:${query}:${limit}`;
-    const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached !== null) return cached;
-
-    const results = filterPublicSearchResults(
+    return filterPublicSearchResults(
       await this.provider.searchContent(query, limit),
       this.config,
       limit,
     );
-    await this.cacheSet(cacheKey, results);
-    return results;
   }
 
   async getPageContent(uri: string) {
@@ -468,17 +590,15 @@ export class MCPServer {
   }
 
   async listContent(type: string, page: number = 1, limit: number = 20) {
-    const cacheKey = `list:${type}:${page}:${limit}`;
-    const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached !== null) return cached;
-
-    // Filter by type BEFORE the maxPages cap so `total`/`hasMore` reflect the
-    // full type-filtered set — otherwise a site whose combined content exceeds
-    // maxPages would undercount and permanently hide items past the cap.
+    // Filter by type before applying the owner's exposure cap. This avoids
+    // unrelated content types consuming the allowance while ensuring the
+    // list_content surface cannot paginate beyond content.maxPages.
     const publicPages = (await this.provider.getPages()).filter((p) =>
       isPublicListItem(p, this.config),
     );
-    const filtered = publicPages.filter((p) => p.type === type);
+    const filtered = publicPages
+      .filter((p) => p.type === type)
+      .slice(0, this.config.content.maxPages);
     const total = filtered.length;
     const start = (page - 1) * limit;
     const items = filtered.slice(start, start + limit);
@@ -491,25 +611,17 @@ export class MCPServer {
       hasMore: start + limit < total,
     };
 
-    await this.cacheSet(cacheKey, result);
     return result;
   }
 
   async getSitemap() {
-    const cacheKey = 'sitemap';
-    const cached = await this.cacheGet<unknown>(cacheKey);
-    if (cached !== null) return cached;
-
     const pages = filterPublicPages(await this.provider.getPages(), this.config);
-    const sitemap = pages.map((p) => ({
+    return pages.map((p) => ({
       url: p.url,
       title: p.title,
       type: p.type,
       lastModified: p.lastModified,
     }));
-
-    await this.cacheSet(cacheKey, sitemap);
-    return sitemap;
   }
 
   // --- Tool Definitions ---
@@ -525,10 +637,23 @@ export class MCPServer {
         inputSchema: {
           type: 'object',
           properties: {
-            query: { type: 'string', description: "Keywords to search for, in the site's own language. Use the user's words." },
-            limit: { type: 'number', description: 'Maximum number of results to return (1-50, default 10).' },
+            query: {
+              type: 'string',
+              minLength: 1,
+              maxLength: 500,
+              description:
+                "Keywords to search for, in the site's own language. Use the user's words.",
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 50,
+              default: 10,
+              description: 'Maximum number of results to return (1-50, default 10).',
+            },
           },
           required: ['query'],
+          additionalProperties: false,
         },
       });
     }
@@ -541,9 +666,16 @@ export class MCPServer {
         inputSchema: {
           type: 'object',
           properties: {
-            uri: { type: 'string', description: "The page's absolute URL on this site, exactly as returned by search_site, list_content or get_sitemap." },
+            uri: {
+              type: 'string',
+              minLength: 1,
+              maxLength: 2000,
+              description:
+                "The page's absolute URL on this site, exactly as returned by search_site, list_content or get_sitemap.",
+            },
           },
           required: ['uri'],
+          additionalProperties: false,
         },
       });
     }
@@ -556,10 +688,30 @@ export class MCPServer {
         inputSchema: {
           type: 'object',
           properties: {
-            type: { type: 'string', description: 'The content type to list: post, page, product, or any custom type the site exposes.' },
-            page: { type: 'number', description: 'Result page number (default 1).' },
-            limit: { type: 'number', description: 'Items per page (1-100, default 20).' },
+            type: {
+              type: 'string',
+              minLength: 1,
+              maxLength: 50,
+              default: 'page',
+              description:
+                'The content type to list: post, page, product, or any custom type the site exposes.',
+            },
+            page: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 5000,
+              default: 1,
+              description: 'Result page number (1-5000, default 1).',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 100,
+              default: 20,
+              description: 'Items per page (1-100, default 20).',
+            },
           },
+          additionalProperties: false,
         },
       });
     }
@@ -568,10 +720,11 @@ export class MCPServer {
       tools.push({
         name: 'get_sitemap',
         description:
-          "Get the structured sitemap of this site's public content: every URL with its title, type and last-modified date. Use for a complete overview of what the site exposes to agents. Read-only.",
+          "Get a bounded structured sitemap of this site's public content, with each exposed URL's title, type and last-modified date, up to the owner's configured content limit. Use for a broad overview of what the site exposes to agents. Read-only.",
         inputSchema: {
           type: 'object',
           properties: {},
+          additionalProperties: false,
         },
       });
     }
@@ -592,7 +745,18 @@ export class MCPServer {
     return { jsonrpc: '2.0', result, id };
   }
 
-  private errorResponse(id: string | number | null, code: number, message: string): JSONRPCResponse {
+  private toolErrorResponse(id: string | number | null, message: string): JSONRPCResponse {
+    return this.successResponse(id, {
+      content: [{ type: 'text', text: message }],
+      isError: true,
+    });
+  }
+
+  private errorResponse(
+    id: string | number | null,
+    code: number,
+    message: string,
+  ): JSONRPCResponse {
     return { jsonrpc: '2.0', error: { code, message }, id };
   }
 }

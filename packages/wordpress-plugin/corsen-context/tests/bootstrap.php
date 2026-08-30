@@ -7,6 +7,35 @@ if ( ! class_exists( 'WP_UnitTestCase' ) ) {
 	abstract class WP_UnitTestCase extends PHPUnit\Framework\TestCase {}
 }
 
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		private $data;
+		private int $status;
+		private array $headers = array();
+
+		public function __construct( $data = null, int $status = 200 ) {
+			$this->data   = $data;
+			$this->status = $status;
+		}
+
+		public function header( string $name, string $value ): void {
+			$this->headers[ $name ] = $value;
+		}
+
+		public function get_data() {
+			return $this->data;
+		}
+
+		public function get_status(): int {
+			return $this->status;
+		}
+
+		public function get_headers(): array {
+			return $this->headers;
+		}
+	}
+}
+
 $GLOBALS['corsen_test_filter_log'] = array();
 $GLOBALS['corsen_test_filters']    = array();
 
@@ -36,6 +65,13 @@ function wp_strip_all_tags( string $text ): string {
 
 function home_url( string $path = '' ): string {
 	return 'https://example.com' . $path;
+}
+
+function rest_url( string $path = '' ): string {
+	if ( isset( $GLOBALS['corsen_test_rest_url'] ) && is_callable( $GLOBALS['corsen_test_rest_url'] ) ) {
+		return $GLOBALS['corsen_test_rest_url']( $path );
+	}
+	return 'https://example.com/wp-json/' . ltrim( $path, '/' );
 }
 
 function wp_salt( string $scheme = 'auth' ): string {
@@ -84,6 +120,14 @@ function esc_html( $text ): string {
 	return htmlspecialchars( (string) $text, ENT_QUOTES );
 }
 
+function checked( $checked, $current = true, bool $display = true ): string {
+	$result = $checked == $current ? ' checked="checked"' : ''; // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- Mirrors WordPress checked().
+	if ( $display ) {
+		echo $result; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static test-only attribute.
+	}
+	return $result;
+}
+
 function add_action( ...$args ): bool { return true; }
 
 function add_filter( ...$args ): bool { return true; }
@@ -98,13 +142,9 @@ function sanitize_text_field( $s ): string { return trim( (string) $s ); }
 
 function sanitize_textarea_field( $s ): string { return trim( (string) $s ); }
 
-function sanitize_email( $s ): string { return trim( (string) $s ); }
-
 function esc_url( $url ): string { return (string) $url; }
 
 function admin_url( string $path = '' ): string { return 'https://example.com/wp-admin/' . $path; }
-
-function wp_nonce_field( ...$args ): void { echo '<input type="hidden" name="_corsen_nonce" value="testnonce" />'; }
 
 function get_post_types( $args = array() ): array { return array( 'post' => 'post', 'page' => 'page', 'product' => 'product' ); }
 
@@ -120,5 +160,4 @@ require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
 require_once dirname( __DIR__ ) . '/includes/class-webmcp.php';
-require_once dirname( __DIR__ ) . '/includes/class-agent-forms.php';
 require_once dirname( __DIR__ ) . '/includes/class-admin.php';

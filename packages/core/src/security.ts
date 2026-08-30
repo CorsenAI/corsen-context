@@ -178,7 +178,7 @@ export async function safeFetch(
     resolvedIp = results[0].address;
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('SSRF')) throw err;
-    throw new Error('SSRF protection: DNS resolution failed (fail-closed)');
+    throw new Error('SSRF protection: DNS resolution failed (fail-closed)', { cause: err });
   }
 
   const family = resolvedIp.includes(':') ? 6 : 4;
@@ -219,7 +219,11 @@ export class MemoryRateLimitStore implements RateLimitStore {
     this.maxKeys = options?.maxKeys ?? 100_000;
     if (options?.autoCleanup !== false) {
       this.cleanupTimer = setInterval(() => this.cleanup(), 60_000);
-      if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+      if (
+        this.cleanupTimer &&
+        typeof this.cleanupTimer === 'object' &&
+        'unref' in this.cleanupTimer
+      ) {
         this.cleanupTimer.unref();
       }
     }
@@ -454,23 +458,58 @@ export const jsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
   method: z.string().min(1).max(100),
   params: z.record(z.unknown()).optional(),
-  id: z.union([z.string(), z.number(), z.null()]).optional(),
+  id: z.union([z.string(), z.number()]).optional(),
 });
 
-export const searchParamsSchema = z.object({
-  query: z.string().min(1).max(500),
-  limit: z.number().int().min(1).max(50).default(10),
-});
+export const initializeParamsSchema = z
+  .object({
+    protocolVersion: boundedUnicodeString(1, 50),
+    capabilities: z.record(z.unknown()),
+    clientInfo: z
+      .object({
+        name: boundedUnicodeString(1, 200),
+        version: boundedUnicodeString(1, 100),
+      })
+      .passthrough(),
+  })
+  .passthrough();
 
-export const getPageParamsSchema = z.object({
-  uri: z.string().min(1).max(2000),
-});
+/**
+ * JSON Schema string lengths are measured in Unicode code points, whereas
+ * JavaScript's String#length and Zod's built-in max() count UTF-16 code units.
+ */
+function boundedUnicodeString(minimum: number, maximum: number) {
+  return z.string().refine(
+    (value) => {
+      const length = Array.from(value).length;
+      return length >= minimum && length <= maximum;
+    },
+    { message: `String must contain between ${minimum} and ${maximum} Unicode code points` },
+  );
+}
 
-export const listContentParamsSchema = z.object({
-  type: z.string().min(1).max(50).default('page'),
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(100).default(20),
-});
+export const searchParamsSchema = z
+  .object({
+    query: boundedUnicodeString(1, 500),
+    limit: z.number().int().min(1).max(50).default(10),
+  })
+  .strict();
+
+export const getPageParamsSchema = z
+  .object({
+    uri: boundedUnicodeString(1, 2000),
+  })
+  .strict();
+
+export const listContentParamsSchema = z
+  .object({
+    type: boundedUnicodeString(1, 50).default('page'),
+    page: z.number().int().min(1).max(5000).default(1),
+    limit: z.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+
+export const getSitemapParamsSchema = z.object({}).strict();
 
 export function validateJsonRpcRequest(body: unknown): JSONRPCRequest {
   return jsonRpcRequestSchema.parse(body) as JSONRPCRequest;
@@ -478,10 +517,36 @@ export function validateJsonRpcRequest(body: unknown): JSONRPCRequest {
 
 // --- CORS ---
 
+function canonicalHttpOrigin(value: string): string | null {
+  if (/[\r\n]/.test(value)) return null;
+
+  try {
+    const parsed = new URL(value);
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+      !parsed.hostname ||
+      parsed.username ||
+      parsed.password ||
+      parsed.origin === 'null'
+    ) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
 export function validateOrigin(origin: string | undefined, allowed: string[]): boolean {
+  if (!origin) return allowed.length === 0;
+  const candidate = canonicalHttpOrigin(origin);
+  if (!candidate) return false;
   if (allowed.length === 0) return true;
-  if (!origin) return false;
-  return allowed.includes(origin);
+
+  return allowed.some((value) => {
+    const configured = canonicalHttpOrigin(value);
+    return configured !== null && configured === candidate;
+  });
 }
 
 // --- Host Validation ---
@@ -513,7 +578,10 @@ export function hashApiKey(key: string, salt?: string): { hash: string; salt: st
  * nor content through timing, and (unlike a bare hash) an attacker cannot
  * precompute the digests.
  */
-export function validateApiKey(provided: string | undefined, expected: string | undefined): boolean {
+export function validateApiKey(
+  provided: string | undefined,
+  expected: string | undefined,
+): boolean {
   if (!expected) return true; // No key configured = public
   if (!provided) return false;
 

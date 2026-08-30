@@ -319,7 +319,13 @@ class Corsen_Context_Security {
 	private static function url_origin( string $url ): string {
 
 		$parts = wp_parse_url( trim( $url ) );
-		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+		if (
+			! is_array( $parts ) ||
+			empty( $parts['scheme'] ) ||
+			empty( $parts['host'] ) ||
+			isset( $parts['user'] ) ||
+			isset( $parts['pass'] )
+		) {
 			return '';
 		}
 
