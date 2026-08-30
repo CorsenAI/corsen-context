@@ -1,0 +1,14 @@
+{
+  "name": "corsen-context-static-html-example",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node function/server.js"
+  },
+  "dependencies": {
+    "@corsenai/corsen-context": "^1.0.0",
+    "express": "^5.0.0"
+  }
+}
