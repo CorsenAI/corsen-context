@@ -9,9 +9,10 @@
  * the agent fills and submits the form like a person would. With the toggle
  * off, the exact same form is human-only.
  *
- * Submissions are stored bounded and marked human or agent: the declarative
- * submit event carries `agentInvoked`, and a one-line script copies that into
- * a hidden field so the owner can see who did what.
+ * Submissions are stored bounded and marked human or agent. Chrome's
+ * declarative execution fills the form and lets the human confirm the send;
+ * the marker reads both SubmitEvent.agentInvoked and the :tool-form-active
+ * pseudo-class the form carries while an agent is actuating it.
  *
  * Spec: https://webmachinelearning.github.io/webmcp/ (declarative explainer)
  *
@@ -114,22 +115,20 @@ class Corsen_Context_Agent_Forms {
 	 * @param array<string,string>|string $atts Shortcode attributes.
 	 */
 	public function render( $atts ): string {
-		$spec      = self::parse_atts( $atts );
-		$form_id   = $spec['form_id'];
-		$element   = 'corsen-agent-form-' . $form_id;
-		$agent_on  = self::is_enabled();
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only display flags, no state change.
+		$spec     = self::parse_atts( $atts );
+		$form_id  = $spec['form_id'];
+		$element  = 'corsen-agent-form-' . $form_id;
+		$agent_on = self::is_enabled();
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only display flag, no state change.
 		$submitted = isset( $_GET['corsen_submitted'] ) && sanitize_key( (string) $_GET['corsen_submitted'] ) === $form_id;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		ob_start();
 
 		if ( $submitted ) {
-			$via = isset( $_GET['corsen_via'] ) && 'agent' === $_GET['corsen_via'] ? 'agent' : 'human';
-			// phpcs:enable WordPress.Security.NonceVerification.Recommended
-			printf(
-				'<p class="corsen-agent-form-notice" style="padding:10px 14px;border-left:4px solid #00844a;background:#f0f7f0;">Request received — thank you.%s</p>',
-				'agent' === $via ? ' <em>(submitted by an AI agent)</em>' : ''
-			);
+			// The visitor gets a plain confirmation; the human/agent distinction
+			// is for the owner's submissions list, not for the page.
+			echo '<p class="corsen-agent-form-notice" style="padding:10px 14px;border-left:4px solid #00844a;background:#f0f7f0;">Request received — thank you.</p>';
 		}
 
 		printf(
@@ -178,10 +177,12 @@ class Corsen_Context_Agent_Forms {
 		);
 
 		if ( $agent_on ) {
-			// Declarative submits carry SubmitEvent.agentInvoked: copy it into
-			// the hidden field so the owner can tell agent and human apart.
+			// Chrome's declarative execution fills the form and leaves the send
+			// to the human (the form matches :tool-form-active while an agent is
+			// actuating it); a direct agent submit fires SubmitEvent.agentInvoked.
+			// Both paths mark the hidden field so the owner sees who initiated.
 			printf(
-				'<script>(function(){var f=document.getElementById(%s);if(f){f.addEventListener("submit",function(e){if(e&&e.agentInvoked){f.querySelector("input[name=\'corsen_via_agent\']").value="1";}});}})();</script>',
+				'<script>(function(){var f=document.getElementById(%s);if(!f)return;var done=false;var mark=function(){if(!done){f.querySelector("input[name=\'corsen_via_agent\']").value="1";done=true;}};f.addEventListener("submit",function(e){if(e&&e.agentInvoked){mark();}});var t=setInterval(function(){if(done){clearInterval(t);return;}if(f.matches(":tool-form-active")){mark();}},500);})();</script>',
 				wp_json_encode( $element )
 			);
 		}

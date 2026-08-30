@@ -126,7 +126,7 @@ class Corsen_Context_Admin {
 			'corsen_context_general',
 			array(
 				'field' => 'agent_forms_enabled',
-				'label' => 'Forms built with the [corsen_agent_form] shortcode become declarative WebMCP tools (the agent fills and submits them). Off: the same forms stay human-only.',
+				'label' => 'Forms built with the [corsen_agent_form] shortcode become declarative WebMCP tools (the agent fills them; the visitor stays the one who sends). Off: the same forms stay human-only.',
 			)
 		);
 		add_settings_section(

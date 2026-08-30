@@ -46,7 +46,8 @@ export const pages = [
 <p>WebMCP's declarative API turns a form into a tool with three attributes —
 <code>toolname</code>, <code>tooldescription</code>, and
 <code>toolparamdescription</code> per field. The browser synthesizes the schema
-and lets the agent fill and submit the form like a person. No JavaScript.</p>
+and lets the agent fill the form for the visitor — who stays the one who
+sends it. No JavaScript.</p>
 
 <h2>Agent-callable: request a quote</h2>
 <form toolname="request_quote" tooldescription="Request a quote for a kit installation."

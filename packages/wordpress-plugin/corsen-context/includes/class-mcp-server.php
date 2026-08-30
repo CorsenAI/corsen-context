@@ -759,17 +759,17 @@ class Corsen_Context_MCP_Server {
 		$defs    = array(
 			array(
 				'name'        => 'search_site',
-				'description' => 'Search site content by keyword. Returns matching pages with snippets.',
+				'description' => 'Search this site\'s public content by keyword and get matching pages with titles, URLs and text snippets. Use this first when the user asks about something on this site and you do not know which page covers it. Read-only: returns content, never changes anything.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
 						'query' => array(
 							'type'        => 'string',
-							'description' => 'Search query',
+							'description' => 'Keywords to search for, in the site\'s own language. Use the user\'s words.',
 						),
 						'limit' => array(
 							'type'        => 'number',
-							'description' => 'Max results (1-50, default 10)',
+							'description' => 'Maximum number of results to return (1-50, default 10).',
 						),
 					),
 					'required'   => array( 'query' ),
@@ -777,13 +777,13 @@ class Corsen_Context_MCP_Server {
 			),
 			array(
 				'name'        => 'get_page_content',
-				'description' => 'Get full page content as clean markdown with metadata (title, description, dates).',
+				'description' => 'Read one page of this site in full, as clean markdown with its title, description and dates. Use this after search_site or get_sitemap to read a specific page. Read-only.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
 						'uri' => array(
 							'type'        => 'string',
-							'description' => 'Page URL or resource URI',
+							'description' => 'The page\'s absolute URL on this site, exactly as returned by search_site, list_content or get_sitemap.',
 						),
 					),
 					'required'   => array( 'uri' ),
@@ -791,28 +791,28 @@ class Corsen_Context_MCP_Server {
 			),
 			array(
 				'name'        => 'list_content',
-				'description' => 'List content by type (page, post, product) with pagination.',
+				'description' => 'Browse this site\'s public content by type (e.g. page, post, product) with pagination. Use to enumerate what the site publishes when a keyword search is too narrow. Read-only.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
 						'type'  => array(
 							'type'        => 'string',
-							'description' => 'Content type (e.g., post, page, product, or any custom type)',
+							'description' => 'The content type to list: post, page, product, or any custom type the site exposes.',
 						),
 						'page'  => array(
 							'type'        => 'number',
-							'description' => 'Page number (default 1)',
+							'description' => 'Result page number (default 1).',
 						),
 						'limit' => array(
 							'type'        => 'number',
-							'description' => 'Items per page (1-100, default 20)',
+							'description' => 'Items per page (1-100, default 20).',
 						),
 					),
 				),
 			),
 			array(
 				'name'        => 'get_sitemap',
-				'description' => 'Get a structured sitemap of public content with URLs, titles, types, and dates.',
+				'description' => 'Get the structured sitemap of this site\'s public content: every URL with its title, type and last-modified date. Use for a complete overview of what the site exposes to agents. Read-only.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => new \stdClass(),
