@@ -36,7 +36,11 @@ class Corsen_Context_MCP_Server {
 	 * browser surface must use this helper instead of constructing a path.
 	 */
 	public static function endpoint_url(): string {
-		return rest_url( 'corsen-context/v1/mcp' );
+		$url = rest_url( 'corsen-context/v1/mcp' );
+		// rest_url encodes the leading slash as %2F when the REST prefix is a
+		// filtered query-string form (?rest_route=...). Decode it so callers and
+		// discovery surfaces see the canonical slash-prefixed path.
+		return str_replace( '%2F', '/', $url );
 	}
 
 	/**
@@ -56,7 +60,6 @@ class Corsen_Context_MCP_Server {
 	public function handle_pre_dispatch_request( $response, \WP_REST_Server $server, \WP_REST_Request $request ) {
 		unset( $server );
 		if (
-			null !== $response ||
 			'/corsen-context/v1/mcp' !== $request->get_route()
 		) {
 			return $response;
@@ -175,7 +178,18 @@ class Corsen_Context_MCP_Server {
 		if ( $this->is_json_too_deep( $body ) ) {
 			return $this->error_response( null, -32600, 'JSON nesting too deep', 400 );
 		}
+		// Method-specific param shape validation runs BEFORE the generic non-object
+		// check so that initialize and resources/read can return their dedicated
+		// error codes (-32602) instead of the generic JSON-RPC -32600.
 		if ( property_exists( $body_object, 'params' ) && ! is_object( $body_object->params ) ) {
+			$early_method = sanitize_text_field( $body_object->method ?? '' );
+			if ( 'initialize' === $early_method || 'resources/read' === $early_method ) {
+				return $this->error_response(
+					$body_object->id ?? null,
+					-32602,
+					'initialize' === $early_method ? 'Invalid initialize parameters' : 'Missing resource URI'
+				);
+			}
 			return $this->error_response( null, -32600, 'Invalid Request' );
 		}
 		if (
