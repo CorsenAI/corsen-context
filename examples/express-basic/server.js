@@ -10,12 +10,12 @@ app.use(express.json());
 const provider = {
   async getPages() {
     return [
-      { url: `${SITE_URL}/`, title: 'Home', description: 'Welcome', type: 'page' },
-      { url: `${SITE_URL}/about`, title: 'About', description: 'About us', type: 'page' },
+      { url: `${SITE_URL}/`, title: 'Home', description: 'Welcome to our AI-native demo', type: 'page' },
+      { url: `${SITE_URL}/about`, title: 'About', description: 'How we expose content to AI agents over MCP and WebMCP', type: 'page' },
       {
         url: `${SITE_URL}/blog/hello`,
         title: 'Hello World',
-        description: 'Our first post',
+        description: 'Our first post — what an MCP and WebMCP context layer is',
         type: 'post',
         lastModified: '2026-04-01',
       },
@@ -30,11 +30,11 @@ const provider = {
       },
       [`${SITE_URL}/about`]: {
         title: 'About',
-        markdown: '# About Us\n\nWe make websites AI-native.',
+        markdown: '# About Us\n\nWe make websites AI-native.\n\n## What we use\n\nCorsen Context serves our content over MCP, llms.txt and the WebMCP bridge built into this page.',
       },
       [`${SITE_URL}/blog/hello`]: {
         title: 'Hello World',
-        markdown: '# Hello World\n\nThis is our first blog post.\n\n## What is Corsen Context?\n\nA Universal AI Context Layer.',
+        markdown: '# Hello World\n\nThis is our first blog post.\n\n## What is Corsen Context?\n\nA Universal AI Context Layer. AI agents read this site through the MCP endpoint, /llms.txt, or the WebMCP tools registered right inside the page.',
       },
     };
     const page = pages[url];
