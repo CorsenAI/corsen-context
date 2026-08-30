@@ -19,6 +19,9 @@ const outDir = join(root, 'public');
 mkdirSync(outDir, { recursive: true });
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const stripHtml = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+// A page's readable text: the plain body, or the stripped rawHtml.
+const pageText = (p) => p.body ?? stripHtml(p.rawHtml);
 
 const shell = (title, inner) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -48,7 +51,7 @@ ${pages
   <li><code>POST /v1/mcp</code> — MCP endpoint (one small function)</li>
   <li><code>document.modelContext</code> — WebMCP tools registered by this page</li>
 </ul>`
-      : `<h1>${esc(page.title)}</h1>\n<p>${esc(page.body)}</p>`;
+      : (page.rawHtml ?? `<h1>${esc(page.title)}</h1>\n<p>${esc(page.body)}</p>`);
   const file = page.path === '/' ? 'index.html' : page.path;
   const target = join(outDir, file);
   mkdirSync(dirname(target), { recursive: true });
@@ -74,7 +77,7 @@ const provider = {
       url,
       title: page.title,
       description: page.description,
-      markdown: `# ${page.title}\n\n${page.body}`,
+      markdown: `# ${page.title}\n\n${pageText(page)}`,
       lastModified: page.lastModified,
       metadata: {},
     };

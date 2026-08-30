@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and a read-only MCP-style JSON-RPC endpoint.
- * Version: 1.3.1
+ * Version: 1.4.0
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.3.1' );
+define( 'CORSEN_CONTEXT_VERSION', '1.4.0' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -29,6 +29,7 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-content-converter.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-llms-generator.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-mcp-server.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-agent-forms.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
 
 /**
@@ -98,6 +99,11 @@ final class Corsen_Context {
 
 		// Optional WebMCP bridge for agents running inside the page.
 		add_action( 'wp_head', array( new Corsen_Context_WebMCP(), 'render' ), 20 );
+
+		// Agent-callable forms (declarative WebMCP), owner opt-in.
+		add_shortcode( 'corsen_agent_form', array( new Corsen_Context_Agent_Forms(), 'render' ) );
+		add_action( 'admin_post_corsen_agent_form', array( new Corsen_Context_Agent_Forms(), 'handle_submit' ) );
+		add_action( 'admin_post_nopriv_corsen_agent_form', array( new Corsen_Context_Agent_Forms(), 'handle_submit' ) );
 		add_filter( 'robots_txt', array( $this, 'add_robots_discovery' ), 10, 2 );
 		// Scheduled cron tasks.
 		add_action( 'corsen_context_hourly_cleanup', array( 'Corsen_Context_Security', 'cleanup_rate_limits' ) );

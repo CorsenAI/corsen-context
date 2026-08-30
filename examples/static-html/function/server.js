@@ -7,6 +7,10 @@ import { SITE_URL, pages } from '../content.mjs';
  * On Netlify/Vercel/Cloudflare this exact handler is a serverless function;
  * here it's a tiny Express server. Everything else is static files.
  */
+const stripHtml = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+// A page's readable text: the plain body, or the stripped rawHtml.
+const pageText = (p) => p.body ?? stripHtml(p.rawHtml);
+
 const provider = {
   async getPages() {
     return pages.map((p) => ({
@@ -24,7 +28,7 @@ const provider = {
       url,
       title: page.title,
       description: page.description,
-      markdown: `# ${page.title}\n\n${page.body}`,
+      markdown: `# ${page.title}\n\n${pageText(page)}`,
       lastModified: page.lastModified,
       metadata: {},
     };
