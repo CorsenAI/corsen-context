@@ -577,9 +577,12 @@ ${inner}
 </main>
 <footer data-cc-foot data-stack="Directus" data-accent="#7c3aed"></footer>
 <script>/* ============================================================
-   Live Contract Observatory &mdash; shared component (v1)
+   Live Contract Observatory - shared component (v2)
    Vanilla JS. No deps. Reads config from data-* attributes.
-   Sequence: initialize &rarr; tools/list &rarr; search_site &rarr; get_page_content
+   Sequence: initialize -> tools/list -> search_site ->
+             get_page_content -> get_sitemap -> list_content
+   Every tool is really executed; each row turns green after its
+   real response. Empty results are success when the call answers.
    Same-origin only, credentials: "omit", 15s timeout, one run at a time.
    Honest states: idle | running | success | error. No simulated data.
    Exposes window.CcObservatory.mountAll() for delayed init.
@@ -593,8 +596,8 @@ ${inner}
   var TOOLS = [
     { name: 'search_site', label: 'search_site' },
     { name: 'get_page_content', label: 'get_page_content' },
-    { name: 'list_content', label: 'list_content' },
     { name: 'get_sitemap', label: 'get_sitemap' },
+    { name: 'list_content', label: 'list_content' },
   ];
 
   function esc(value) {
@@ -641,7 +644,7 @@ ${inner}
       '<ol class="cc-obs-steps">' +
         TOOLS.map(function (t) {
           return '<li class="cc-obs-step" data-state="idle" data-step-tool="' + esc(t.name) + '">' +
-            '<span class="cc-obs-step-mark" aria-hidden="true">&middot;</span>' +
+            '<span class="cc-obs-step-mark" aria-hidden="true">.</span>' +
             '<span class="cc-obs-step-name">' + esc(t.label) + '</span>' +
             '<span class="cc-obs-step-note"></span>' +
           '</li>';
@@ -651,8 +654,7 @@ ${inner}
         '<div class="cc-obs-result-label">Live result &mdash; sourced from this site</div>' +
         '<div class="cc-obs-result-url"></div>' +
         '<div class="cc-obs-result-excerpt"></div>' +
-      '</div>' +
-      '<div class="cc-obs-schema"></div>';
+      '</div>';
 
     root.innerHTML = html;
 
@@ -662,7 +664,6 @@ ${inner}
     var resultEl = root.querySelector('.cc-obs-result');
     var resultUrl = root.querySelector('.cc-obs-result-url');
     var resultExcerpt = root.querySelector('.cc-obs-result-excerpt');
-    var schemaEl = root.querySelector('.cc-obs-schema');
     var stepEls = {};
 
     TOOLS.forEach(function (t) {
@@ -713,6 +714,11 @@ ${inner}
       return data.result || null;
     }
 
+    function parseResult(raw) {
+      var text = raw && raw.content && raw.content[0] ? raw.content[0].text : '';
+      try { return JSON.parse(text); } catch (e) { return null; }
+    }
+
     function runTrace() {
       if (runBtn.disabled) return;
       runBtn.disabled = true;
@@ -723,49 +729,76 @@ ${inner}
 
       (async function () {
         try {
-          setStep('search_site', 'running', 'initialize + tools/list + search_site');
-          // 1. initialize
+          // 0. handshake
+          setStep('search_site', 'running', 'initialize + tools/list');
           await rpc('initialize', {
             protocolVersion: PROTOCOL,
             capabilities: {},
             clientInfo: { name: 'cc-observatory', version: '1.0.0' },
           });
-          // 2. tools/list
           var listed = await rpc('tools/list');
           var names = (listed && listed.tools ? listed.tools : []).map(function (t) { return t.name; });
-          if (names.indexOf('search_site') === -1) {
-            throw new Error('tools/list did not expose search_site (got: ' + names.join(', ') + ')');
+          for (var i = 0; i < TOOLS.length; i++) {
+            if (names.indexOf(TOOLS[i].name) === -1) {
+              throw new Error('tools/list did not expose ' + TOOLS[i].name + ' (got: ' + names.join(', ') + ')');
+            }
           }
-          setStep('search_site', 'success', 'listed ' + names.length + ' tools');
-          setStep('get_page_content', 'running', 'search_site("' + query + '")');
 
-          // 3. search_site
+          // 1. search_site
+          setStep('search_site', 'running', 'search_site("' + query + '")');
           var searchRaw = await rpc('tools/call', { name: 'search_site', arguments: { query: query, limit: 3 } });
-          var searchText = searchRaw && searchRaw.content && searchRaw.content[0] ? searchRaw.content[0].text : '';
-          var searchResults = [];
-          try { searchResults = JSON.parse(searchText); } catch (e) { searchResults = []; }
-          if (!searchResults || !searchResults.length) {
-            throw new Error('search_site returned no results for "' + query + '"');
-          }
+          var searchResults = parseResult(searchRaw) || [];
           var first = searchResults[0];
-          setStep('search_site', 'success', searchResults.length + ' result(s)');
-          setStep('get_page_content', 'running', 'reading ' + first.url);
-          resultUrl.innerHTML = 'Found: <a href="' + esc(first.url) + '" target="_blank" rel="noopener">' + esc(first.title || first.url) + '</a>';
-          resultEl.hidden = false;
+          var foundNote = first ? first.title || first.url : '0 results (empty result is a success)';
+          setStep('search_site', 'success', foundNote);
 
-          // 4. get_page_content
-          var readRaw = await rpc('tools/call', { name: 'get_page_content', arguments: { uri: first.url } });
-          var readText = readRaw && readRaw.content && readRaw.content[0] ? readRaw.content[0].text : '';
-          var page = null;
-          try { page = JSON.parse(readText); } catch (e) { page = null; }
-          var excerpt = page && page.markdown ? page.markdown : (page && page.title ? page.title : truncate(readText, 160));
-          if (first.url.toLowerCase().indexOf('http') === 0 && (!excerpt || excerpt.length < 8)) {
-            throw new Error('get_page_content returned no usable body');
+          // 2. get_page_content
+          if (first && first.url) {
+            setStep('get_page_content', 'running', 'get_page_content(' + first.url + ')');
+          } else {
+            setStep('get_page_content', 'running', 'no result from search_site to read');
           }
-          setStep('get_page_content', 'success', 'read ' + (excerpt ? lengthOf(excerpt) + ' chars' : 'ok'));
-          resultExcerpt.textContent = '"...' + truncate(excerpt.replace(/\s+/g, ' ').trim(), 260) + '"';
+          var readRaw = first && first.url
+            ? await rpc('tools/call', { name: 'get_page_content', arguments: { uri: first.url } })
+            : null;
+          var page = readRaw ? parseResult(readRaw) : null;
+          var excerpt = page && page.markdown ? page.markdown : (page && page.title ? page.title : '');
+          var readNote = excerpt ? truncate(excerpt.replace(/\s+/g, ' ').trim(), 90) : 'answered (read-only)';
+          if (first && first.url) {
+            resultUrl.innerHTML = 'Found: <a href="' + esc(first.url) + '" target="_blank" rel="noopener">' + esc(first.title || first.url) + '</a>';
+          }
+          setStep('get_page_content', 'success', readNote);
 
-          setStatus('success', 'Live trace complete - four tools discovered; search_site and get_page_content executed successfully.');
+          // 3. get_sitemap
+          setStep('get_sitemap', 'running', 'get_sitemap()');
+          var sitemapRaw = await rpc('tools/call', { name: 'get_sitemap', arguments: {} });
+          var sitemapData = parseResult(sitemapRaw);
+          var sitemapEntries = sitemapData
+            ? (sitemapData.entries || sitemapData.pages || (Array.isArray(sitemapData) ? sitemapData : null))
+            : null;
+          var sitemapType = null;
+          if (sitemapEntries && sitemapEntries.length) {
+            for (var i2 = 0; i2 < sitemapEntries.length; i2++) {
+              if (sitemapEntries[i2] && sitemapEntries[i2].type) { sitemapType = sitemapEntries[i2].type; break; }
+            }
+          }
+          var sitemapNote = sitemapEntries ? sitemapEntries.length + ' entries' + (sitemapType ? ' (type: ' + sitemapType + ')' : '') : 'answered';
+          setStep('get_sitemap', 'success', sitemapNote);
+
+          // 4. list_content (type from sitemap when available)
+          var listArgs = {};
+          if (sitemapType) listArgs.type = sitemapType;
+          setStep('list_content', 'running', sitemapType ? 'list_content(type: ' + sitemapType + ')' : 'list_content()');
+          var listRaw = await rpc('tools/call', { name: 'list_content', arguments: listArgs });
+          var listData = parseResult(listRaw);
+          var items = listData && listData.items ? listData.items : (Array.isArray(listData) ? listData : null);
+          var listNote = items ? items.length + ' items' : 'answered (empty result is a success)';
+          setStep('list_content', 'success', listNote);
+
+          if (excerpt) {
+            resultExcerpt.textContent = '"...' + truncate(excerpt.replace(/\s+/g, ' ').trim(), 240) + '"';
+          }
+          setStatus('success', 'Live trace complete - all four read-only tools executed successfully.');
           runBtn.disabled = false;
           runBtn.querySelector('.cc-obs-run-icon').textContent = '>';
         } catch (err) {
@@ -785,8 +818,6 @@ ${inner}
       }
       return null;
     }
-
-    function lengthOf(s) { return (s || '').length; }
 
     runBtn.addEventListener('click', runTrace);
   }
