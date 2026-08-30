@@ -16,7 +16,7 @@ const stripHtml = (s) =>
     .trim();
 
 async function fetchPosts() {
-  const res = await fetch(`${WAGTAIL_URL}/api/v2/pages/?type=home.HomePage&fields=body&limit=50`);
+  const res = await fetch(`${WAGTAIL_URL}/api/v2/pages/?type=home.HomePage&fields=body&limit=20`);
   if (!res.ok) throw new Error(`Wagtail API returned ${res.status}`);
   const body = await res.json();
   return (body.items || [])
