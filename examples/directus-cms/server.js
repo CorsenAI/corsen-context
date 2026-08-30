@@ -19,7 +19,6 @@ const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
 async function loadPosts() {
   const params = new URLSearchParams({
-    'filter[status][_eq]': 'published',
     'sort[]': '-id',
     limit: '100',
   });
@@ -331,7 +330,7 @@ const pageShell = (title, inner) => `<!doctype html>
    Stack accent via --cc-accent (set per site).
    ============================================================ */
 
-:where(.cc-nav-wrap, .cc-foot-common) {
+:where([data-cc-nav], [data-cc-foot], .cc-nav, .cc-foot-common) {
   --cc-nav-bg: rgba(255, 255, 255, 0.94);
   --cc-nav-border: #d8dfe7;
   --cc-nav-text: #101828;

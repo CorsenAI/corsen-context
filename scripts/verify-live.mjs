@@ -52,9 +52,9 @@ const targets = [
     baseUrl: 'https://html-webmcp.corsen.ai',
     mcpPath: '/v1/mcp',
     bridge: '/webmcp.js',
-    query: 'Home',
+    query: 'Static HTML',
     expectedPath: '/',
-    expectedMarker: 'plain HTML',
+    expectedMarker: 'Static HTML WebMCP Demo',
   },
   {
     id: 'ghost',

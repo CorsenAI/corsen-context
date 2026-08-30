@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CorsenContext, generateWebMCPScript, toWebMCPTools } from '@corsenai/corsen-context';
@@ -8,6 +8,14 @@ import { renderDocument } from '../render.mjs';
 /** Build the human pages and all discovery surfaces from the same records. */
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public');
+// Shared observatory assets -> public/corsen (single source: shared/webmcp-observatory)
+// Shared assets: honour an explicit dir, else a sibling repo clone (reproducible).
+const corsenSrc = process.env.CORSEN_SHARED_DIR || join(root, '..', '..', 'shared', 'webmcp-observatory');
+mkdirSync(join(outDir, 'corsen'), { recursive: true });
+for (const f of ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observatory.js']) {
+  copyFileSync(join(corsenSrc, f), join(outDir, 'corsen', f));
+}
+
 const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
 const llmsTxtEnabled = process.env.CORSEN_CONTEXT_LLMS_TXT_ENABLED !== 'false';
 // This reference gallery deliberately opts into the bounded full export. Set

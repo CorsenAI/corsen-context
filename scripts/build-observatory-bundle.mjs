@@ -59,9 +59,18 @@ for (const name of ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observa
 }
 
 // --- WordPress homepage: inject CSS+JS via base64 bootstrap ---
+// wpautop must not see blank lines inside <style>/<script>: collapse them.
+const wpSanitizedHtml = wpHtml
+  .replace(/\r\n/g, '\n')
+  .replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (m, open, body, close) =>
+    open + body.replace(/\n[ \t]*\n/g, '\n') + close,
+  )
+  .replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, body, close) =>
+    open + body.replace(/\n[ \t]*\n/g, '\n') + close,
+  );
 const bootstrap = wpBootstrap(navCss + '\n' + obsCss, obsJs + '\n' + navJs);
-const idx = wpHtml.lastIndexOf('</div>');
-const wpFinal = wpHtml.slice(0, idx) + bootstrap + wpHtml.slice(idx);
+const idx = wpSanitizedHtml.lastIndexOf('</div>');
+const wpFinal = wpSanitizedHtml.slice(0, idx) + bootstrap + wpSanitizedHtml.slice(idx);
 writeFileSync(join(OUT, 'wp-home.html'), wpFinal, 'utf8');
 
 // --- Manifest ---
