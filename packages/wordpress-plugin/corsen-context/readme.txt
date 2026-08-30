@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -17,11 +17,13 @@ Publish selected public WordPress content through llms.txt and a read-only MCP-s
 
 = What it does =
 
-Your site gets two new capabilities:
+Your site gets three new capabilities:
 
 1. **Static Layer** — Generates `/llms.txt` with a structured overview of selected public content. An optional, bounded `/llms-full.txt` export can be enabled in settings.
 
 2. **Dynamic Layer** — Exposes a read-only **Model Context Protocol (MCP)** Streamable HTTP-style endpoint at `/wp-json/corsen-context/v1/mcp` with four content tools.
+
+3. **In-Page Layer (opt-in)** - Registers the same four read-only tools with AI agents running inside the browser page, through the WebMCP `document.modelContext` API. Enable it in Settings > Corsen Context.
 
 = Key Features =
 
@@ -141,6 +143,12 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 4. MCP endpoint — JSON-RPC response with tools and resources
 
 == Changelog ==
+
+= 1.3.0 - 2026-08-29 =
+* Feature: WebMCP support (opt-in) - registers the same four read-only tools with AI agents running inside the page through document.modelContext, with an optional Chrome origin-trial token field. The in-page bridge forwards every call to the existing MCP endpoint, sends no credentials, stays same-origin, and refuses to register inside frames.
+* Feature: Agent Tools setting - choose exactly which tools are exposed; unchecking a tool removes it from MCP, WebMCP, and the sitemap at once.
+* Feature: Agent Access panel - the settings page now states at a glance which surfaces are on, which tools and content types agents can see, which paths are hidden, and that agents are read-only.
+* Quality: WebMCP tool annotations (read-only, untrusted content) are kept in sync with the repository-wide tool manifest by automated parity tests.
 
 = 1.2.1 - 2026-07-21 =
 * Security: Enforced the global kill switch across llms.txt, llms-full.txt, MCP routes, discovery tags, and dashboard state.

@@ -2,6 +2,7 @@ export {
   createMCPHandler,
   createLlmsTxtHandler,
   createLlmsFullTxtHandler,
+  createWebMCPScriptHandler,
 } from './handlers.js';
 export type { HandlerOptions, AstroContext } from './handlers.js';
 export type {

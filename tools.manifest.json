@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "description": "Language-neutral contract for the tools Corsen Context exposes to AI agents. This file describes the contract only - never the implementation. Every runtime (TypeScript core, PHP WordPress plugin) implements these tools independently and is mechanically checked against this manifest. Transports that serve this contract: MCP over HTTP (JSON-RPC 2.0), WebMCP (document.modelContext) and llms.txt discovery.",
+  "annotationsReference": "https://webmachinelearning.github.io/webmcp/",
+  "tools": [
+    {
+      "name": "search_site",
+      "description": "Search site content by keyword. Returns matching pages with snippets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Max results (1-50, default 10)"
+          }
+        },
+        "required": ["query"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      }
+    },
+    {
+      "name": "get_page_content",
+      "description": "Get full page content as clean markdown with metadata (title, description, dates).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string",
+            "description": "Page URL or resource URI"
+          }
+        },
+        "required": ["uri"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      }
+    },
+    {
+      "name": "list_content",
+      "description": "List content by type (page, post, product) with pagination.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Content type (e.g., post, page, product, or any custom type)"
+          },
+          "page": {
+            "type": "number",
+            "description": "Page number (default 1)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Items per page (1-100, default 20)"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      }
+    },
+    {
+      "name": "get_sitemap",
+      "description": "Get a structured sitemap of public content with URLs, titles, types, and dates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      }
+    }
+  ]
+}

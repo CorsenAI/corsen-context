@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and a read-only MCP-style JSON-RPC endpoint.
- * Version: 1.2.1
+ * Version: 1.3.0
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.2.1' );
+define( 'CORSEN_CONTEXT_VERSION', '1.3.0' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -28,6 +28,7 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-security.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-content-converter.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-llms-generator.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-mcp-server.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
 
 /**
@@ -94,6 +95,9 @@ final class Corsen_Context {
 
 		// Optional <link rel="mcp"> in head.
 		add_action( 'wp_head', array( $this, 'add_mcp_link_tag' ) );
+
+		// Optional WebMCP bridge for agents running inside the page.
+		add_action( 'wp_head', array( new Corsen_Context_WebMCP(), 'render' ), 20 );
 		add_filter( 'robots_txt', array( $this, 'add_robots_discovery' ), 10, 2 );
 		// Scheduled cron tasks.
 		add_action( 'corsen_context_hourly_cleanup', array( 'Corsen_Context_Security', 'cleanup_rate_limits' ) );

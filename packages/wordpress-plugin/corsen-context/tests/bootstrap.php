@@ -70,5 +70,46 @@ class WP_Post {
 	public int $post_author          = 1;
 }
 
+function get_option( string $name, $default = false ) {
+	return $GLOBALS['corsen_test_options'][ $name ] ?? $default;
+}
+
+$GLOBALS['corsen_test_options'] = array();
+
+function esc_attr( $text ): string {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+
+function esc_html( $text ): string {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+
+function add_action( ...$args ): bool { return true; }
+
+function add_filter( ...$args ): bool { return true; }
+
+function register_setting( ...$args ): void {}
+
+function add_settings_section( ...$args ): void {}
+
+function add_settings_field( ...$args ): void {}
+
+function sanitize_text_field( $s ): string { return trim( (string) $s ); }
+
+function sanitize_textarea_field( $s ): string { return trim( (string) $s ); }
+
+function get_post_types( $args = array() ): array { return array( 'post' => 'post', 'page' => 'page', 'product' => 'product' ); }
+
+function delete_transient( $k ): bool { return true; }
+
+function update_option( $k, $v ): bool { return true; }
+
+function wp_json_encode( $data, int $options = 0, int $depth = 512 ) {
+	return json_encode( $data, $options, $depth );
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
+require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
+require_once dirname( __DIR__ ) . '/includes/class-webmcp.php';
+require_once dirname( __DIR__ ) . '/includes/class-admin.php';

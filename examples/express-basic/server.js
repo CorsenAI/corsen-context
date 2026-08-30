@@ -1,5 +1,5 @@
 import express from 'express';
-import { CorsenContext } from '@corsenai/corsen-context';
+import { CorsenContext, generateWebMCPScript, toWebMCPTools } from '@corsenai/corsen-context';
 
 const app = express();
 app.use(express.json());
@@ -121,14 +121,31 @@ app.post('/v1/mcp', async (req, res) => {
   res.json(result);
 });
 
+// WebMCP bridge — load it with <script src="/webmcp.js" defer>: the page then
+// registers the same tools the MCP endpoint serves with an agent running
+// inside the page (document.modelContext). Every execute() calls back into
+// POST /v1/mcp, so the browser never reimplements a tool.
+app.get('/webmcp.js', (_req, res) => {
+  const server = cc.createMCPServer();
+  const script = generateWebMCPScript(toWebMCPTools(server.getToolDefinitions()));
+
+  for (const [key, value] of Object.entries(server.getSecurityHeaders())) {
+    res.set(key, value);
+  }
+
+  res.type('application/javascript').set('Cache-Control', 'public, max-age=3600').send(script);
+});
+
 // Landing page
 app.get('/', (_req, res) => {
   res.type('html').send(`
+    <script src="/webmcp.js" defer></script>
     <h1>Corsen Context — Express Demo</h1>
     <p>This server is AI-native.</p>
     <ul>
       <li><a href="/llms.txt">/llms.txt</a></li>
       <li><code>POST /v1/mcp</code> — MCP endpoint</li>
+      <li><code>GET /webmcp.js</code> — WebMCP bridge for in-page agents</li>
     </ul>
     <p style="color:#888">Powered by Corsen Context — Corsen AI</p>
   `);
@@ -139,4 +156,5 @@ app.listen(PORT, () => {
   console.log(`Corsen Context Express demo running at http://localhost:${PORT}`);
   console.log(`  /llms.txt       — AI context file`);
   console.log(`  POST /v1/mcp   — MCP endpoint`);
+  console.log(`  GET /webmcp.js — WebMCP bridge`);
 });
