@@ -50,7 +50,8 @@ const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
       .ast-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: stretch; min-width: 0; }
       .ast-grid > * { min-width: 0; max-width: 100%; }
       .ast-card, .cc-obs-root { min-width: 0; max-width: 100%; }
-      .ast-flow li, .ast-flow code { min-width: 0; overflow-wrap: anywhere; }
+      .ast-flow li { min-width: 0; }
+      .ast-flow code { min-width: 0; overflow-wrap: break-word; word-break: normal; }
       .ast-card {
         background: #fff; border: 1px solid #e6e2ee; border-radius: 16px; padding: 24px;
       }

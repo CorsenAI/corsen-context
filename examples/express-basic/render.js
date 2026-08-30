@@ -503,7 +503,7 @@ function shell(page, inner) {
           setStep('get_page_content', 'success', 'read ' + (excerpt ? lengthOf(excerpt) + ' chars' : 'ok'));
           resultExcerpt.textContent = '"...' + truncate(excerpt.replace(/\s+/g, ' ').trim(), 260) + '"';
 
-          setStatus('success', 'Live trace complete - all four tools answered from this site.');
+          setStatus('success', 'Live trace complete - four tools discovered; search_site and get_page_content executed successfully.');
           runBtn.disabled = false;
           runBtn.querySelector('.cc-obs-run-icon').textContent = '>';
         } catch (err) {

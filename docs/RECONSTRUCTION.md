@@ -47,7 +47,18 @@ The shared `cc-nav.*` / `cc-observatory.*` files are already committed under
 each example's `public/` (or inlined in the bridge `pageShell`), so a fresh
 clone + build reproduces the exact pages.
 
+## Note on CMS bridges
+
+The Ghost, Strapi, Directus, Wagtail and MediaWiki bridges are reference
+services, not self-contained demos: each requires a live CMS instance configured
+with the collection, fields and read credentials described in that bridge's own
+README (e.g. `examples/ghost-cms/README.md`). Without a properly configured CMS,
+`search_site` returns no useful result and the demo homepage still renders but
+shows no content. A fresh clone rebuilds the bridge code; it does not provision
+the CMS.
+
 ## Step 4 - verify
+
 
 ```bash
 pnpm verify:live        # expects 10/10 with manifest 3786c5d0d401cb98
