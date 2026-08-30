@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.3.1
+Stable tag: 1.4.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -143,6 +143,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 4. MCP endpoint — JSON-RPC response with tools and resources
 
 == Changelog ==
+
+= 1.4.0 - 2026-08-30 =
+* Feature: agent-callable forms (declarative WebMCP) - the [corsen_agent_form] shortcode renders a real form; with the new opt-in setting it carries toolname/tooldescription/toolparamdescription attributes, so Chrome registers it as a tool and an in-page agent can fill and submit it like a person. Off: the same form stays human-only. Submissions are stored (bounded to 50) and marked human or agent via SubmitEvent.agentInvoked, listed in the Agent Access panel.
 
 = 1.3.1 - 2026-08-30 =
 * Fix: the WebMCP bridge now forwards the AbortSignal that Chrome 153+ passes to execute(), so a cancelled agent call aborts the in-flight request to the MCP endpoint instead of leaving work running.

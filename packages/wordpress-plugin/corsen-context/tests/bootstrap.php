@@ -98,6 +98,14 @@ function sanitize_text_field( $s ): string { return trim( (string) $s ); }
 
 function sanitize_textarea_field( $s ): string { return trim( (string) $s ); }
 
+function sanitize_email( $s ): string { return trim( (string) $s ); }
+
+function esc_url( $url ): string { return (string) $url; }
+
+function admin_url( string $path = '' ): string { return 'https://example.com/wp-admin/' . $path; }
+
+function wp_nonce_field( ...$args ): void { echo '<input type="hidden" name="_corsen_nonce" value="testnonce" />'; }
+
 function get_post_types( $args = array() ): array { return array( 'post' => 'post', 'page' => 'page', 'product' => 'product' ); }
 
 function delete_transient( $k ): bool { return true; }
@@ -112,4 +120,5 @@ require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
 require_once dirname( __DIR__ ) . '/includes/class-webmcp.php';
+require_once dirname( __DIR__ ) . '/includes/class-agent-forms.php';
 require_once dirname( __DIR__ ) . '/includes/class-admin.php';

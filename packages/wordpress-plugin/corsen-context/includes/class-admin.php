@@ -118,6 +118,17 @@ class Corsen_Context_Admin {
 				'description' => 'Optional. Chrome only exposes WebMCP during the origin trial when the page serves this token; agents with built-in WebMCP support need none. Register your origin at developer.chrome.com/origintrials.',
 			)
 		);
+		add_settings_field(
+			'agent_forms_enabled',
+			'Agent-callable forms',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_general',
+			array(
+				'field' => 'agent_forms_enabled',
+				'label' => 'Forms built with the [corsen_agent_form] shortcode become declarative WebMCP tools (the agent fills and submits them). Off: the same forms stay human-only.',
+			)
+		);
 		add_settings_section(
 			'corsen_context_content',
 			'Content Settings',
@@ -243,6 +254,7 @@ class Corsen_Context_Admin {
 		$sanitized['credit']            = ! empty( $input['credit'] );
 		$sanitized['include_author']    = ! empty( $input['include_author'] );
 		$sanitized['webmcp_enabled']    = ! empty( $input['webmcp_enabled'] );
+		$sanitized['agent_forms_enabled'] = ! empty( $input['agent_forms_enabled'] );
 		$all_tools                      = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
 		$requested_tools                = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? $all_tools ) );
 		$sanitized['enabled_tools']     = array_values( array_intersect( $all_tools, $requested_tools ) );
@@ -318,6 +330,7 @@ class Corsen_Context_Admin {
 			array( 'MCP endpoint (agents outside the browser)', $mcp ),
 			array( 'WebMCP (agents inside the page)', $webmcp ),
 			array( 'llms.txt discovery', $llms ),
+			array( 'Agent-callable forms (declarative WebMCP)', $on && ! empty( $settings['agent_forms_enabled'] ) ),
 		);
 		echo '<table class="widefat striped" style="margin-bottom:10px;"><tbody>';
 		foreach ( $rows as $row ) {
@@ -330,7 +343,11 @@ class Corsen_Context_Admin {
 		}
 		echo '</tbody></table>';
 
-		echo '<p style="margin:6px 0;"><strong>Agents can:</strong> read only. They look up and read your published content. They cannot create, edit, delete, or click anything &mdash; every tool is marked read-only and untrusted-content.</p>';
+		if ( ! empty( $settings['agent_forms_enabled'] ) ) {
+			echo '<p style="margin:6px 0;"><strong>Agents can:</strong> read your published content, and fill only the forms you explicitly marked agent-callable with <code>[corsen_agent_form]</code>. Everything else stays human-only.</p>';
+		} else {
+			echo '<p style="margin:6px 0;"><strong>Agents can:</strong> read only. They look up and read your published content. They cannot create, edit, delete, or click anything &mdash; every tool is marked read-only and untrusted-content.</p>';
+		}
 
 		printf(
 			'<p style="margin:6px 0;"><strong>Tools exposed:</strong> %s</p>',
@@ -348,6 +365,9 @@ class Corsen_Context_Admin {
 		}
 
 		echo '<p class="description" style="margin:6px 0 0;">Change any of these below, then Save.</p>';
+		if ( ! empty( $settings['agent_forms_enabled'] ) ) {
+			Corsen_Context_Agent_Forms::render_submissions();
+		}
 		echo '</div>';
 	}
 
