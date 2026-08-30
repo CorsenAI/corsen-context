@@ -17,6 +17,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         {/* Same-origin bridge: every browser tool call is forwarded to POST /v1/mcp. */}
         {mcpEnabled && <script src="/webmcp.js" defer />}
+        <link rel="stylesheet" href="/corsen/cc-nav.css" />
+        <link rel="stylesheet" href="/corsen/cc-observatory.css" />
+        <script src="/corsen/cc-observatory.js" defer></script>
+        <script src="/corsen/cc-nav.js" defer></script>
       </head>
       <body>{children}</body>
     </html>

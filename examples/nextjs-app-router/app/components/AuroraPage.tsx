@@ -24,25 +24,13 @@ const navigation = [
 export function AuroraPage({ page }: { page: DemoPage }) {
   return (
     <>
-      <header className="site-header">
-        <a className="brand" href="/" aria-label="Aurora Kits home">
-          <span aria-hidden="true">AK</span>
-          Aurora Kits
-        </a>
-        <nav aria-label="Demo pages">
-          <ul>
-            {navigation.map(([href, label]) => (
-              <li key={href}>
-                <a href={href} aria-current={page.path === href ? 'page' : undefined}>
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </header>
+      <div data-cc-nav data-stack="Next.js" data-uid="nextjs" data-home="/" data-accent="#b6167b"></div>
       <main>
         {page.view === 'home' && <Home />}
+        <section id="live" style={{ margin: '40px 0 20px' }}>
+          <h2>Live contract observatory</h2>
+          <div data-cc-observatory data-stack="Next.js" data-endpoint="/v1/mcp" data-query="AK-E17" data-accent="#b6167b"></div>
+        </section>
         {page.view === 'products' && <ProductComparison />}
         {page.view === 'diagnostic' && <Diagnostic />}
         {page.view === 'policies' && <Policies />}
@@ -51,13 +39,7 @@ export function AuroraPage({ page }: { page: DemoPage }) {
         {page.view === 'integration' && <IntegrationSelector />}
         {page.view === 'resource' && <ResourceArticle page={page} />}
       </main>
-      <footer>
-        <p>
-          Four read-only tools · <a href="/llms.txt">llms.txt</a> · <code>POST /v1/mcp</code> ·
-          WebMCP
-        </p>
-        <p>Next.js reference integration powered by Corsen Context.</p>
-      </footer>
+      <footer data-cc-foot data-stack="Next.js" data-accent="#b6167b"></footer>
     </>
   );
 }

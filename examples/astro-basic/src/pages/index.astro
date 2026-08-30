@@ -47,7 +47,10 @@ const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
         display: inline-block; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25);
         padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
       }
-      .ast-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: stretch; }
+      .ast-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: stretch; min-width: 0; }
+      .ast-grid > * { min-width: 0; max-width: 100%; }
+      .ast-card, .cc-obs-root { min-width: 0; max-width: 100%; }
+      .ast-flow li, .ast-flow code { min-width: 0; overflow-wrap: anywhere; }
       .ast-card {
         background: #fff; border: 1px solid #e6e2ee; border-radius: 16px; padding: 24px;
       }
@@ -62,6 +65,7 @@ const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
       .ast-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
       .ast-chip { font-size: 12px; font-weight: 600; color: #7a1fa2; background: #f3e8fa; border: 1px solid #e6d2f2; border-radius: 999px; padding: 4px 12px; }
       @media (max-width: 860px) { .ast-grid { grid-template-columns: 1fr; } }
+      body { overflow-x: hidden; }
     </style>
   </head>
   <body>

@@ -121,7 +121,7 @@ export const integrationSteps = [
 export const pages = [
   {
     path: '/',
-    title: 'Aurora Kits WebMCP use-case gallery',
+    title: 'Static HTML WebMCP Demo - Corsen Context',
     description:
       'Copyable prompts for product comparison, AK-E17 support, and EU school policy research',
     type: 'page',
