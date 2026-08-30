@@ -87,6 +87,13 @@ export type { LogLevel, LoggerOptions, Logger } from './logger.js';
 export type { InMemoryPage } from './providers.js';
 export type { DiscoveryConfig } from './discovery.js';
 export { generateLlmsTxt, generateLlmsFullTxt } from './llms-txt.js';
+export {
+  generateWebMCPScript,
+  toWebMCPTools,
+  webMCPAnnotationsFor,
+  WEBMCP_TOOL_ANNOTATIONS,
+} from './webmcp.js';
+export type { WebMCPTool, WebMCPToolAnnotations, WebMCPScriptConfig } from './webmcp.js';
 export { parseSitemap, discoverSitemap } from './sitemap.js';
 export { htmlToMarkdown, extractMetadata } from './converter.js';
 export { MemoryCache } from './cache.js';

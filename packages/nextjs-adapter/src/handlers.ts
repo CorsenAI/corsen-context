@@ -2,6 +2,8 @@ import {
   CorsenContext,
   MAX_BODY_SIZE,
   SECURITY_HEADERS,
+  generateWebMCPScript,
+  toWebMCPTools,
   type CorsenContextConfig,
   type ContentProvider,
   type CacheDriver,
@@ -346,6 +348,30 @@ export function createSSEHandler(
   };
 }
 
+/**
+ * Creates a handler that serves the WebMCP bridge script.
+ *
+ * Mount it on a route (e.g. `app/webmcp.js/route.ts`) and load it with
+ * `<script src="/webmcp.js" defer></script>`: the page then registers the
+ * same tools the MCP endpoint serves with an agent running inside the page,
+ * through document.modelContext. Every execute() calls back into the MCP
+ * endpoint, so the browser never reimplements a tool.
+ */
+export function createWebMCPScriptHandler(config: CorsenContextConfig, provider: ContentProvider) {
+  return async function GET(): Promise<Response> {
+    const instance = getInstance(config, provider);
+    const server = instance.createMCPServer();
+    const script = generateWebMCPScript(toWebMCPTools(server.getToolDefinitions()), {
+      mcpEndpoint: config.mcp?.endpoint,
+    });
+
+    const headers = new Headers(SECURITY_HEADERS);
+    headers.set('Content-Type', 'application/javascript; charset=utf-8');
+    headers.set('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+
+    return new Response(script, { status: 200, headers });
+  };
+}
 /**
  * Creates a handler that serves /llms.txt
  */
