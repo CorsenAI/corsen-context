@@ -2,6 +2,7 @@
 // Landing page. The <script> below is the whole WebMCP integration: it loads
 // the bridge, which registers this site's tools with an agent running inside
 // the page (document.modelContext). Every execute() calls back into /v1/mcp.
+const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
 ---
 <html lang="en">
   <head>
@@ -9,7 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Corsen Context — Astro WebMCP demo</title>
     <meta name="description" content="A site made agent-native over MCP, llms.txt and WebMCP." />
-    <script src="/webmcp.js" defer></script>
+    {mcpEnabled && <script src="/webmcp.js" defer></script>}
     <link rel="stylesheet" href="/cc-observatory.css" />
     <link rel="stylesheet" href="/cc-nav.css" />
     <style>
