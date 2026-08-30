@@ -26,13 +26,8 @@ async function loadPosts() {
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Ghost Content API returned ${res.status}`);
   const body = await res.json();
-  const ALLOWED = new Set([
-    'what-is-an-agent-native-cms',
-    'our-cms-now-talks-to-ai-agents',
-    'why-we-moved-to-ghost',
-  ]);
   return (body.posts || [])
-    .filter((p) => ALLOWED.has(String(p.slug)))
+    .filter((p) => 'coming-soon' !== String(p.slug))
     .map((p) => ({
     path: `/posts/${encodeURIComponent(String(p.slug))}`,
     title: p.title,
