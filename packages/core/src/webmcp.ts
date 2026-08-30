@@ -80,6 +80,9 @@ function embedJson(value: unknown): string {
  *   cannot introduce a tool the server does not already serve.
  * - Every forwarded call carries the MCP-Protocol-Version header, which the
  *   endpoint requires on every request after initialize.
+ * - Chrome 153+ passes an AbortSignal as execute's second argument; the
+ *   bridge forwards it to fetch, so a cancelled execution aborts the
+ *   in-flight request instead of leaving work running.
  */
 export function generateWebMCPScript(
   tools: WebMCPTool[],
@@ -99,10 +102,11 @@ export function generateWebMCPScript(
   var mc = document.modelContext || navigator.modelContext;
   if (!mc || typeof mc.registerTool !== 'function') return;
 
-  function call(name, args) {
+  function call(name, args, signal) {
     return fetch(endpoint, {
       method: 'POST',
       credentials: 'omit',
+      signal: signal || null,
       // The endpoint rejects version-less calls: MCP requires the negotiated
       // protocol version header on every request after initialize.
       headers: {
@@ -136,7 +140,7 @@ export function generateWebMCPScript(
       description: tool.description,
       inputSchema: tool.inputSchema,
       annotations: tool.annotations,
-      execute: function (input) { return call(tool.name, input); }
+      execute: function (input, options) { return call(tool.name, input, options && options.signal); }
     });
   });
 })();`;

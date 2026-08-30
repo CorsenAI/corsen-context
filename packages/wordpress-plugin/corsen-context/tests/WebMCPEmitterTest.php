@@ -81,6 +81,12 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringContainsString( '"' . Corsen_Context_MCP_Server::protocol_version() . '"', $script );
 	}
 
+	public function test_execute_forwards_the_abort_signal_to_fetch(): void {
+		$script = $this->script();
+		$this->assertStringContainsString( 'options && options.signal', $script );
+		$this->assertStringContainsString( 'signal: signal || null', $script );
+	}
+
 	public function test_carries_annotations_to_the_agent(): void {
 		$script = $this->script();
 		$this->assertStringContainsString( '"untrustedContentHint":true', $script );

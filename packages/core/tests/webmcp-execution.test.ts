@@ -30,12 +30,12 @@ interface RegisteredTool {
   description: string;
   inputSchema: unknown;
   annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
-  execute: (input?: object) => Promise<string>;
+  execute: (input?: object, options?: { signal?: unknown }) => Promise<string>;
 }
 
 interface FetchCall {
   url: string;
-  init: { credentials?: string; headers?: Record<string, string>; body?: string };
+  init: { credentials?: string; signal?: unknown; headers?: Record<string, string>; body?: string };
 }
 
 function buildScript(): string {
@@ -149,6 +149,25 @@ describe('the generated bridge, executed', () => {
     const body = JSON.parse(String(fetchCalls[0].init.body));
     expect(body.method).toBe('tools/call');
     expect(body.params).toEqual({ name: 'search_site', arguments: { query: 'hello' } });
+  });
+
+  it("execute() forwards the abort signal Chrome passes as the second argument", async () => {
+    const { registered, fetchCalls } = runScript(script);
+    const search = registered.find((t) => t.name === 'search_site');
+    const signal = { aborted: false };
+
+    await search?.execute({ query: 'x' }, { signal });
+
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].init.signal).toBe(signal);
+  });
+
+  it('execute() without an options argument sends no signal', async () => {
+    const { registered, fetchCalls } = runScript(script);
+
+    await registered[0].execute({});
+
+    expect(fetchCalls[0].init.signal ?? null).toBeNull();
   });
 
   it('execute() surfaces an HTTP failure as an error', async () => {

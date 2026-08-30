@@ -77,6 +77,11 @@ describe('generateWebMCPScript', () => {
     expect(script).toContain(`"${MCP_PROTOCOL_VERSION}"`);
   });
 
+  it("forwards Chrome's abort signal to the fetch call", () => {
+    expect(script).toContain('options && options.signal');
+    expect(script).toContain('signal: signal || null');
+  });
+
   it('honours a custom endpoint', () => {
     expect(generateWebMCPScript(tools, { mcpEndpoint: '/wp-json/corsen-context/v1/mcp' })).toContain(
       '"/wp-json/corsen-context/v1/mcp"'
