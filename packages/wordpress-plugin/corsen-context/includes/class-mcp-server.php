@@ -98,6 +98,30 @@ class Corsen_Context_MCP_Server {
 		$response->header( 'Allow', 'POST' );
 		return $response;
 	}
+
+	/**
+	 * Handle CORS preflight OPTIONS requests.
+	 *
+	 * WordPress 6.8+ intercepts OPTIONS before rest_pre_dispatch fires,
+	 * so this must be a registered route callback rather than relying on
+	 * the pre-dispatch filter.
+	 */
+	public function handle_options_request( \WP_REST_Request $request ): \WP_REST_Response {
+		$origin = trim( (string) $request->get_header( 'Origin' ) );
+		if ( ! Corsen_Context_Security::validate_origin( $origin ) ) {
+			return $this->http_error_response( 403, 'Invalid Origin' );
+		}
+
+		$preflight = Corsen_Context_Security::add_security_headers( new \WP_REST_Response( null, 204 ) );
+		$preflight->header( 'Access-Control-Allow-Methods', 'POST, OPTIONS' );
+		$preflight->header( 'Access-Control-Allow-Headers', 'Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, Authorization' );
+		$preflight->header( 'Vary', 'Origin' );
+		if ( '' !== $origin ) {
+			$preflight->header( 'Access-Control-Allow-Origin', $origin );
+		}
+		return $preflight;
+	}
+
 	/**
 	 * Handle incoming MCP JSON-RPC request.
 	 *

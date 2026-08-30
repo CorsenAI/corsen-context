@@ -317,7 +317,7 @@ final class Corsen_Context {
 				),
 				array(
 					'methods'             => 'OPTIONS',
-					'callback'            => '__return_true',
+					'callback'            => array( $mcp, 'handle_options_request' ),
 					'permission_callback' => '__return_true',
 				),
 			)
