@@ -36,11 +36,7 @@ class Corsen_Context_MCP_Server {
 	 * browser surface must use this helper instead of constructing a path.
 	 */
 	public static function endpoint_url(): string {
-		$url = rest_url( 'corsen-context/v1/mcp' );
-		// rest_url encodes the leading slash as %2F when the REST prefix is a
-		// filtered query-string form (?rest_route=...). Decode it so callers and
-		// discovery surfaces see the canonical slash-prefixed path.
-		return str_replace( '%2F', '/', $url );
+		return rest_url( 'corsen-context/v1/mcp' );
 	}
 
 	/**

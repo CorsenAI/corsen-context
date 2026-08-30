@@ -450,7 +450,8 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$settings['credit']          = false;
 		update_option( 'corsen_context_settings', $settings );
 		delete_transient( 'corsen_context_llms_txt' );
-		$expected = home_url( '/?corsen_rest=corsen-context%2Fv1%2Fmcp' );
+		// WordPress 6.8+ passes a leading-slash path to the rest_url filter.
+		$expected = home_url( '/?corsen_rest=%2Fcorsen-context%2Fv1%2Fmcp' );
 
 		try {
 			$this->assertSame( $expected, Corsen_Context_MCP_Server::endpoint_url() );

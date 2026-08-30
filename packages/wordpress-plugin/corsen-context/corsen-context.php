@@ -317,7 +317,7 @@ final class Corsen_Context {
 				),
 				array(
 					'methods'             => 'OPTIONS',
-					'callback'            => array( $mcp, 'handle_pre_dispatch_request' ),
+					'callback'            => '__return_true',
 					'permission_callback' => '__return_true',
 				),
 			)
