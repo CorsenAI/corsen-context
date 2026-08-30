@@ -2,15 +2,12 @@ import type { ContentProvider } from '@corsenai/corsen-context';
 
 /**
  * Example content provider with static demo data.
- * Replace this with your actual CMS, database, or API integration.
+ * Replace this with your actual CMS, content collections, or API integration.
  *
- * URLs derive from NEXT_PUBLIC_SITE_URL so the sitemap, llms.txt and the
- * tools always advertise the origin the site is actually served from.
+ * URLs derive from SITE_URL so the sitemap, llms.txt and the tools always
+ * advertise the origin the site is actually served from.
  */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://demo.example.com').replace(
-  /\/$/,
-  '',
-);
+export const SITE_URL = (process.env.SITE_URL || 'http://localhost:4321').replace(/\/$/, '');
 
 interface DemoPage {
   path: string;
@@ -25,11 +22,11 @@ export const demoPages: DemoPage[] = [
   {
     path: '/',
     title: 'Home',
-    description: 'Welcome to our demo site',
+    description: 'Welcome to our Astro demo site',
     type: 'page',
     lastModified: '2026-04-01',
     markdown:
-      '# Welcome to Demo Site\n\nThis is a demo site powered by Corsen Context.\n\nAI agents can access our content through the MCP endpoint or by reading /llms.txt.',
+      '# Welcome to the Astro Demo\n\nThis site is powered by Corsen Context.\n\nAI agents can access our content through the MCP endpoint, by reading /llms.txt, or right inside this page over WebMCP.',
   },
   {
     path: '/about',
@@ -46,7 +43,7 @@ export const demoPages: DemoPage[] = [
     type: 'post',
     lastModified: '2026-04-05',
     markdown:
-      '# Getting Started with AI Context\n\nMaking your site AI-native takes less than 5 minutes.\n\n## Step 1: Install\n\n```bash\nnpm install @corsenai/corsen-context\n```\n\n## Step 2: Configure\n\nCreate a content provider and mount the MCP endpoint.\n\n## Step 3: Verify\n\nRun `npx @corsenai/corsen-context-cli doctor --url https://yoursite.com` to check.',
+      '# Getting Started with AI Context\n\nMaking your site AI-native takes less than 5 minutes.\n\n## Step 1: Install\n\n```bash\nnpm install @corsenai/corsen-context-astro\n```\n\n## Step 2: Configure\n\nCreate a content provider and mount the handlers as API routes.\n\n## Step 3: Verify\n\nRun `npx @corsenai/corsen-context-cli doctor --url https://yoursite.com` to check.',
   },
   {
     path: '/blog/mcp-explained',
