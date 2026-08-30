@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -143,6 +143,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 4. MCP endpoint — JSON-RPC response with tools and resources
 
 == Changelog ==
+
+= 1.3.1 - 2026-08-30 =
+* Fix: the WebMCP bridge now forwards the AbortSignal that Chrome 153+ passes to execute(), so a cancelled agent call aborts the in-flight request to the MCP endpoint instead of leaving work running.
 
 = 1.3.0 - 2026-08-29 =
 * Feature: WebMCP support (opt-in) - registers the same four read-only tools with AI agents running inside the page through document.modelContext, with an optional Chrome origin-trial token field. The in-page bridge forwards every call to the existing MCP endpoint, sends no credentials, stays same-origin, and refuses to register inside frames.
