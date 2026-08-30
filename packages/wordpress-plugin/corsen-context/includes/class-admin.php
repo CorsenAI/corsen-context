@@ -247,17 +247,17 @@ class Corsen_Context_Admin {
 		$input     = is_array( $input ) ? $input : array();
 		$sanitized = array();
 
-		$sanitized['enabled']           = ! empty( $input['enabled'] );
-		$sanitized['mcp_enabled']       = ! empty( $input['mcp_enabled'] );
-		$sanitized['llms_txt_enabled']  = ! empty( $input['llms_txt_enabled'] );
-		$sanitized['llms_full_enabled'] = ! empty( $input['llms_full_enabled'] );
-		$sanitized['credit']            = ! empty( $input['credit'] );
-		$sanitized['include_author']    = ! empty( $input['include_author'] );
-		$sanitized['webmcp_enabled']    = ! empty( $input['webmcp_enabled'] );
+		$sanitized['enabled']             = ! empty( $input['enabled'] );
+		$sanitized['mcp_enabled']         = ! empty( $input['mcp_enabled'] );
+		$sanitized['llms_txt_enabled']    = ! empty( $input['llms_txt_enabled'] );
+		$sanitized['llms_full_enabled']   = ! empty( $input['llms_full_enabled'] );
+		$sanitized['credit']              = ! empty( $input['credit'] );
+		$sanitized['include_author']      = ! empty( $input['include_author'] );
+		$sanitized['webmcp_enabled']      = ! empty( $input['webmcp_enabled'] );
 		$sanitized['agent_forms_enabled'] = ! empty( $input['agent_forms_enabled'] );
-		$all_tools                      = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
-		$requested_tools                = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? $all_tools ) );
-		$sanitized['enabled_tools']     = array_values( array_intersect( $all_tools, $requested_tools ) );
+		$all_tools                        = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
+		$requested_tools                  = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? $all_tools ) );
+		$sanitized['enabled_tools']       = array_values( array_intersect( $all_tools, $requested_tools ) );
 		if ( empty( $sanitized['enabled_tools'] ) ) {
 			$sanitized['enabled_tools'] = $all_tools;
 		}
