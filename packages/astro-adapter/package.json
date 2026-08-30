@@ -1,6 +1,6 @@
 {
   "name": "@corsenai/corsen-context-astro",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Astro adapter for Corsen Context — AI Context Layer with MCP + llms.txt",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",
@@ -10,7 +10,13 @@
     "url": "https://github.com/CorsenAI/corsen-context.git",
     "directory": "packages/astro-adapter"
   },
-  "keywords": ["mcp", "llms-txt", "astro", "ai", "corsen"],
+  "keywords": [
+    "mcp",
+    "llms-txt",
+    "astro",
+    "ai",
+    "corsen"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -21,7 +27,11 @@
       "require": "./dist/index.js"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "vitest run",
