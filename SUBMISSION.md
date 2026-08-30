@@ -38,6 +38,28 @@ The agent calls `search_site`, then `get_page_content`, and answers from the
 site's own structured content — no scraping, no hallucinated URLs, no brittle
 DOM selectors. The person stays in control and sees exactly which tools ran.
 
+## Live demos — one contract, the web's real stacks
+
+Every demo serves `/llms.txt`, answers `POST /v1/mcp`, and registers the same
+four tools with an in-page agent over WebMCP:
+
+| URL | Stack | What it proves |
+|-----|-------|----------------|
+| https://webmcp.corsen.ai | WordPress (plugin from wordpress.org) | 40% of the web, one checkbox, zero code |
+| https://express-webmcp.corsen.ai | Express | a route handler is enough |
+| https://nextjs-webmcp.corsen.ai | Next.js App Router | the adapter does it |
+| https://astro-webmcp.corsen.ai | Astro | same adapter pattern |
+| https://html-webmcp.corsen.ai | Static HTML | fully static + exactly one function for `/v1/mcp` |
+| https://ghost-webmcp.corsen.ai | Ghost | wrap a CMS's Content API — no CMS plugin |
+| https://strapi-webmcp.corsen.ai | Strapi | same pattern, headless CMS |
+| https://directus-webmcp.corsen.ai | Directus | same pattern, data platform |
+| https://wagtail-webmcp.corsen.ai | Wagtail (Python/Django) | the language behind the API doesn't matter |
+| https://mediawiki-webmcp.corsen.ai | MediaWiki | the software behind Wikipedia, zero extensions |
+
+The five CMS demos share one shape: a thin provider over the CMS's own HTTP
+API. No CMS-specific plugin, no schema surgery — if a system can answer HTTP,
+it can be agent-native.
+
 ## The security posture is the differentiator
 
 WebMCP's own spec names its risks: instructions hidden in a tool's description
@@ -91,21 +113,22 @@ existed before the submission period** — the public repository contained no
 `modelContext`, `webmcp`, or `web-mcp` reference at all.
 
 - **Prior work** — everything up to and including commit `73ecaee` on `main`.
-- **New work, built during the submission period** — the WebMCP layer, on
-  branch `feat/webmcp-challenge`, commits after `73ecaee`. Timestamped,
-  dated commit history is public on the branch.
+- **New work, built during the submission period** — the WebMCP layer,
+  developed on branch `feat/webmcp-challenge` and squashed into `main` as
+  `8cedb8c`; everything after `73ecaee`. Timestamped, dated commit history is
+  public.
 
 What the new work adds:
 
 | Area | New in this submission |
 |------|------------------------|
 | Contract | `tools.manifest.json` + cross-runtime parity tests |
-| Core (TS) | `generateWebMCPScript`, tool annotations, bridge security tests |
+| Core (TS) | `generateWebMCPScript`, tool annotations, bridge security tests, agent-abort forwarding (Chrome 153+ AbortSignal) |
 | WordPress | WebMCP emitter, admin toggle, origin-trial token support, tests |
 | Next.js | `createWebMCPScriptHandler` route handler + tests |
 | Astro | `createWebMCPScriptHandler` route handler + tests |
 | CLI | `doctor` now checks the homepage for a WebMCP bridge |
-| Example | Next.js demo serving MCP + WebMCP + llms.txt from one definition; Express demo serves the bridge at `/webmcp.js` |
+| Examples | Next.js, Express, Astro, static-HTML demos; plus five real CMS wrapped through their own APIs (Ghost, Strapi, Directus, Wagtail, MediaWiki) — each deployable, each with a README |
 | Diagnostics | `examples/webmcp-diagnostic.html` |
 | Docs | README WebMCP surface; corrected earlier MCP compliance wording |
 
