@@ -775,9 +775,11 @@ ${inner}
           setStep('get_sitemap', 'running', 'get_sitemap()');
           var sitemapRaw = await rpc('tools/call', { name: 'get_sitemap', arguments: {} });
           var sitemapData = parseResult(sitemapRaw);
-          var sitemapEntries = sitemapData
-            ? (sitemapData.entries || sitemapData.pages || (Array.isArray(sitemapData) ? sitemapData : null))
-            : null;
+          var sitemapEntries = Array.isArray(sitemapData)
+            ? sitemapData
+            : (sitemapData && Array.isArray(sitemapData.entries)
+                ? sitemapData.entries
+                : (sitemapData && Array.isArray(sitemapData.pages) ? sitemapData.pages : null));
           var sitemapType = null;
           if (sitemapEntries && sitemapEntries.length) {
             for (var i2 = 0; i2 < sitemapEntries.length; i2++) {
