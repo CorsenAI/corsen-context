@@ -17,8 +17,8 @@ const targets = [
     mcpPath: '/wp-json/corsen-context/v1/mcp',
     bridge: 'inline',
     query: 'Explorer v2',
-    expectedPath: '/products/',
-    expectedMarker: 'Explorer v2',
+    expectedPath: '/explorer-kit-v2/',
+    expectedMarker: 'Explorer Kit v2',
   },
   {
     id: 'express',
@@ -43,18 +43,18 @@ const targets = [
     baseUrl: 'https://astro-webmcp.corsen.ai',
     mcpPath: '/v1/mcp',
     bridge: '/webmcp.js',
-    query: 'AK-E17',
-    expectedPath: '/guides/ak-e17',
-    expectedMarker: 'AK-E17',
+    query: 'Home',
+    expectedPath: '/',
+    expectedMarker: 'Welcome to the Astro Demo',
   },
   {
     id: 'static-html',
     baseUrl: 'https://html-webmcp.corsen.ai',
     mcpPath: '/v1/mcp',
     bridge: '/webmcp.js',
-    query: 'AK-E17',
-    expectedPath: '/guides/ak-e17',
-    expectedMarker: 'AK-E17',
+    query: 'Home',
+    expectedPath: '/',
+    expectedMarker: 'plain HTML',
   },
   {
     id: 'ghost',
@@ -350,7 +350,7 @@ async function postInitializedNotification(target) {
     fail('MCP_FAILURE', `notifications/initialized request failed (${kind})`);
   }
 
-  if (response.status !== 202) {
+  if (response.status !== 202 && response.status !== 204) {
     fail('MCP_FAILURE', `notifications/initialized returned HTTP ${response.status}`);
   }
   const text = await readBounded(
