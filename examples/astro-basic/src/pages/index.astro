@@ -1,17 +1,124 @@
 ---
-import AuroraPage from '../components/AuroraPage.astro';
-import { demoPages } from '../lib/provider';
-const page = demoPages.find((item) => item.path === '/');
-const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
+// Landing page. The <script> below is the whole WebMCP integration: it loads
+// the bridge, which registers this site's tools with an agent running inside
+// the page (document.modelContext). Every execute() calls back into /v1/mcp.
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Aurora Kits — Astro WebMCP use-case gallery</title>
-    <meta name="description" content="Read-only product, support, policy, and guide workflows over four WebMCP tools." />
-    {mcpEnabled && <script src="/webmcp.js" defer></script>}
-    {mcpEnabled && <script src="/webmcp-status.js" defer></script>}
+    <title>Corsen Context — Astro WebMCP demo</title>
+    <meta name="description" content="A site made agent-native over MCP, llms.txt and WebMCP." />
+    <script src="/webmcp.js" defer></script>
+    <link rel="stylesheet" href="/cc-observatory.css" />
+    <link rel="stylesheet" href="/cc-nav.css" />
+    <style>
+      :root { color-scheme: light; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0; padding: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.55; color: #12202e; background: #fdfcfe;
+      }
+      .cc-section {
+        max-width: 1080px; margin: 0 auto; padding: 64px 24px 40px;
+        scroll-margin-top: 74px;
+      }
+      .cc-eyebrow {
+        text-transform: uppercase; letter-spacing: .12em;
+        font-size: 12px; font-weight: 700; color: #b6167b; margin-bottom: 10px;
+        display: block;
+      }
+      .cc-section h2 {
+        font-size: clamp(1.5rem, 3.2vw, 2.2rem); font-weight: 800;
+        letter-spacing: -.01em; margin: 0 0 12px;
+      }
+      .cc-section > p.sub { color: #4b3a5e; max-width: 760px; margin: 0 0 36px; font-size: 1.02rem; }
+
+      .ast-hero {
+        background: linear-gradient(160deg, #32004d 0%, #531a78 55%, #7a1fa2 100%);
+        color: #fff; padding: 64px 24px 52px; text-align: center;
+        scroll-margin-top: 74px;
+      }
+      .ast-hero h1 { font-size: clamp(1.8rem, 4.6vw, 2.8rem); margin: 16px 0 14px; font-weight: 800; letter-spacing: -.01em; }
+      .ast-hero p { max-width: 720px; margin: 0 auto; color: #e9d5f6; font-size: 1.05rem; }
+      .ast-hero .ast-tag {
+        display: inline-block; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25);
+        padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+      }
+      .ast-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: stretch; }
+      .ast-card {
+        background: #fff; border: 1px solid #e6e2ee; border-radius: 16px; padding: 24px;
+      }
+      .ast-card h3 { margin: 0 0 10px; font-size: 1.15rem; }
+      .ast-card p { color: #4b3a5e; font-size: 14.5px; margin: 0 0 12px; }
+      .ast-flow { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+      .ast-flow li {
+        display: flex; align-items: center; gap: 10px; font-size: 14px;
+        background: #f7f4fa; border: 1px solid #e9e3f0; border-radius: 10px; padding: 10px 14px;
+      }
+      .ast-flow code { background: #ede6f4; border-radius: 5px; padding: 1px 6px; font-size: 12.5px; }
+      .ast-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .ast-chip { font-size: 12px; font-weight: 600; color: #7a1fa2; background: #f3e8fa; border: 1px solid #e6d2f2; border-radius: 999px; padding: 4px 12px; }
+      @media (max-width: 860px) { .ast-grid { grid-template-columns: 1fr; } }
+    </style>
   </head>
-  <body>{page && <AuroraPage page={page} />}</body>
+  <body>
+    <!-- Shared navigation (injected by cc-nav.js) -->
+    <div data-cc-nav data-stack="Astro" data-uid="astro" data-home="#top"></div>
+
+    <header class="ast-hero" id="top">
+      <span class="ast-tag">Live Contract Observatory — Astro</span>
+      <h1>Site content, readable by agents — without scraping</h1>
+      <p>
+        This Astro site exposes the same four read-only tools over MCP and WebMCP.
+        The browser never reimplements a tool: every call returns to this site's own endpoint.
+      </p>
+    </header>
+
+    <main>
+      <section class="cc-section" id="live">
+        <span class="cc-eyebrow">Live proof</span>
+        <h2>Watch a real trace against this site</h2>
+        <p class="sub">Same origin, no credentials, read-only. The sequence below runs <code>initialize → tools/list → search_site → get_page_content</code> against this Astro process — nothing is simulated.</p>
+        <div class="ast-grid">
+          <div class="ast-card">
+            <h3>Human page → WebMCP tools → site content</h3>
+            <p>The bridge registers the four tools with <code>document.modelContext</code>; every call returns to <code>POST /v1/mcp</code> served by the same Astro instance.</p>
+            <ul class="ast-flow">
+              <li><code>Human page</code> — this page, built with Astro</li>
+              <li><code>WebMCP tools</code> — registered via <code>document.modelContext</code> by <code>/webmcp.js</code></li>
+              <li><code>Site content</code> — served by <code>POST /v1/mcp</code> from this Astro process</li>
+            </ul>
+            <div class="ast-chips">
+              <span class="ast-chip">Same contract hash as flagship: 3786c5d0</span>
+            </div>
+          </div>
+          <div
+            data-cc-observatory
+            data-stack="Astro"
+            data-endpoint="/v1/mcp"
+            data-query="Home"
+          ></div>
+        </div>
+      </section>
+
+      <section class="cc-section" id="how">
+        <span class="cc-eyebrow">How it works</span>
+        <h2>One contract, three surfaces</h2>
+        <p class="sub">The same four tools are implemented once per runtime and exposed three ways. WebMCP is just one of them — this page is the human surface, the tools are the agent surface, and both share one content policy.</p>
+        <ul class="ast-flow" style="max-width: 760px">
+          <li><a href="/llms.txt" rel="noopener">/llms.txt</a> — static overview for discovery</li>
+          <li><code>POST /v1/mcp</code> — MCP endpoint for agents outside the browser</li>
+          <li><code>document.modelContext</code> — WebMCP, for an agent running inside this page</li>
+        </ul>
+        <p style="margin-top:18px;color:#4b3a5e">Try in a WebMCP-capable browser: <em>“Search this site for AI context, then summarise the top result.”</em></p>
+      </section>
+    </main>
+
+    <footer data-cc-foot data-stack="Astro"></footer>
+
+    <script src="/cc-observatory.js" defer></script>
+    <script src="/cc-nav.js" defer></script>
+  </body>
 </html>
