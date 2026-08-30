@@ -95,6 +95,8 @@ Because a page's content comes from authors, comments and imports, every tool is
 - **Next.js** — mount `createWebMCPScriptHandler` on a route and load it with `<script src="/webmcp.js" defer>` (see `examples/nextjs-app-router`).
 - **Astro** — same handler, mounted as `src/pages/webmcp.js.ts`.
 - **Express** — serve `generateWebMCPScript()` from a `/webmcp.js` route (see `examples/express-basic`).
+- **An existing CMS** — wrap its HTTP API once as a `ContentProvider` and every surface lights up: see the Ghost (`examples/ghost-cms`), Strapi (`examples/strapi-cms`), Directus (`examples/directus-cms`), Wagtail (`examples/wagtail-cms`) and MediaWiki (`examples/mediawiki-cms`) examples.
+- **A static site** — generate `llms.txt` and the bridge at build time, keep exactly one function for `POST /v1/mcp` (see `examples/static-html`).
 - **Any site** — `generateWebMCPScript()` from the core returns the bridge as a string.
 
 ---
