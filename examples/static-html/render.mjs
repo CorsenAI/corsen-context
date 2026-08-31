@@ -1,10 +1,10 @@
 import {
   accessBoundary,
-  diagnostic,
+  troubleshooting,
   integrationStacks,
   integrationSteps,
   policies,
-  products,
+  tools,
   prompts,
   resources,
 } from './content.mjs';
@@ -18,9 +18,9 @@ const esc = (value) =>
 
 const navigation = [
   ['/', 'Overview'],
-  ['/products', 'Kits'],
-  ['/guides/ak-e17', 'Support'],
-  ['/shipping-education', 'Policies'],
+  ['/tools', 'Tools'],
+  ['/guides/mcp-404', 'Support'],
+  ['/security', 'Security'],
   ['/guides', 'Guides'],
   ['/agent-access', 'Access'],
   ['/integrate', 'Integrate'],
@@ -74,34 +74,34 @@ const intro = (eyebrow, title, copy) =>
 function home({ mcpEnabled = true } = {}) {
   const workflows = [
     [
-      '/products',
-      'Product discovery',
-      'Compare three kits from published facts',
-      'Prices, age guidance, project counts, camera, arm, LiDAR, and ROS 2.',
+      '/tools',
+      'Tool contract',
+      'Read the four-tool contract and bounds',
+      'search_site, get_page_content, list_content, and get_sitemap.',
     ],
     [
-      '/guides/ak-e17',
+      '/guides/mcp-404',
       'Support',
       'Retrieve a fixed diagnostic sequence',
-      'Three ordered steps and one explicit stop-and-escalate rule for AK-E17.',
+      'Three ordered checks and one stop-and-escalate rule for MCP-404.',
     ],
     [
-      '/shipping-education',
-      'Policy research',
-      'Answer a multi-policy question',
-      'EU shipping, verified education discount, returns, and parts warranty.',
+      '/security',
+      'Security',
+      'Review the four guarantees',
+      'Read-only, same-origin, rate-limited, and bounded.',
     ],
     [
       '/guides',
-      'Fresh content',
+      'Guides',
       'Browse six dated guides',
-      'Every guide is a real provider entry with its own retrievable URL.',
+      'WebMCP setup, MCP vs WebMCP, install, security, stacks, and llms.txt.',
     ],
   ];
   const browserStatus = mcpEnabled
     ? '<span data-webmcp-status>status not checked (JavaScript is unavailable)</span>'
     : '<span data-state="disabled">disabled by the owner at build time</span>';
-  return `<section class="hero"><div><p class="eyebrow">WebMCP use-case gallery</p><h1>Corsen Context &mdash; WebMCP Demo</h1><p class="lede">Aurora Kits is a fictional robotics catalog built to show how a browser agent can research products, support, and policies through owner-published read-only data.</p><p class="hero-links"><a class="primary-link" href="#try-prompts">Try a prompt</a><a class="secondary-link" href="/agent-access">Check the boundary</a></p></div><aside class="tool-panel" aria-labelledby="tool-panel-title"><p class="eyebrow" id="tool-panel-title">Published interface</p><dl><div><dt>search_site</dt><dd>Find the relevant URL</dd></div><div><dt>get_page_content</dt><dd>Retrieve its clean content</dd></div><div><dt>list_content</dt><dd>Browse public records</dd></div><div><dt>get_sitemap</dt><dd>Map the public corpus</dd></div></dl></aside><aside class="browser-status" aria-live="polite"><p><strong>Browser WebMCP:</strong> ${browserStatus}</p><a href="/integrate">Browser setup</a></aside></section><p class="demo-disclaimer">Aurora Kits is a fictional, deterministic demo corpus; prices/policies are not commercial offers.</p>
+  return `<section class="hero"><div><p class="eyebrow">WebMCP use-case gallery</p><h1>Corsen Context &mdash; WebMCP Demo</h1><p class="lede">Corsen Context gives a site an explicit, owner-governed read path for agents — four read-only tools served over MCP and registered in-page through WebMCP.</p><p class="hero-links"><a class="primary-link" href="#try-prompts">Try a prompt</a><a class="secondary-link" href="/agent-access">Check the boundary</a></p></div><aside class="tool-panel" aria-labelledby="tool-panel-title"><p class="eyebrow" id="tool-panel-title">Published interface</p><dl><div><dt>search_site</dt><dd>Find the relevant URL</dd></div><div><dt>get_page_content</dt><dd>Retrieve its clean content</dd></div><div><dt>list_content</dt><dd>Browse public records</dd></div><div><dt>get_sitemap</dt><dd>Map the public corpus</dd></div></dl></aside><aside class="browser-status" aria-live="polite"><p><strong>Browser WebMCP:</strong> ${browserStatus}</p><a href="/integrate">Browser setup</a></aside></section><p class="demo-disclaimer">This is a live deployment of the Corsen Context static-HTML example, served from one origin with the same four read-only tools.</p>
   <section class="section" id="try-prompts" aria-labelledby="prompt-title"><p class="eyebrow">Try with your agent</p><h2 id="prompt-title">Three copyable research prompts</h2><p class="section-intro">Copy any prompt into your agent. The page does not simulate an answer or perform an action on your behalf.</p><ol class="prompt-rail">${prompts
     .map((prompt, index) => {
       const promptId = `research-prompt-${index + 1}`;
@@ -112,12 +112,12 @@ function home({ mcpEnabled = true } = {}) {
   <section class="integration-callout" aria-labelledby="integration-callout-title"><div><p class="eyebrow">For site owners</p><h2 id="integration-callout-title">Replace the demo records with your content.</h2><p>The human pages and all four tools read from the same records, so URLs and answers stay aligned.</p></div><a class="primary-link" href="/integrate">View the static HTML path</a></section>`;
 }
 
-const productsView = () =>
-  `${intro('Product discovery', 'Compare Aurora robotics kits', 'A compact fact table that can be retrieved from the same provider as this page.')}<div class="table-wrap"><table><caption>Published Aurora Kits comparison</caption><thead><tr><th scope="col">Kit</th><th scope="col">Price</th><th scope="col">Published facts</th></tr></thead><tbody>${products.map((product) => `<tr><th scope="row">${product.name}</th><td class="price">${product.price}</td><td><ul class="inline-facts">${product.facts.map((fact) => `<li>${fact}</li>`).join('')}</ul></td></tr>`).join('')}</tbody></table></div><aside class="evidence-note"><strong>Useful chain:</strong> search for “no soldering” or “LiDAR”, then retrieve this page with <code>get_page_content</code>.</aside>`;
-const diagnosticView = () =>
-  `${intro('Support diagnostic', `${diagnostic.code} — ${diagnostic.title}`, 'The recovery sequence has exactly three steps. Its stop condition is part of the published record.')}<section class="diagnostic-card" aria-labelledby="steps-title"><div class="code-badge">${diagnostic.code}</div><h2 id="steps-title">Run once, in this order</h2><ol class="steps">${diagnostic.steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol></section><aside class="escalation" aria-labelledby="escalation-title"><p class="eyebrow">Safety boundary</p><h2 id="escalation-title">When to stop and escalate</h2><p>${esc(diagnostic.escalation)}</p></aside>`;
+const toolsView = () =>
+  `${intro('Tool contract', 'The four read-only tools', 'A compact fact table that can be retrieved from the same provider as this page.')}<div class="table-wrap"><table><caption>Published tool contract</caption><thead><tr><th scope="col">Tool</th><th scope="col">Returns</th><th scope="col">Bounds</th></tr></thead><tbody>${tools.map((tool) => `<tr><th scope="row">${tool.name}</th><td >${tool.returns}</td><td><ul class="inline-facts">${tool.facts.map((fact) => `<li>${fact}</li>`).join('')}</ul></td></tr>`).join('')}</tbody></table></div><aside class="evidence-note"><strong>Useful chain:</strong> search for “sitemap” or “Markdown”, then retrieve this page with <code>get_page_content</code>.</aside>`;
+const troubleshootingView = () =>
+  `${intro('Support diagnostic', `${troubleshooting.code} — ${troubleshooting.title}`, 'The recovery sequence has exactly three steps. Its stop condition is part of the published record.')}<section class="diagnostic-card" aria-labelledby="steps-title"><div class="code-badge">${troubleshooting.code}</div><h2 id="steps-title">Run once, in this order</h2><ol class="steps">${troubleshooting.steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol></section><aside class="escalation" aria-labelledby="escalation-title"><p class="eyebrow">Safety boundary</p><h2 id="escalation-title">When to stop and escalate</h2><p>${esc(troubleshooting.escalation)}</p></aside>`;
 const policiesView = () =>
-  `${intro('Policy research', 'Four policies, one retrievable page', 'A multi-part question can be answered from explicit policy records without a checkout or form action.')}<dl class="policy-grid">${policies.map((policy) => `<div><dt>${policy.label}</dt><dd>${policy.value}</dd></div>`).join('')}</dl>`;
+  `${intro('Security', 'Four guarantees, one retrievable page', 'The public contract is intentionally read-only and bounded.')}<dl class="policy-grid">${policies.map((policy) => `<div><dt>${policy.label}</dt><dd>${policy.value}</dd></div>`).join('')}</dl>`;
 const resourcesView = () =>
   `${intro('Freshness and discovery', 'Six dated guides', 'Each guide has a stable provider URL, title, description, and publication date.')}<ol class="resource-grid">${resources.map((resource) => `<li><article><time datetime="${resource.date}">${resource.date}</time><h2><a href="${resource.path}">${resource.title}</a></h2><p>${resource.description}.</p></article></li>`).join('')}</ol>`;
 const accessView = () =>
@@ -127,14 +127,14 @@ const integrationView = () =>
 
 function resourceView(page) {
   const resource = resources.find((item) => item.path === page.path);
-  return `<article class="resource-article"><p class="eyebrow">Aurora Kits guide</p><h1>${esc(resource.title)}</h1><p class="published">Published <time datetime="${resource.date}">${resource.date}</time></p><p class="lede">${esc(resource.description)}.</p><div class="resource-copy">${esc(resource.body)}</div><p><a href="/guides">← Back to all six guides</a></p></article>`;
+  return `<article class="resource-article"><p class="eyebrow">Corsen Context guide</p><h1>${esc(resource.title)}</h1><p class="published">Published <time datetime="${resource.date}">${resource.date}</time></p><p class="lede">${esc(resource.description)}.</p><div class="resource-copy">${esc(resource.body)}</div><p><a href="/guides">← Back to all six guides</a></p></article>`;
 }
 
 export function renderDocument(page, options = {}) {
   const views = {
     home: () => home(options),
-    products: productsView,
-    diagnostic: diagnosticView,
+    tools: toolsView,
+    troubleshooting: troubleshootingView,
     policies: policiesView,
     resources: resourcesView,
     access: accessView,
@@ -152,5 +152,5 @@ export function renderDocument(page, options = {}) {
     ...(llmsTxtEnabled ? ['<a href="/llms.txt">llms.txt</a>'] : []),
     ...(mcpEnabled ? ['<code>POST /v1/mcp</code>', 'WebMCP'] : []),
   ].join(' · ');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(page.title)} — Aurora Kits</title><meta name="description" content="${esc(page.description)}"><style>${styles}</style><link rel="stylesheet" href="/corsen/cc-nav.css"><link rel="stylesheet" href="/corsen/cc-observatory.css">${agentScripts}</head><body><div data-cc-nav data-stack="Static HTML" data-uid="html" data-home="/" data-accent="#0f766e"></div><main id="top">${body}<section id="live" style="padding:32px 24px 8px"><h2>Live contract observatory</h2><div data-cc-observatory data-stack="Static HTML" data-endpoint="/v1/mcp" data-query="Static HTML" data-accent="#0f766e"></div></section></main><footer data-cc-foot data-stack="Static HTML" data-accent="#0f766e"></footer><script>${interactions}</script><script src="/corsen/cc-observatory.js" defer></script><script src="/corsen/cc-nav.js" defer></script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(page.title)}${page.path !== '/' ? ' — Corsen Context' : ''}</title><meta name="description" content="${esc(page.description)}"><style>${styles}</style><link rel="stylesheet" href="/corsen/cc-nav.css"><link rel="stylesheet" href="/corsen/cc-observatory.css">${agentScripts}</head><body><div data-cc-nav data-stack="Static HTML" data-uid="html" data-home="/" data-accent="#0f766e"></div><main id="top">${body}<section id="live" style="padding:32px 24px 8px"><h2>Live contract observatory</h2><div data-cc-observatory data-stack="Static HTML" data-endpoint="/v1/mcp" data-query="Static HTML" data-accent="#0f766e"></div></section></main><footer data-cc-foot data-stack="Static HTML" data-accent="#0f766e"></footer><script>${interactions}</script><script src="/corsen/cc-observatory.js" defer></script><script src="/corsen/cc-nav.js" defer></script></body></html>`;
 }
