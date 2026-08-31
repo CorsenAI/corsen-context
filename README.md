@@ -123,21 +123,17 @@ extensions. They can act as a frontend or run as a same-origin sidecar. See
 [`docs/CMS-BRIDGE-DEPLOYMENT.md`](docs/CMS-BRIDGE-DEPLOYMENT.md) before using
 one on an existing site.
 
+Shopify is supported natively and requires no Corsen Context code: every
+storefront exposes commerce over the Universal Commerce Protocol (UCP), with an
+MCP endpoint (`POST /api/ucp/mcp`) and an in-page WebMCP bridge
+(`document.modelContext`). See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md) for
+the live demo and the install flow.
+
 ## Quick start
 
 ### Next.js App Router
 
-The repository currently tracks npm candidate `2.0.0`; the public npm registry
-still serves `1.3.0` until the candidate is published. The command below
-therefore installs the public stable release, not proof of this checkout. Use
-`pnpm verify:examples:candidate` from a clone to test the exact local candidate.
-
-Publishing the candidate is a separate manual operation. A push to `main` may
-prepare a Changesets version pull request but cannot publish to npm. The publish
-workflow requires an exact confirmed `main` commit/version, runs through the
-`npm-publish` GitHub environment, rejects long-lived npm credentials, and uses
-npm trusted publishing through OIDC. Trusted-publisher setup for every package
-must still be verified on npm before publication.
+The packages are published on npm at `2.0.0`:
 
 ```bash
 npm install @corsenai/corsen-context @corsenai/corsen-context-nextjs
