@@ -146,7 +146,20 @@ function esc_url( $url ): string { return (string) $url; }
 
 function admin_url( string $path = '' ): string { return 'https://example.com/wp-admin/' . $path; }
 
-function get_post_types( $args = array() ): array { return array( 'post' => 'post', 'page' => 'page', 'product' => 'product' ); }
+function get_post_types( $args = array(), $output = 'names' ) {
+	if ( 'objects' === $output ) {
+		$out = array();
+		foreach ( array( 'post' => 'Posts', 'page' => 'Pages', 'product' => 'Products' ) as $name => $label ) {
+			$pt                 = new stdClass();
+			$pt->name           = $name;
+			$pt->labels         = new stdClass();
+			$pt->labels->name   = $label;
+			$out[ $name ]       = $pt;
+		}
+		return $out;
+	}
+	return array( 'post' => 'post', 'page' => 'page', 'product' => 'product' );
+}
 
 function delete_transient( $k ): bool { return true; }
 
@@ -161,3 +174,93 @@ require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
 require_once dirname( __DIR__ ) . '/includes/class-webmcp.php';
 require_once dirname( __DIR__ ) . '/includes/class-admin.php';
+require_once dirname( __DIR__ ) . '/includes/class-control-center.php';
+require_once dirname( __DIR__ ) . '/includes/class-abilities.php';
+
+/* ---- Admin-surface stubs (Control Center render tests) ---- */
+
+if ( ! function_exists( '__' ) ) {
+	function __( string $text, string $domain = 'default' ): string { return $text; }
+}
+if ( ! function_exists( 'esc_html__' ) ) {
+	function esc_html__( string $text, string $domain = 'default' ): string { return htmlspecialchars( $text, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_html_e' ) ) {
+	function esc_html_e( string $text, string $domain = 'default' ): void { echo htmlspecialchars( $text, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_attr__' ) ) {
+	function esc_attr__( string $text, string $domain = 'default' ): string { return htmlspecialchars( $text, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'esc_textarea' ) ) {
+	function esc_textarea( $text ): string { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+}
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( string $key ) { return $GLOBALS['corsen_test_transients'][ $key ] ?? false; }
+}
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( string $cap ): bool { return ! empty( $GLOBALS['corsen_test_can_manage'] ); }
+}
+if ( ! function_exists( 'add_submenu_page' ) ) {
+	function add_submenu_page( ...$args ): string { return 'corsen-context-control'; }
+}
+if ( ! function_exists( 'settings_fields' ) ) {
+	function settings_fields( string $group ): void { echo '<input type="hidden" name="option" value="' . esc_attr( $group ) . '" />'; }
+}
+if ( ! function_exists( 'submit_button' ) ) {
+	function submit_button( ?string $text = null ): void { echo '<p class="submit"><input type="submit" value="' . esc_attr( (string) $text ) . '" /></p>'; }
+}
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $number, int $decimals = 0 ): string { return number_format( (float) $number, $decimals ); }
+}
+
+/* ---- Abilities API + misc stubs ---- */
+
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public string $code;
+		public string $message;
+		public function __construct( string $code = '', string $message = '' ) {
+			$this->code    = $code;
+			$this->message = $message;
+		}
+		public function get_error_code(): string { return $this->code; }
+		public function get_error_message(): string { return $this->message; }
+	}
+}
+$GLOBALS['corsen_test_abilities']         = array();
+$GLOBALS['corsen_test_ability_categories'] = array();
+if ( ! function_exists( 'wp_register_ability' ) ) {
+	function wp_register_ability( string $name, array $args ) {
+		$GLOBALS['corsen_test_abilities'][ $name ] = $args;
+		return (object) array( 'name' => $name );
+	}
+}
+if ( ! function_exists( 'wp_register_ability_category' ) ) {
+	function wp_register_ability_category( string $name, array $args ): void {
+		$GLOBALS['corsen_test_ability_categories'][ $name ] = $args;
+	}
+}
+if ( ! function_exists( '__return_true' ) ) {
+	function __return_true(): bool { return true; }
+}
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $k, $v, $e = 0 ): bool { return true; }
+}
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $h ): bool { return true; }
+}
+if ( ! function_exists( 'get_posts' ) ) {
+	function get_posts( array $args = array() ): array { return $GLOBALS['corsen_test_posts'] ?? array(); }
+}
+if ( ! function_exists( 'get_permalink' ) ) {
+	function get_permalink( $post = null ): string { return 'https://example.com/?p=1'; }
+}
+if ( ! function_exists( 'get_the_title' ) ) {
+	function get_the_title( $post = 0 ): string { return 'Test post'; }
+}
+if ( ! function_exists( 'url_to_postid' ) ) {
+	function url_to_postid( $url ): int { return $GLOBALS['corsen_test_url_to_postid'] ?? 0; }
+}
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id = null ) { return $GLOBALS['corsen_test_post'] ?? null; }
+}

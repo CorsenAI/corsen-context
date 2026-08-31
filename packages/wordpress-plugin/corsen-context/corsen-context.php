@@ -30,6 +30,8 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-llms-generator.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-mcp-server.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-control-center.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-abilities.php';
 
 /**
  * Main plugin class.
@@ -79,9 +81,13 @@ final class Corsen_Context {
 		// REST API endpoints (MCP server).
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 
+		// WordPress Abilities API surface (inert before WP 6.9).
+		Corsen_Context_Abilities::init();
+
 		// Admin settings.
 		if ( is_admin() ) {
 			Corsen_Context_Admin::instance();
+			Corsen_Context_Control_Center::instance();
 		}
 
 		// Dashboard widget.

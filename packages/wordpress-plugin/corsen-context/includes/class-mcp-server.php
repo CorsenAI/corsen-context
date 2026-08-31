@@ -397,22 +397,52 @@ class Corsen_Context_MCP_Server {
 		$tool_name     = sanitize_text_field( $params['name'] );
 		$raw_arguments = array_key_exists( 'arguments', $params ) ? $params['arguments'] : array();
 
+		// One executor for every transport: MCP here, the WebMCP in-page bridge
+		// (through this same REST route) and the WordPress Abilities API.
+		$outcome = $this->execute_tool( $tool_name, $raw_arguments );
+		if ( empty( $outcome['ok'] ) ) {
+			if ( ! empty( $outcome['protocol_error'] ) ) {
+				return $this->error_response( $id, -32602, (string) $outcome['error'] );
+			}
+			return $this->tool_error_response( $id, (string) $outcome['error'] );
+		}
+
+		return $this->tool_result_response( $id, $outcome['result'] );
+	}
+
+	/**
+	 * Validate and run one enabled tool. Single source of truth shared by the
+	 * MCP JSON-RPC transport, the WebMCP bridge and the Abilities API layer.
+	 *
+	 * @param string $tool_name     Requested tool name.
+	 * @param mixed  $raw_arguments Raw arguments value from the caller.
+	 * @return array{ok?:bool,result?:mixed,error?:string,protocol_error?:bool}
+	 */
+	public function execute_tool( string $tool_name, $raw_arguments ): array {
 		// The CallToolRequest arguments member itself must be an object. Values
 		// inside a valid object are tool input and use CallToolResult.isError.
 		if ( ! is_array( $raw_arguments ) ) {
-			return $this->error_response( $id, -32602, 'Tool arguments must be an object' );
+			return array(
+				'ok'             => false,
+				'protocol_error' => true,
+				'error'          => 'Tool arguments must be an object',
+			);
 		}
 
 		// Honor the configured tool set (parity with the core config.mcp.tools).
 		if ( ! in_array( $tool_name, $this->get_enabled_tools(), true ) ) {
-			return $this->error_response( $id, -32602, 'Tool not found: ' . $tool_name );
+			return array(
+				'ok'             => false,
+				'protocol_error' => true,
+				'error'          => 'Tool not found: ' . $tool_name,
+			);
 		}
 
 		$arguments = $this->validate_tool_arguments( $tool_name, $raw_arguments );
 		if ( null === $arguments ) {
-			return $this->tool_error_response(
-				$id,
-				'Invalid tool parameters. Check this tool\'s inputSchema from tools/list and retry with only documented fields, types, and bounds.'
+			return array(
+				'ok'    => false,
+				'error' => 'Invalid tool parameters. Check this tool\'s inputSchema from tools/list and retry with only documented fields, types, and bounds.',
 			);
 		}
 
@@ -425,7 +455,10 @@ class Corsen_Context_MCP_Server {
 		if ( $cacheable ) {
 			$cached = get_transient( $cache_key );
 			if ( is_array( $cached ) && array_key_exists( 'result', $cached ) ) {
-				return $this->tool_result_response( $id, $cached['result'] );
+				return array(
+					'ok'     => true,
+					'result' => $cached['result'],
+				);
 			}
 		}
 
@@ -437,9 +470,9 @@ class Corsen_Context_MCP_Server {
 			case 'get_page_content':
 				$result = $this->get_page_content( $arguments['uri'] );
 				if ( null === $result ) {
-					return $this->tool_error_response(
-						$id,
-						'Resource not found or not exposed. Use a URL returned by search_site, list_content, or get_sitemap.'
+					return array(
+						'ok'    => false,
+						'error' => 'Resource not found or not exposed. Use a URL returned by search_site, list_content, or get_sitemap.',
 					);
 				}
 				break;
@@ -453,7 +486,11 @@ class Corsen_Context_MCP_Server {
 				break;
 
 			default:
-				return $this->error_response( $id, -32602, 'Tool not found: ' . $tool_name );
+				return array(
+					'ok'             => false,
+					'protocol_error' => true,
+					'error'          => 'Tool not found: ' . $tool_name,
+				);
 		}
 
 		if ( $cacheable ) {
@@ -461,7 +498,10 @@ class Corsen_Context_MCP_Server {
 			set_transient( $cache_key, array( 'result' => $result ), $ttl );
 		}
 
-		return $this->tool_result_response( $id, $result );
+		return array(
+			'ok'     => true,
+			'result' => $result,
+		);
 	}
 
 	/**
