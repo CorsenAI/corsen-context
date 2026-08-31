@@ -121,13 +121,13 @@ export const integrationSteps = [
 export const pages = [
   {
     path: '/',
-    title: 'Static HTML WebMCP Demo - Corsen Context',
+    title: 'Corsen Context — WebMCP Demo',
     description:
       'Copyable prompts for product comparison, AK-E17 support, and EU school policy research',
     type: 'page',
     lastModified: '2026-08-28',
     view: 'home',
-    markdown: `# Aurora Kits WebMCP use-case gallery\n\nUse the site through four explicit read-only tools.\n\n## Copyable prompts\n\n${prompts.map((prompt) => `- ${prompt}`).join('\n')}\n\n## Demonstrated workflows\n\n- Compare Explorer v2, Maker, and Pro.\n- Diagnose support code AK-E17.\n- Check EU shipping, verified school or club discounts, returns, and warranty.\n- Review current guides and access boundaries.`,
+    markdown: `# Corsen Context — WebMCP Demo\n\nUse the site through four explicit read-only tools.\n\n## Copyable prompts\n\n${prompts.map((prompt) => `- ${prompt}`).join('\n')}\n\n## Demonstrated workflows\n\n- Compare Explorer v2, Maker, and Pro.\n- Diagnose support code AK-E17.\n- Check EU shipping, verified school or club discounts, returns, and warranty.\n- Review current guides and access boundaries.`,
   },
   {
     path: '/products',
