@@ -68,6 +68,23 @@ Replace the sample entries in `content.mjs` with the public pages supplied by
 your own build/content pipeline. Do not include private, personalized, draft,
 or authenticated content.
 
+## Deploy to Netlify
+
+One click deploys this exact example — static site plus a serverless
+`POST /v1/mcp` function — to your own Netlify account:
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/CorsenAI/corsen-context&base=examples/static-html)
+
+The `netlify.toml` here sets `publish = "public"` and `functions directory =
+"netlify/functions"`. Netlify bundles `netlify/functions/mcp.mjs` (a translation
+of the reference `function/server.js`) with esbuild, so no runtime install step
+is needed. The function exports `config.path = "/v1/mcp"`, so the MCP endpoint
+is served directly at `https://<your-site>.netlify.app/v1/mcp`.
+
+The live demo for the WebMCP Challenge is at
+<https://corsen-context-demo.netlify.app> with its endpoint at
+<https://corsen-context-demo.netlify.app/v1/mcp>.
+
 ## Deployment invariant
 
 The HTML pages, `/webmcp.js`, and `POST /v1/mcp` must share one public origin.

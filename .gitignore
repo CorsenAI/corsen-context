@@ -22,3 +22,6 @@ coverage/
 *.tsbuildinfo
 *.zip
 *.tgz
+
+# Netlify local CLI state
+.netlify/

@@ -1,0 +1,6 @@
+[build]
+  publish = "public"
+  command = "node scripts/build.mjs"
+
+[functions]
+  directory = "netlify/functions"
