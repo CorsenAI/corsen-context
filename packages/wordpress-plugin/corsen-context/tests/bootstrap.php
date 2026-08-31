@@ -171,6 +171,10 @@ function wp_json_encode( $data, int $options = 0, int $depth = 512 ) {
 
 require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
+require_once dirname( __DIR__ ) . '/includes/class-tool-registry.php';
+require_once dirname( __DIR__ ) . '/includes/class-products.php';
+require_once dirname( __DIR__ ) . '/includes/class-expert.php';
+require_once dirname( __DIR__ ) . '/includes/class-audit.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
 require_once dirname( __DIR__ ) . '/includes/class-webmcp.php';
 require_once dirname( __DIR__ ) . '/includes/class-admin.php';
@@ -263,4 +267,86 @@ if ( ! function_exists( 'url_to_postid' ) ) {
 }
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id = null ) { return $GLOBALS['corsen_test_post'] ?? null; }
+}
+
+// --- Extension-tool stubs (products, expert, audit, control center v2). ---
+$GLOBALS['corsen_test_mails']    = array();
+$GLOBALS['corsen_test_postmeta'] = array();
+$GLOBALS['corsen_test_inserts']  = array();
+if ( ! function_exists( 'register_post_type' ) ) {
+	function register_post_type( $t, $a = array() ) { return (object) array( 'name' => $t ); }
+}
+if ( ! function_exists( 'wp_insert_post' ) ) {
+	function wp_insert_post( array $args, $arr = false ) {
+		$GLOBALS['corsen_test_inserts'][] = $args;
+		return $GLOBALS['corsen_test_insert_id'] ?? 99;
+	}
+}
+if ( ! function_exists( 'update_post_meta' ) ) {
+	function update_post_meta( $id, $key, $value ) {
+		$GLOBALS['corsen_test_postmeta'][ $id ][ $key ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_mail' ) ) {
+	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ): bool {
+		$GLOBALS['corsen_test_mails'][] = compact( 'to', 'subject', 'message' );
+		return true;
+	}
+}
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $k = '' ): string { return 'Test Site'; }
+}
+if ( ! function_exists( 'is_email' ) ) {
+	function is_email( $email ) {
+		return filter_var( (string) $email, FILTER_VALIDATE_EMAIL ) ?: false;
+	}
+}
+if ( ! function_exists( 'sanitize_email' ) ) {
+	function sanitize_email( $email ): string {
+		$email = strtolower( trim( (string) $email ) );
+		return filter_var( $email, FILTER_VALIDATE_EMAIL ) ? $email : '';
+	}
+}
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+	define( 'MINUTE_IN_SECONDS', 60 );
+	define( 'HOUR_IN_SECONDS', 3600 );
+	define( 'DAY_IN_SECONDS', 86400 );
+	define( 'WEEK_IN_SECONDS', 604800 );
+}
+if ( ! function_exists( 'esc_url_raw' ) ) {
+	function esc_url_raw( $url ): string { return (string) $url; }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; }
+}
+if ( ! function_exists( 'post_password_required' ) ) {
+	function post_password_required( $post = null ): bool { return false; }
+}
+if ( ! function_exists( 'get_the_terms' ) ) {
+	function get_the_terms( $post, $tax ) { return $GLOBALS['corsen_test_terms'] ?? false; }
+}
+if ( ! function_exists( 'wp_get_attachment_image_url' ) ) {
+	function wp_get_attachment_image_url( $id, $size = 'thumbnail' ): string { return 'https://example.com/img.jpg'; }
+}
+if ( ! function_exists( 'get_post_modified_time' ) ) {
+	function get_post_modified_time( $g = 'U', $gmt = false, $post = null ) { return '1750000000'; }
+}
+if ( ! function_exists( 'wp_nonce_url' ) ) {
+	function wp_nonce_url( $url, $action = -1, $name = '_wpnonce' ) {
+		return $url . '&' . $name . '=testnonce';
+	}
+}
+if ( ! class_exists( 'WP_Query' ) ) {
+	class WP_Query {
+		/** @var int */
+		public $found_posts = 0;
+		/** @var array<int,mixed> */
+		public $posts = array();
+		public function __construct( $args = array() ) {
+			unset( $args );
+			$this->found_posts = (int) ( $GLOBALS['corsen_test_found_posts'] ?? 0 );
+			$this->posts       = $GLOBALS['corsen_test_posts'] ?? array();
+		}
+	}
 }

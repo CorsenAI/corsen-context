@@ -413,12 +413,37 @@ class Corsen_Context_MCP_Server {
 	/**
 	 * Validate and run one enabled tool. Single source of truth shared by the
 	 * MCP JSON-RPC transport, the WebMCP bridge and the Abilities API layer.
+	 * Wraps the run with timing and the (fail-open) audit trail.
 	 *
 	 * @param string $tool_name     Requested tool name.
 	 * @param mixed  $raw_arguments Raw arguments value from the caller.
 	 * @return array{ok?:bool,result?:mixed,error?:string,protocol_error?:bool}
 	 */
 	public function execute_tool( string $tool_name, $raw_arguments ): array {
+		$start   = hrtime( true );
+		$outcome = $this->run_tool( $tool_name, $raw_arguments );
+		try {
+			Corsen_Context_Audit::record(
+				$tool_name,
+				is_array( $raw_arguments ) ? $raw_arguments : array(),
+				$outcome,
+				(int) round( ( hrtime( true ) - $start ) / 1000000 )
+			);
+		} catch ( \Throwable $e ) {
+			// Audit is observational only: a broken log must never change a tool response.
+			unset( $e );
+		}
+		return $outcome;
+	}
+
+	/**
+	 * Core executor body. See execute_tool() for the public entry point.
+	 *
+	 * @param string $tool_name     Requested tool name.
+	 * @param mixed  $raw_arguments Raw arguments value from the caller.
+	 * @return array{ok?:bool,result?:mixed,error?:string,protocol_error?:bool}
+	 */
+	private function run_tool( string $tool_name, $raw_arguments ): array {
 		// The CallToolRequest arguments member itself must be an object. Values
 		// inside a valid object are tool input and use CallToolResult.isError.
 		if ( ! is_array( $raw_arguments ) ) {
@@ -483,6 +508,18 @@ class Corsen_Context_MCP_Server {
 
 			case 'get_sitemap':
 				$result = $this->get_sitemap();
+				break;
+
+			case 'get_product':
+			case 'request_expert_call':
+				$extension = Corsen_Context_Tool_Registry::execute( $tool_name, $arguments );
+				if ( empty( $extension['ok'] ) ) {
+					return array(
+						'ok'    => false,
+						'error' => (string) ( $extension['error'] ?? 'The tool could not complete.' ),
+					);
+				}
+				$result = $extension['result'];
 				break;
 
 			default:
@@ -578,6 +615,10 @@ class Corsen_Context_MCP_Server {
 				return empty( $arguments ) ? array() : null;
 
 			default:
+				// WordPress-only extension tools validate in the registry.
+				if ( Corsen_Context_Tool_Registry::is_optional( $tool_name ) ) {
+					return Corsen_Context_Tool_Registry::validate( $tool_name, $arguments );
+				}
 				return null;
 		}
 	}
@@ -787,19 +828,35 @@ class Corsen_Context_MCP_Server {
 	}
 	/**
 	 * Get the enabled MCP tools (parity with the core config.mcp.tools).
-	 * Defaults to all four; override via the corsen_context_enabled_tools filter.
+	 * Defaults to the four contract tools; WordPress-only extension tools
+	 * (Corsen_Context_Tool_Registry::OPTIONAL_TOOLS) are never enabled by
+	 * default and stay unadvertised unless explicitly checked and configured.
+	 * Override via the corsen_context_enabled_tools filter.
 	 *
 	 * @return string[]
 	 */
 	private function get_enabled_tools(): array {
-		$all      = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
+		$all      = Corsen_Context_Tool_Registry::known();
+		$defaults = Corsen_Context_Tool_Registry::CORE_TOOLS;
 		$settings = get_option( 'corsen_context_settings', array() );
 		$enabled  = ( isset( $settings['enabled_tools'] ) && is_array( $settings['enabled_tools'] ) )
 			? array_values( array_intersect( $all, $settings['enabled_tools'] ) )
-			: $all;
+			: $defaults;
 		/** Filter the set of exposed MCP tools. */
 		$enabled = (array) apply_filters( 'corsen_context_enabled_tools', $enabled );
-		return array_values( array_intersect( $all, $enabled ) );
+		$enabled = array_values( array_intersect( $all, $enabled ) );
+		// An extension whose owner-side configuration disappeared is never exposed.
+		return array_values(
+			array_filter(
+				$enabled,
+				static function ( $tool ): bool {
+					if ( ! Corsen_Context_Tool_Registry::is_optional( (string) $tool ) ) {
+						return true;
+					}
+					return null !== Corsen_Context_Tool_Registry::extension_definition( (string) $tool );
+				}
+			)
+		);
 	}
 
 	/**
@@ -1208,6 +1265,19 @@ class Corsen_Context_MCP_Server {
 				),
 			),
 		);
+
+		// WordPress-only extension tools, appended in registry order and only
+		// when enabled: the default state stays manifest-exact, so the shared
+		// cross-runtime contract and its parity tests are untouched.
+		foreach ( Corsen_Context_Tool_Registry::OPTIONAL_TOOLS as $extension_tool ) {
+			if ( ! in_array( $extension_tool, $enabled, true ) ) {
+				continue;
+			}
+			$extension_def = Corsen_Context_Tool_Registry::extension_definition( $extension_tool );
+			if ( null !== $extension_def ) {
+				$defs[] = $extension_def;
+			}
+		}
 
 		// Only advertise enabled tools (parity with the core).
 		return array_values(

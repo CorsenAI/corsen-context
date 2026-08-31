@@ -32,6 +32,10 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-control-center.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-abilities.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-tool-registry.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-products.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-expert.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-audit.php';
 
 /**
  * Main plugin class.
@@ -84,10 +88,14 @@ final class Corsen_Context {
 		// WordPress Abilities API surface (inert before WP 6.9).
 		Corsen_Context_Abilities::init();
 
+		// Private storage for expert requests (registered only when configured).
+		Corsen_Context_Expert::init();
+
 		// Admin settings.
 		if ( is_admin() ) {
 			Corsen_Context_Admin::instance();
 			Corsen_Context_Control_Center::instance();
+			add_action( 'admin_init', array( 'Corsen_Context_Audit', 'maybe_install' ) );
 		}
 
 		// Dashboard widget.
@@ -111,6 +119,7 @@ final class Corsen_Context {
 		add_filter( 'robots_txt', array( $this, 'add_robots_discovery' ), 10, 2 );
 		// Scheduled cron tasks.
 		add_action( 'corsen_context_hourly_cleanup', array( 'Corsen_Context_Security', 'cleanup_rate_limits' ) );
+		add_action( 'corsen_context_hourly_cleanup', array( 'Corsen_Context_Audit', 'prune' ) );
 		add_action( 'corsen_context_regenerate_llms_full', array( $this, 'pre_generate_llms_full' ) );
 		add_action( 'corsen_context_regenerate_llms_full_once', array( $this, 'pre_generate_llms_full' ) );
 		// Activation / deactivation.
@@ -139,6 +148,7 @@ final class Corsen_Context {
 		update_option( 'corsen_context_rewrite_version', CORSEN_CONTEXT_VERSION );
 
 		$this->maybe_upgrade_settings();
+		Corsen_Context_Audit::maybe_install();
 		if ( ! wp_next_scheduled( 'corsen_context_hourly_cleanup' ) ) {
 			wp_schedule_event( time(), 'hourly', 'corsen_context_hourly_cleanup' );
 		}
@@ -163,6 +173,11 @@ final class Corsen_Context {
 			'cache_ttl'         => 3600,
 			'max_pages'         => 500,
 			'max_output_bytes'  => 5242880,
+			// v1.5.0 extension tools: fail-closed, owner opt-in.
+			'audit_enabled'     => false,
+			'expert_enabled'    => false,
+			'expert_email'      => '',
+			'expert_notify'     => false,
 		);
 		$current  = get_option( 'corsen_context_settings', false );
 		$settings = is_array( $current ) ? array_merge( $defaults, $current ) : $defaults;

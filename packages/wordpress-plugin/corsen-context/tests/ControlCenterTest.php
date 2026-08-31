@@ -48,10 +48,13 @@ class ControlCenterTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/value="search_site"[^>]*checked/', $html );
 		$this->assertMatchesRegularExpression( '/value="get_page_content"[^>]*checked/', $html );
 		$this->assertMatchesRegularExpression( '/value="get_sitemap"(?![^>]*checked)/', $html );
-		// Announced v1.5 tools render as locked "coming" cards, never as live toggles.
+		// v1.5 extension tools render as live cards, unchecked by default,
+		// and never as exposed until configured (expert) — see dedicated test.
 		$this->assertStringContainsString( 'get_product', $html );
 		$this->assertStringContainsString( 'request_expert_call', $html );
-		$this->assertStringNotContainsString( 'value="request_expert_call"', $html );
+		$this->assertMatchesRegularExpression( '/value="get_product"(?![^>]*checked)/', $html );
+		$this->assertMatchesRegularExpression( '/value="request_expert_call"(?![^>]*checked)/', $html );
+		$this->assertStringNotContainsString( 'coming', $html );
 		// Live agent preview reflects the stored settings.
 		$this->assertStringContainsString( 'search_site, get_page_content', $html );
 		$this->assertStringContainsString( 'Cached: 18 bytes', $html );

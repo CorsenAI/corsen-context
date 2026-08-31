@@ -178,6 +178,57 @@ class Corsen_Context_Admin {
 		);
 
 		add_settings_section(
+			'corsen_context_experts',
+			'Expert Requests & Audit',
+			array( $this, 'render_experts_intro' ),
+			'corsen-context'
+		);
+		add_settings_field(
+			'expert_enabled',
+			'Expert Requests Feature',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_experts',
+			array(
+				'field' => 'expert_enabled',
+				'label' => 'Allow the request_expert_call tool (private submissions only; still requires the tool checkbox above)',
+			)
+		);
+		add_settings_field(
+			'expert_email',
+			'Destination Email',
+			array( $this, 'render_text' ),
+			'corsen-context',
+			'corsen_context_experts',
+			array(
+				'field'       => 'expert_email',
+				'description' => 'Where submissions go. The tool stays hidden to agents until a valid destination address is saved here.',
+			)
+		);
+		add_settings_field(
+			'expert_notify',
+			'Email Notifications',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_experts',
+			array(
+				'field' => 'expert_notify',
+				'label' => 'Send a wp_mail notification for every submission',
+			)
+		);
+		add_settings_field(
+			'audit_enabled',
+			'Audit Log',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_experts',
+			array(
+				'field' => 'audit_enabled',
+				'label' => 'Record tool calls (tool name, argument fingerprint, hashed IP, outcome) in a bounded local table — max 500 rows / 30 days, no raw arguments or IPs stored',
+			)
+		);
+
+		add_settings_section(
 			'corsen_context_security',
 			'Security Settings',
 			null,
@@ -243,9 +294,13 @@ class Corsen_Context_Admin {
 		$sanitized['credit']                    = ! empty( $input['credit'] );
 		$sanitized['include_author']            = ! empty( $input['include_author'] );
 		$sanitized['webmcp_enabled']            = ! empty( $input['webmcp_enabled'] );
-		$all_tools                              = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
-		$requested_tools                        = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? $all_tools ) );
+		$all_tools                              = Corsen_Context_Tool_Registry::known();
+		$requested_tools                        = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS ) );
 		$sanitized['enabled_tools']             = array_values( array_intersect( $all_tools, $requested_tools ) );
+		$sanitized['audit_enabled']             = ! empty( $input['audit_enabled'] );
+		$sanitized['expert_enabled']            = ! empty( $input['expert_enabled'] );
+		$sanitized['expert_notify']             = ! empty( $input['expert_notify'] );
+		$sanitized['expert_email']              = sanitize_email( (string) ( $input['expert_email'] ?? '' ) );
 		$sanitized['webmcp_origin_trial_token'] = substr( (string) preg_replace( '/[^A-Za-z0-9+\/=]/', '', (string) ( $input['webmcp_origin_trial_token'] ?? '' ) ), 0, 4096 );
 		// Constrain persisted post types to publicly-registered types so a
 		// crafted POST can't expose a private/internal type via MCP.
@@ -293,8 +348,10 @@ class Corsen_Context_Admin {
 		$mcp       = $on && ! empty( $settings['mcp_enabled'] );
 		$webmcp    = $mcp && ! empty( $settings['webmcp_enabled'] );
 		$llms      = $on && ! empty( $settings['llms_txt_enabled'] );
-		$all_tools = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
-		$tools     = $settings['enabled_tools'] ?? $all_tools;
+		$all_tools = Corsen_Context_Tool_Registry::known();
+		$tools     = ( isset( $settings['enabled_tools'] ) && is_array( $settings['enabled_tools'] ) )
+			? $settings['enabled_tools']
+			: Corsen_Context_Tool_Registry::CORE_TOOLS;
 		$types     = $settings['post_types'] ?? array( 'post', 'page' );
 		$excluded  = array_filter(
 			array_map(
@@ -327,9 +384,18 @@ class Corsen_Context_Admin {
 		}
 		echo '</tbody></table>';
 
-		echo '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read only. They look up and read your selected published content. These tools cannot create, edit, delete, purchase, submit, or click &mdash; every exposed tool is marked read-only and untrusted-content.</p>';
-
-		$exposed_tools = array_values( array_intersect( $all_tools, (array) $tools ) );
+		$exposed_tools = array_values(
+			array_filter(
+				array_intersect( $all_tools, (array) $tools ),
+				static function ( $tool ): bool {
+					return ! Corsen_Context_Tool_Registry::is_optional( (string) $tool )
+						|| null !== Corsen_Context_Tool_Registry::extension_definition( (string) $tool );
+				}
+			)
+		);
+		echo in_array( 'request_expert_call', $exposed_tools, true )
+			? '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read your selected published content and file private expert-request submissions (a contact form the owner reviews; nothing is published or changed).</p>'
+			: '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read only. They look up and read your selected published content. These tools cannot create, edit, delete, purchase, submit, or click &mdash; every exposed tool is marked read-only and untrusted-content.</p>';
 		printf(
 			'<p style="margin:6px 0;"><strong>Tools exposed:</strong> %s</p>',
 			esc_html( empty( $exposed_tools ) ? 'None' : implode( ', ', $exposed_tools ) )
@@ -351,19 +417,26 @@ class Corsen_Context_Admin {
 
 	/** Intro copy for the Agent Tools section. */
 	public function render_tools_intro(): void {
-		echo '<p>Choose exactly which Corsen Context tools agents may call. Every tool is <strong>read-only</strong> &mdash; through these tools, agents can look up and read your selected published content but cannot create, edit, delete, purchase, submit, or click.</p>';
+		echo '<p>Choose exactly which Corsen Context tools agents may call. The four core tools and <code>get_product</code> are <strong>read-only</strong>. <code>request_expert_call</code> is a <strong>write</strong> tool: it only creates a private owner-side submission (like a contact form), never edits or publishes anything, is rate-limited, and stays hidden until a destination email is configured below.</p>';
+	}
+
+	/** Intro copy for the Expert Requests & Audit section. */
+	public function render_experts_intro(): void {
+		echo '<p>Owner-controlled extras: an optional write tool that turns agent requests into private submissions, and a bounded local audit log of tool calls. Both are off until you switch them on.</p>';
 	}
 
 	/** Per-tool checkboxes bound to the enabled_tools setting. */
 	public function render_enabled_tools(): void {
 		$settings = get_option( 'corsen_context_settings', array() );
 		$all      = array(
-			'search_site'      => 'Search content by keyword',
-			'get_page_content' => 'Read one page as clean markdown',
-			'list_content'     => 'List content by type, with pagination',
-			'get_sitemap'      => 'Return the structured sitemap',
+			'search_site'         => 'Search content by keyword',
+			'get_page_content'    => 'Read one page as clean markdown',
+			'list_content'        => 'List content by type, with pagination',
+			'get_sitemap'         => 'Return the structured sitemap',
+			'get_product'         => 'Read one product with live price and stock (requires WooCommerce)',
+			'request_expert_call' => 'Submit the expert-request form (WRITE tool; also needs the expert options below and stays hidden until a destination email is saved)',
 		);
-		$enabled  = $settings['enabled_tools'] ?? array_keys( $all );
+		$enabled  = $settings['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS;
 		// Preserve an explicit empty selection when every checkbox is cleared.
 		echo '<input type="hidden" name="corsen_context_settings[enabled_tools][]" value="" />';
 		foreach ( $all as $tool => $desc ) {

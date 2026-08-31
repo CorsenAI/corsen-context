@@ -49,7 +49,7 @@ class Corsen_Context_Abilities {
 			self::CATEGORY,
 			array(
 				'label'       => __( 'Corsen Context', 'corsen-context' ),
-				'description' => __( 'Read-only content tools published by the site owner for AI agents.', 'corsen-context' ),
+				'description' => __( 'Site tools published by the owner for AI agents: read-only content access, plus an opt-in private contact submission.', 'corsen-context' ),
 			)
 		);
 	}
@@ -87,7 +87,8 @@ class Corsen_Context_Abilities {
 					// unpassworded, owner-selected posts are ever exposed.
 					'permission_callback' => '__return_true',
 					'meta'                => array(
-						'annotations' => array( 'readonly' => true ),
+						// The expert tool writes private submissions; never claim readonly.
+						'annotations' => array( 'readonly' => 'request_expert_call' !== $tool ),
 						'public'      => true,
 					),
 				)
@@ -188,6 +189,28 @@ class Corsen_Context_Abilities {
 						),
 						'required'   => array( 'url' ),
 					),
+				);
+			case 'get_product':
+				return array(
+					'type'       => 'object',
+					'properties' => array(
+						'url'         => array( 'type' => 'string' ),
+						'title'       => array( 'type' => 'string' ),
+						'price'       => array( 'type' => 'number' ),
+						'currency'    => array( 'type' => 'string' ),
+						'inStock'     => array( 'type' => 'boolean' ),
+						'stockStatus' => array( 'type' => 'string' ),
+					),
+					'required'   => array( 'url', 'title' ),
+				);
+			case 'request_expert_call':
+				return array(
+					'type'       => 'object',
+					'properties' => array(
+						'queued' => array( 'type' => 'boolean' ),
+						'note'   => array( 'type' => 'string' ),
+					),
+					'required'   => array( 'queued' ),
 				);
 			default:
 				return array();

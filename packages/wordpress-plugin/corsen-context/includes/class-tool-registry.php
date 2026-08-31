@@ -1,0 +1,154 @@
+<?php
+/**
+ * Tool registry: the boundary between the cross-runtime contract and
+ * WordPress-only extension tools.
+ *
+ * The shared tools.manifest.json contract (PHP + TypeScript core
+ * parity-tested) owns CORE_TOOLS.
+ * OPTIONAL_TOOLS live here only: they are additive, WordPress-runtime tools,
+ * never enabled by default, and never advertised unless the owner enables
+ * them explicitly. Keeping this split explicit is what lets the shared
+ * contract keep its version while the WordPress runtime grows.
+ *
+ * Powered by Corsen Context - Built by Corsen AI - github.com/CorsenAI/corsen-context
+ *
+ * @package Corsen_Context
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Registry and owner-policy helpers.
+ */
+class Corsen_Context_Tool_Registry {
+
+	/** The four contract tools; also the default enabled set. Order is contractual. */
+	public const CORE_TOOLS = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
+
+	/** WordPress-runtime extensions, fail-closed (must be explicitly enabled). */
+	public const OPTIONAL_TOOLS = array( 'get_product', 'request_expert_call' );
+
+	/**
+	 * Every tool name the plugin knows about (also the sanitize whitelist).
+	 *
+	 * @return string[]
+	 */
+	public static function known(): array {
+		return array_merge( self::CORE_TOOLS, self::OPTIONAL_TOOLS );
+	}
+
+	/**
+	 * Whether a name is an optional extension rather than a contract tool.
+	 *
+	 * @param string $name Tool name.
+	 */
+	public static function is_optional( string $name ): bool {
+		return in_array( $name, self::OPTIONAL_TOOLS, true );
+	}
+
+	/**
+	 * Definition for one optional tool, mirroring the manifest shape.
+	 *
+	 * @param string $name Tool name.
+	 * @return array<string,mixed>|null
+	 */
+	public static function extension_definition( string $name ): ?array {
+		switch ( $name ) {
+			case 'get_product':
+				return Corsen_Context_Products::definition();
+			case 'request_expert_call':
+				return Corsen_Context_Expert::configured() ? Corsen_Context_Expert::definition() : null;
+			default:
+				return null;
+		}
+	}
+
+	/**
+	 * Validate arguments for an optional tool.
+	 *
+	 * @param string              $name       Tool name.
+	 * @param array<mixed>        $arguments  Raw arguments.
+	 * @return array<string,mixed>|null
+	 */
+	public static function validate( string $name, array $arguments ): ?array {
+		switch ( $name ) {
+			case 'get_product':
+				return Corsen_Context_Products::validate( $arguments );
+			case 'request_expert_call':
+				return Corsen_Context_Expert::validate( $arguments );
+			default:
+				return null;
+		}
+	}
+
+	/**
+	 * Execute an optional tool.
+	 *
+	 * @param string              $name Tool name.
+	 * @param array<string,mixed> $args Normalized arguments.
+	 * @return array<string,mixed> Shape ['ok'=>bool,'result'=>mixed,'error'=>string].
+	 */
+	public static function execute( string $name, array $args ): array {
+		switch ( $name ) {
+			case 'get_product':
+				return Corsen_Context_Products::execute( $args );
+			case 'request_expert_call':
+				return Corsen_Context_Expert::execute( $args );
+			default:
+				return array(
+					'ok'    => false,
+					'error' => 'Unknown extension tool.',
+				);
+		}
+	}
+
+	/**
+	 * Owner content policy: may agents read this content type at all?
+	 * Mirrors get_allowed_post_types() so tools agree with list/search/sitemap.
+	 *
+	 * @param string $post_type Post type slug.
+	 */
+	public static function allows_type( string $post_type ): bool {
+		$settings = get_option( 'corsen_context_settings', array() );
+		$selected = array_map( 'sanitize_key', (array) ( $settings['post_types'] ?? array( 'post', 'page' ) ) );
+		$public   = array_keys( get_post_types( array( 'public' => true ) ) );
+		return in_array( $post_type, array_values( array_intersect( $selected, $public ) ), true );
+	}
+
+	/**
+	 * Same public-URL policy as the MCP server: same site, http(s), no exclude.
+	 *
+	 * @param string $uri Absolute URL to check.
+	 * @return bool True when the URL may be served to agents.
+	 */
+	public static function public_url_ok( string $uri ): bool {
+		$parts = wp_parse_url( $uri );
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			return false;
+		}
+		$site = wp_parse_url( home_url() );
+		if ( empty( $site['host'] ) || strcasecmp( $parts['host'], $site['host'] ) !== 0 ) {
+			return false;
+		}
+		$path = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
+		$path = '/' === $path[0] ? $path : '/' . $path;
+
+		$settings     = get_option( 'corsen_context_settings', array() );
+		$exclude_rows = preg_split( '/[\r\n]+/', (string) ( $settings['exclude_paths'] ?? '' ) );
+		$norm         = rtrim( $path, '/' );
+		$norm         = '' === $norm ? '/' : $norm;
+		foreach ( $exclude_rows as $row ) {
+			$raw = trim( $row );
+			if ( '' === $raw || 0 === strpos( $raw, '#' ) ) {
+				continue;
+			}
+			$needle = '/' . ltrim( str_replace( '\\', '/', $raw ), '/' );
+			$needle = rtrim( $needle, '/' );
+			$needle = '' === $needle ? '/' : $needle;
+			if ( '' !== $needle && ( 0 === strpos( $path, $needle . '/' ) || $norm === $needle ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+}

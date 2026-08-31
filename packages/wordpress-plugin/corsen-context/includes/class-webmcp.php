@@ -22,28 +22,41 @@ defined( 'ABSPATH' ) || exit;
 class Corsen_Context_WebMCP {
 
 	/**
-	 * Every tool this plugin exposes reads published content, so all of them
-	 * are read-only and all of them return untrusted data: post bodies come
-	 * from authors, comments and imports, and a consuming agent must treat
-	 * that output as data rather than as instructions.
+	 * Read tools return untrusted data: post bodies come from authors,
+	 * comments and imports, and a consuming agent must treat that output as
+	 * data rather than as instructions. The one write tool
+	 * (request_expert_call) is marked non-readonly explicitly so clients
+	 * never mistake it for a safe read.
 	 *
-	 * Kept in sync with tools.manifest.json by ToolManifestParityTest.
+	 * The four core tools are kept in sync with tools.manifest.json by
+	 * ToolManifestParityTest; the extension entries below are WP-runtime only
+	 * and intentionally outside that shared manifest.
 	 */
 	private const ANNOTATIONS = array(
-		'search_site'      => array(
+		'search_site'         => array(
 			'readOnlyHint'         => true,
 			'untrustedContentHint' => true,
 		),
-		'get_page_content' => array(
+		'get_page_content'    => array(
 			'readOnlyHint'         => true,
 			'untrustedContentHint' => true,
 		),
-		'list_content'     => array(
+		'list_content'        => array(
 			'readOnlyHint'         => true,
 			'untrustedContentHint' => true,
 		),
-		'get_sitemap'      => array(
+		'get_sitemap'         => array(
 			'readOnlyHint'         => true,
+			'untrustedContentHint' => true,
+		),
+		'get_product'         => array(
+			'readOnlyHint'         => true,
+			'untrustedContentHint' => true,
+		),
+		'request_expert_call' => array(
+			'readOnlyHint'         => false,
+			'destructiveHint'      => false,
+			'idempotentHint'       => false,
 			'untrustedContentHint' => true,
 		),
 	);
