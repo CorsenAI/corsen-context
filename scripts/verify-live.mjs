@@ -16,9 +16,9 @@ const targets = [
     baseUrl: 'https://webmcp.corsen.ai',
     mcpPath: '/wp-json/corsen-context/v1/mcp',
     bridge: 'inline',
-    query: 'Explorer v2',
-    expectedPath: '/explorer-kit-v2/',
-    expectedMarker: 'Explorer Kit v2',
+    query: 'demo store',
+    expectedPath: '/store/',
+    expectedMarker: 'WEBMCP100',
   },
   {
     id: 'express',
