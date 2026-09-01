@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.2
+Stable tag: 1.5.3
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,16 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.3 - 2026-09-01 =
+* New owner-toggled extension tools, outside the cross-runtime contract and
+  fail-closed by default: get_sections (a flat outline with byte sizes, then
+  one 8192-byte section per call with byte-offset pagination, so a large page
+  no longer blows an agent's budget or gets truncated mid-answer) and
+  get_structured_data (the page's own JSON-LD typed blocks, sanitized and
+  size-bounded; empty means "no schema", as a fact, not an error).
+* The markdown converter now renders HTML tables as GitHub-flavored pipe
+  tables instead of flattened text soup.
 
 = 1.5.2 - 2026-09-01 =
 * Successful tool results now carry MCP structuredContent (typed JSON; list

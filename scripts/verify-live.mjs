@@ -397,9 +397,25 @@ async function initialize(target) {
 function contractDifferences(expected, actual) {
   const differences = [];
   const expectedNames = expected.map((tool) => tool.name);
-  const actualNames = actual.map((tool) => tool.name);
-  if (canonicalJson(expectedNames) !== canonicalJson(actualNames)) {
+  // The contract is the four core tools in exact order. Owner-toggled
+  // WordPress-only extensions are opt-in additions outside the manifest;
+  // they must never count as drift, but unknown extras are still a failure.
+  const declaredExtensions = new Set([
+    'get_product',
+    'get_sections',
+    'get_structured_data',
+    'request_expert_call',
+  ]);
+  const coreActualNames = actual
+    .filter((tool) => expectedNames.includes(tool.name))
+    .map((tool) => tool.name);
+  if (canonicalJson(expectedNames) !== canonicalJson(coreActualNames)) {
     differences.push('tool names/order');
+  }
+  for (const tool of actual) {
+    if (!expectedNames.includes(tool.name) && !declaredExtensions.has(tool.name)) {
+      differences.push(`unexpected undeclared tool ${tool.name}`);
+    }
   }
 
   for (const expectedTool of expected) {
@@ -436,7 +452,27 @@ async function listTools(target, expectedContract) {
     }
   }
 
-  const actualContract = contractFromTools(result.tools);
+  // Hash covers the manifest's four core tools only. Owner-toggled
+  // WordPress-only extensions are opt-in extras outside the contract;
+  // anything undeclared still fails the run.
+  const declaredExtensions = new Set([
+    'get_product',
+    'get_sections',
+    'get_structured_data',
+    'request_expert_call',
+  ]);
+  for (const tool of result.tools) {
+    if (
+      !expectedContract.some((tool2) => tool2.name === tool.name) &&
+      !declaredExtensions.has(tool.name)
+    ) {
+      fail('CONTRACT_DRIFT', `tools/list exposed undeclared tool ${tool.name}`);
+    }
+  }
+
+  const actualContract = contractFromTools(result.tools).filter((tool) =>
+    expectedContract.some((expected) => expected.name === tool.name),
+  );
   const actualHash = sha256(actualContract);
   const expectedHash = sha256(expectedContract);
   if (actualHash !== expectedHash) {

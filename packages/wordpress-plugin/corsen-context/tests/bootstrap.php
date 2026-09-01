@@ -174,6 +174,8 @@ require_once dirname( __DIR__ ) . '/includes/class-security.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-converter.php';
 require_once dirname( __DIR__ ) . '/includes/class-tool-registry.php';
 require_once dirname( __DIR__ ) . '/includes/class-products.php';
+require_once dirname( __DIR__ ) . '/includes/class-sections.php';
+require_once dirname( __DIR__ ) . '/includes/class-structured-data.php';
 require_once dirname( __DIR__ ) . '/includes/class-expert.php';
 require_once dirname( __DIR__ ) . '/includes/class-audit.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';

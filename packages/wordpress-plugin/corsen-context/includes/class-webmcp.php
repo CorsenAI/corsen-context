@@ -53,6 +53,14 @@ class Corsen_Context_WebMCP {
 			'readOnlyHint'         => true,
 			'untrustedContentHint' => true,
 		),
+		'get_sections'        => array(
+			'readOnlyHint'         => true,
+			'untrustedContentHint' => true,
+		),
+		'get_structured_data' => array(
+			'readOnlyHint'         => true,
+			'untrustedContentHint' => true,
+		),
 		'request_expert_call' => array(
 			'readOnlyHint'         => false,
 			'destructiveHint'      => false,

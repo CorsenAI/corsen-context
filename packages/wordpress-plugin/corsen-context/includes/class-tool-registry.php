@@ -26,7 +26,7 @@ class Corsen_Context_Tool_Registry {
 	public const CORE_TOOLS = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
 
 	/** WordPress-runtime extensions, fail-closed (must be explicitly enabled). */
-	public const OPTIONAL_TOOLS = array( 'get_product', 'request_expert_call' );
+	public const OPTIONAL_TOOLS = array( 'get_product', 'get_sections', 'get_structured_data', 'request_expert_call' );
 
 	/**
 	 * WooCommerce transactional pages (cart, checkout, account, terms) are
@@ -81,6 +81,10 @@ class Corsen_Context_Tool_Registry {
 		switch ( $name ) {
 			case 'get_product':
 				return Corsen_Context_Products::definition();
+			case 'get_sections':
+				return Corsen_Context_Sections::definition();
+			case 'get_structured_data':
+				return Corsen_Context_Structured_Data::definition();
 			case 'request_expert_call':
 				return Corsen_Context_Expert::configured() ? Corsen_Context_Expert::definition() : null;
 			default:
@@ -99,6 +103,10 @@ class Corsen_Context_Tool_Registry {
 		switch ( $name ) {
 			case 'get_product':
 				return Corsen_Context_Products::validate( $arguments );
+			case 'get_sections':
+				return Corsen_Context_Sections::validate( $arguments );
+			case 'get_structured_data':
+				return Corsen_Context_Structured_Data::validate( $arguments );
 			case 'request_expert_call':
 				return Corsen_Context_Expert::validate( $arguments );
 			default:
@@ -117,6 +125,10 @@ class Corsen_Context_Tool_Registry {
 		switch ( $name ) {
 			case 'get_product':
 				return Corsen_Context_Products::execute( $args );
+			case 'get_sections':
+				return Corsen_Context_Sections::execute( $args );
+			case 'get_structured_data':
+				return Corsen_Context_Structured_Data::execute( $args );
 			case 'request_expert_call':
 				return Corsen_Context_Expert::execute( $args );
 			default:
@@ -125,6 +137,37 @@ class Corsen_Context_Tool_Registry {
 					'error' => 'Unknown extension tool.',
 				);
 		}
+	}
+
+	/**
+	 * Resolve a URI to a post the public exposure policy allows reading.
+	 * Mirrors the MCP server's own gate: published, password-free, allowed
+	 * post type, not a WooCommerce transactional page, not an excluded path.
+	 * Shared by the WordPress-only extension tools so one policy rules all
+	 * machine surfaces.
+	 *
+	 * @param string $uri Absolute URL on this site.
+	 * @return \WP_Post|null
+	 */
+	public static function exposable_post( string $uri ): ?\WP_Post {
+		if ( ! self::public_url_ok( $uri ) || ! function_exists( 'url_to_postid' ) ) {
+			return null;
+		}
+		$post_id = url_to_postid( $uri );
+		if ( ! $post_id ) {
+			return null;
+		}
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post || 'publish' !== $post->post_status ) {
+			return null;
+		}
+		if ( ! empty( $post->post_password ) || self::is_woo_system_page( (int) $post->ID ) ) {
+			return null;
+		}
+		if ( ! self::allows_type( (string) $post->post_type ) ) {
+			return null;
+		}
+		return $post;
 	}
 
 	/**

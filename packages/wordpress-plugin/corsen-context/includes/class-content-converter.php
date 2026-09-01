@@ -76,6 +76,14 @@ class Corsen_Context_Content_Converter {
 		$html = preg_replace( '/<iframe[^>]*>.*?<\/iframe>/si', '', $html ) ?? $html;
 		$html = preg_replace( '/<noscript[^>]*>.*?<\/noscript>/si', '', $html ) ?? $html;
 
+		// Convert tables to GitHub-flavored Markdown rows before other rules
+		// flatten their cells: typed rows survive as rows, not text soup.
+		$html = preg_replace_callback(
+			'/<table\b[^>]*>.*?<\/table>/si',
+			array( __CLASS__, 'table_to_markdown' ),
+			$html
+		) ?? $html;
+
 		// Convert headings.
 		for ( $i = 6; $i >= 1; $i-- ) {
 			$prefix = str_repeat( '#', $i );
@@ -158,6 +166,52 @@ class Corsen_Context_Content_Converter {
 		$html = trim( $html );
 
 		return $html;
+	}
+
+	/**
+	 * Convert one <table> subtree to a GitHub-flavored Markdown table.
+	 *
+	 * @param array<int,string> $match Full table match.
+	 * @return string
+	 */
+	private static function table_to_markdown( array $match ): string {
+		if ( ! preg_match_all( '/<tr\b[^>]*>(.*?)<\/tr>/si', $match[0], $rows ) || empty( $rows[1] ) ) {
+			return ' ' . wp_strip_all_tags( $match[0] ) . ' ';
+		}
+
+		$grid  = array();
+		$width = 0;
+		foreach ( $rows[1] as $row_html ) {
+			$cells = array();
+			if ( preg_match_all( '/<(t[dh])\b[^>]*>(.*?)<\/\1>/si', $row_html, $found, PREG_SET_ORDER ) ) {
+				foreach ( $found as $cell ) {
+					$text    = preg_replace( '/<br\b[^>]*\/?>/i', ' ', $cell[2] ) ?? $cell[2];
+					$text    = wp_strip_all_tags( $text );
+					$text    = trim( preg_replace( '/\s+/u', ' ', $text ) ?? $text );
+					$text    = str_replace( array( '\\', '|' ), array( '\\\\', '\\|' ), $text );
+					$cells[] = $text;
+				}
+			}
+			if ( empty( $cells ) ) {
+				continue;
+			}
+			$width  = max( $width, count( $cells ) );
+			$grid[] = $cells;
+		}
+		if ( empty( $grid ) ) {
+			return ' ' . wp_strip_all_tags( $match[0] ) . ' ';
+		}
+
+		$lines = array();
+		foreach ( $grid as $index => $cells ) {
+			$cells   = array_pad( $cells, $width, '' );
+			$row     = '| ' . implode( ' | ', $cells ) . ' |';
+			$lines[] = $row;
+			if ( 0 === $index ) {
+				$lines[] = '| ' . implode( ' | ', array_fill( 0, $width, '---' ) ) . ' |';
+			}
+		}
+		return "\n" . implode( "\n", $lines ) . "\n";
 	}
 
 	/**

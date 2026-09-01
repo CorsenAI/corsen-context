@@ -48,6 +48,12 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.3] - 2026-09-01
+* Extension tools `get_sections` (bounded outline + per-section reads with
+  byte pagination) and `get_structured_data` (sanitized JSON-LD blocks), both
+  owner-toggled, fail-closed, and outside the shared contract hash.
+* Converter: HTML tables become GitHub-flavored pipe tables.
+
 ## WordPress plugin [1.5.2] - 2026-09-01
 * structuredContent on success (bridge returns objects), protocol-version
   fallback 2025-03-26 per spec, annotation default fails closed (writable),

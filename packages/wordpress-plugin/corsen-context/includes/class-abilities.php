@@ -207,6 +207,31 @@ class Corsen_Context_Abilities {
 					),
 					'required'   => array( 'url', 'title' ),
 				);
+			case 'get_sections':
+				return array(
+					'type'       => 'object',
+					'properties' => array(
+						'url'          => array( 'type' => 'string' ),
+						'title'        => array( 'type' => 'string' ),
+						'totalBytes'   => array( 'type' => 'integer' ),
+						'sectionCount' => array( 'type' => 'integer' ),
+						'sections'     => array( 'type' => 'array' ),
+						'markdown'     => array( 'type' => 'string' ),
+					),
+					'required'   => array( 'url', 'title' ),
+				);
+			case 'get_structured_data':
+				return array(
+					'type'       => 'object',
+					'properties' => array(
+						'url'        => array( 'type' => 'string' ),
+						'title'      => array( 'type' => 'string' ),
+						'blockCount' => array( 'type' => 'integer' ),
+						'types'      => array( 'type' => 'object' ),
+						'blocks'     => array( 'type' => 'array' ),
+					),
+					'required'   => array( 'url', 'blocks' ),
+				);
 			case 'request_expert_call':
 				return array(
 					'type'       => 'object',

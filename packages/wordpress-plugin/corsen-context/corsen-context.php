@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version:           1.5.2
+ * Version:           1.5.3
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.2' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.3' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -34,6 +34,8 @@ require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-control-center.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-abilities.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-tool-registry.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-products.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-sections.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-structured-data.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-expert.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-audit.php';
 
