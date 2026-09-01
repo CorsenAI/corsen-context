@@ -48,6 +48,13 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.9] - 2026-09-01
+* MCP route `Allow` header: the 405 GET answer now advertises `POST` only.
+  WordPress Core was overwriting it with the route's registered methods
+  (`POST, GET, OPTIONS`), contradicting the MCP transport spec, the plugin's
+  own documentation, and the nine other reference stacks. New integration
+  test covers the header end to end.
+
 ## WordPress plugin [1.5.8] - 2026-09-01
 * Agent-access MCP probe sends proper JSON-RPC headers (endpoint answers 200, not 415); new test asserts the probe's own headers (the 1.5.5 announced fix had silently failed to apply - caught by live re-verification, never by the suite).
 

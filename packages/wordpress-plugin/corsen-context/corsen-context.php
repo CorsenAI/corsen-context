@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version:           1.5.8
+ * Version:           1.5.9
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.8' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.9' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -343,6 +343,11 @@ final class Corsen_Context {
 		// endpoint before Core's generic OPTIONS handler so Origin policy is still
 		// enforced for browser preflight requests.
 		add_filter( 'rest_pre_dispatch', array( $mcp, 'handle_pre_dispatch_request' ), 5, 3 );
+
+		// Core's rest_send_allow_header (priority 10) rebuilds Allow from the
+		// route's registered methods and clobbers the 405 answer's header; the
+		// MCP route must advertise POST only, like every other stack.
+		add_filter( 'rest_post_dispatch', array( $mcp, 'normalize_allow_header' ), 20, 3 );
 
 		register_rest_route(
 			'corsen-context/v1',

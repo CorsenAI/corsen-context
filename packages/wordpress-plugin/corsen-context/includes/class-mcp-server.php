@@ -100,6 +100,33 @@ class Corsen_Context_MCP_Server {
 	}
 
 	/**
+	 * Force Allow: POST on the MCP route's 405 answer.
+	 *
+	 * The GET endpoint exists only to reject SSE clients per the MCP
+	 * transport specification. Core builds Allow from the route's registered
+	 * methods (POST, GET, OPTIONS) at rest_post_dispatch priority 10, which
+	 * contradicts the rejection itself; re-apply the truthful value after it.
+	 *
+	 * @param mixed            $response REST response.
+	 * @param \WP_REST_Server  $server   REST server (unused).
+	 * @param \WP_REST_Request $request  REST request.
+	 * @return mixed
+	 */
+	public function normalize_allow_header( $response, \WP_REST_Server $server, \WP_REST_Request $request ) {
+		unset( $server );
+		if (
+			'/corsen-context/v1/mcp' !== $request->get_route()
+			|| 'GET' !== $request->get_method()
+			|| ! $response instanceof \WP_REST_Response
+			|| 405 !== $response->get_status()
+		) {
+			return $response;
+		}
+		$response->header( 'Allow', 'POST' );
+		return $response;
+	}
+
+	/**
 	 * Handle CORS preflight OPTIONS requests.
 	 *
 	 * WordPress 6.8+ intercepts OPTIONS before rest_pre_dispatch fires,

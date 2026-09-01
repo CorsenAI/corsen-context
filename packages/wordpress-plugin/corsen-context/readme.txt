@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag:        1.5.8
+Stable tag: 1.5.9
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -284,7 +284,14 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 
 == Upgrade Notice ==
 
-= 1.5.0 =
+= 1.5.9 =
+* Fix: the MCP route's `Allow` header now advertises `POST` only on its 405
+  GET answer. WordPress Core rebuilt it from the route's registered methods
+  (`POST, GET, OPTIONS`), contradicting the MCP transport spec, this plugin's
+  own documentation, and the nine other reference stacks. Now covered by an
+  integration test.
+
+= 1.5.8 =
 Adds the Control Center, the WordPress Abilities API surface, two opt-in extension tools (product data, expert requests) and a bounded audit log. Everything new defaults to OFF; the four core read-only tools and the public contract are unchanged.
 
 = 1.4.1 =

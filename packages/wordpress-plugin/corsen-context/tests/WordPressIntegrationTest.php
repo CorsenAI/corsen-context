@@ -423,6 +423,16 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$this->assertSame( 415, $wrong_type->get_status() );
 	}
 
+	public function test_get_on_mcp_route_returns_405_advertising_post_only(): void {
+		$request  = new WP_REST_Request( 'GET', '/corsen-context/v1/mcp' );
+		$response = rest_do_request( $request );
+		$this->assertSame( 405, $response->get_status() );
+		// Core rebuilds Allow from the route's registered methods after the
+		// callback runs; the filter must win so the header matches the 405
+		// answer, the documented contract, and the nine other stacks.
+		$this->assertSame( 'POST', $response->get_header( 'Allow' ) );
+	}
+
 	public function test_global_switch_suppresses_discovery_and_route_registration(): void {
 		$settings            = get_option( 'corsen_context_settings' );
 		$settings['enabled'] = false;
