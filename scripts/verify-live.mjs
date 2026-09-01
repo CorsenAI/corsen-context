@@ -635,10 +635,40 @@ async function captureStage(result, action) {
   }
 }
 
+async function verifySseRejection(target) {
+  const url = `${target.baseUrl}${target.mcpPath}`;
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'text/event-stream' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const kind = error instanceof Error && error.name ? error.name : 'network error';
+    fail('TRANSPORT_FAILURE', `GET on ${target.id} request failed (${kind})`);
+  }
+  if (response.status !== 405) {
+    fail(
+      'TRANSPORT_FAILURE',
+      `GET on ${target.id} returned HTTP ${response.status}; a stateless endpoint must answer 405`,
+    );
+  }
+  const allow = response.headers.get('allow');
+  if (!allow || allow.toUpperCase() !== 'POST') {
+    fail(
+      'TRANSPORT_FAILURE',
+      `GET on ${target.id} Allow header is ${JSON.stringify(allow)}; expected "POST" (an Allow that lists GET contradicts its own 405)`,
+    );
+  }
+}
+
 async function verifyTarget(target, expectedContract) {
   const result = {
     id: target.id,
     surfacesOk: false,
+    transportOk: false,
     initialized: false,
     contractHash: null,
     searchResults: null,
@@ -649,6 +679,13 @@ async function verifyTarget(target, expectedContract) {
   result.surfacesOk = Boolean(
     await captureStage(result, async () => {
       await verifySurfaces(target, expectedContract);
+      return true;
+    }),
+  );
+
+  result.transportOk = Boolean(
+    await captureStage(result, async () => {
+      await verifySseRejection(target);
       return true;
     }),
   );
@@ -704,6 +741,7 @@ async function main() {
     const hasContractDrift = result.issues.some((issue) => issue.category === 'CONTRACT_DRIFT');
     const state = [
       `surfaces=${result.surfacesOk ? 'ok' : 'fail'}`,
+      `transport=${result.transportOk ? '405' : 'fail'}`,
       `mcp=${result.initialized ? 'ok' : 'fail'}`,
       `contract=${result.contractHash ? result.contractHash.slice(0, 16) : hasContractDrift ? 'drift' : 'not-verified'}`,
       `search=${result.searchResults ?? 'not-verified'}`,
