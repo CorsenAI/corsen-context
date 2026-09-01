@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, openSync, closeSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 
 type Framework =
@@ -48,12 +48,21 @@ export function detectFramework(cwd: string): DetectionResult {
 }
 
 function writeIfNotExists(filePath: string, content: string): boolean {
-  if (existsSync(filePath)) {
-    console.log(`  Skipped: ${filePath} (already exists)`);
-    return false;
-  }
   mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, content, 'utf-8');
+  // Exclusive create: no existsSync/write window for a racing process.
+  let fd: number | undefined;
+  try {
+    fd = openSync(filePath, 'wx');
+    writeFileSync(fd, content, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      console.log(`  Skipped: ${filePath} (already exists)`);
+      return false;
+    }
+    throw err;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
   console.log(`  Created: ${filePath}`);
   return true;
 }

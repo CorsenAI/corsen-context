@@ -42,7 +42,12 @@ function normalizePath(path: string): string | null {
   if (withSlash.includes('//')) return null;
   const segments = withSlash.split('/');
   if (segments.some((segment) => segment === '.' || segment === '..')) return null;
-  const withoutTrailing = withSlash.replace(/\/+$/, '');
+  // Linear trailing-slash trim (no regex repetition: `//` already rejected
+  // above, and a quantifier here is what static analysis flags as quadratic).
+  let withoutTrailing = withSlash;
+  while (withoutTrailing.length > 1 && withoutTrailing.endsWith('/')) {
+    withoutTrailing = withoutTrailing.slice(0, -1);
+  }
   return withoutTrailing || '/';
 }
 
