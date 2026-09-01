@@ -532,11 +532,15 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		// Audit 2026-09-01: SECURITY.md claimed request_expert_call ships
 		// readOnlyHint:false, but tools/list streamed raw definitions; only
 		// the in-page bridge had annotations. The transport must back the claim.
-		$settings                  = (array) get_option( 'corsen_context_settings', array() );
-		$settings['enabled_tools'] = array_merge(
+		$settings                    = (array) get_option( 'corsen_context_settings', array() );
+		$settings['enabled_tools']   = array_merge(
 			Corsen_Context_Tool_Registry::CORE_TOOLS,
 			array( 'get_product', 'get_sections', 'get_structured_data', 'check_agent_access', 'request_expert_call' )
 		);
+		// request_expert_call is only exposed when owner-configured (Expert
+		// class gate); enabling the tool name alone is correctly not enough.
+		$settings['expert_enabled'] = true;
+		$settings['expert_email']   = 'expert@example.test';
 		update_option( 'corsen_context_settings', $settings );
 
 		$response = $this->mcp_request(
@@ -575,22 +579,30 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		update_option( 'corsen_context_settings', $settings );
 		wp_set_current_user( 0 );
 
+		// go_to() runs WP::main() without loading a template, so core never
+		// fires template_redirect in this harness: invoke the hooked callback
+		// exactly as production does at priority 5.
 		$this->go_to( '/?author=' . $user_id );
+		Corsen_Context_Security::maybe_block_author_archives();
 		$this->assertTrue( is_404(), '?author=N must 404 for anonymous once hiding is on.' );
 		$this->go_to( '/author/jane-writer/' );
+		Corsen_Context_Security::maybe_block_author_archives();
 		$this->assertTrue( is_404(), 'Author archives must 404 for anonymous.' );
 
 		// Positive control (live lesson 2026-09-01: an isset(query_vars) check
 		// 404'd the ENTIRE anonymous site, front page included, while both
 		// negative assertions above stayed green). Normal pages must survive.
 		$this->go_to( '/?p=' . $post_id );
+		Corsen_Context_Security::maybe_block_author_archives();
 		$this->assertFalse( is_404(), 'A regular post must stay readable with the switch on.' );
 		$this->go_to( home_url( '/' ) );
+		Corsen_Context_Security::maybe_block_author_archives();
 		$this->assertFalse( is_404(), 'The front page must stay readable with the switch on.' );
 
 		$settings['hide_user_enumeration'] = false;
 		update_option( 'corsen_context_settings', $settings );
 		$this->go_to( '/author/jane-writer/' );
+		Corsen_Context_Security::maybe_block_author_archives();
 		$this->assertFalse( is_404(), 'The switch off must keep author archives public for the owner.' );
 	}
 

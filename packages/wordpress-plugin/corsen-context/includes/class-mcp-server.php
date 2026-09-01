@@ -115,10 +115,10 @@ class Corsen_Context_MCP_Server {
 		if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'OPTIONS' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
 			return;
 		}
-		$path     = (string) parse_url( home_url( '/wp-json/' ), PHP_URL_PATH );
-		$route    = untrailingslashit( $path ) . '/corsen-context/v1/mcp';
-		$uri      = (string) ( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$incoming = (string) parse_url( $uri, PHP_URL_PATH );
+		$path   = (string) wp_parse_url( home_url( '/wp-json/' ), PHP_URL_PATH );
+		$route  = untrailingslashit( $path ) . '/corsen-context/v1/mcp';
+		$uri    = (string) ( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$incoming = (string) wp_parse_url( $uri, PHP_URL_PATH );
 		if ( untrailingslashit( $incoming ) !== $route ) {
 			return;
 		}
