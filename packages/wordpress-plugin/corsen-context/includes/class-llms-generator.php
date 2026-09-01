@@ -63,7 +63,7 @@ class Corsen_Context_Llms_Generator {
 			$lines[]   = $has_write
 				? 'For dynamic access, compatible clients can use the MCP-style JSON-RPC endpoint below: read-only content tools plus an opt-in private request submission.'
 				: 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
-			$lines[] = 'MCP endpoint: ' . $mcp_url;
+			$lines[]   = 'MCP endpoint: ' . $mcp_url;
 		}
 		$lines[] = '';
 

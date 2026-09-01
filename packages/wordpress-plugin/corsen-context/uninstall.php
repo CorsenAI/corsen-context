@@ -49,19 +49,19 @@ foreach ( $transient_patterns as $pattern ) {
 }
 
 // Remove the bounded audit log table and its install marker.
-// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own prefix-derived table, dropped on explicit plugin deletion.
+// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Own prefix-derived table, dropped on explicit plugin deletion.
 $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'corsen_context_audit' );
-// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 delete_option( 'corsen_context_audit_db_version' );
 
 // Remove every stored expert-request submission and its meta.
 $expert_ids = get_posts(
 	array(
-		'post_type'      => 'cc_expert_request',
-		'post_status'    => 'any',
-		'numberposts'    => -1,
-		'fields'         => 'ids',
-		'no_found_rows'  => true,
+		'post_type'     => 'cc_expert_request',
+		'post_status'   => 'any',
+		'numberposts'   => -1,
+		'fields'        => 'ids',
+		'no_found_rows' => true,
 	)
 );
 foreach ( $expert_ids as $expert_id ) {
