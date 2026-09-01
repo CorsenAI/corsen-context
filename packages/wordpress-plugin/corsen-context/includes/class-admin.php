@@ -298,6 +298,13 @@ class Corsen_Context_Admin {
 		$input     = is_array( $input ) ? $input : array();
 		$sanitized = array();
 
+		// Agent-purchase policy side-channel: fields live in the same form,
+		// so options.php already verified the settings nonce before we run.
+		$cc_policy_raw = isset( $_POST['cc_agent_policy'] ) ? wp_unslash( $_POST['cc_agent_policy'] ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified by options.php; sanitized per-field inside.
+		if ( is_array( $cc_policy_raw ) && current_user_can( 'manage_options' ) ) {
+			Corsen_Context_Agent_Policy::handle_owner_form_submission( $cc_policy_raw );
+		}
+
 		$sanitized['enabled']                   = ! empty( $input['enabled'] );
 		$sanitized['mcp_enabled']               = ! empty( $input['mcp_enabled'] );
 		$sanitized['llms_txt_enabled']          = ! empty( $input['llms_txt_enabled'] );

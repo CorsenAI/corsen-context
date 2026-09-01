@@ -42,24 +42,60 @@ class Corsen_Context_Agent_Policy {
 	 * can set the policy durably (auth enforced per-meta).
 	 */
 	public static function register_meta(): void {
-		register_post_meta( 'product', self::META_KEY, array(
-			'type'              => 'string',
-			'single'            => true,
-			'show_in_rest'      => true,
-			'sanitize_callback' => 'sanitize_key',
-			'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
-				return (bool) current_user_can( 'edit_post_meta', $post_id, $meta_key );
-			},
-		) );
-		register_post_meta( 'product', self::META_REASON_KEY, array(
-			'type'              => 'string',
-			'single'            => true,
-			'show_in_rest'      => true,
-			'sanitize_callback' => 'sanitize_text_field',
-			'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
-				return (bool) current_user_can( 'edit_post_meta', $post_id, $meta_key );
-			},
-		) );
+		register_post_meta(
+			'product',
+			self::META_KEY,
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'show_in_rest'      => true,
+				'sanitize_callback' => 'sanitize_key',
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return (bool) current_user_can( 'edit_post_meta', $post_id, $meta_key );
+				},
+			)
+		);
+		register_post_meta(
+			'product',
+			self::META_REASON_KEY,
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'show_in_rest'      => true,
+				'sanitize_callback' => 'sanitize_text_field',
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return (bool) current_user_can( 'edit_post_meta', $post_id, $meta_key );
+				},
+			)
+		);
+	}
+
+	/**
+	 * Persist owner choices from the Control Center form (settings nonce was
+	 * verified by options.php before the sanitize callback ran).
+	 *
+	 * @param array<string,array> $rows Raw per-product rows keyed by post ID.
+	 */
+	public static function handle_owner_form_submission( array $rows ): void {
+		foreach ( $rows as $product_id => $row ) {
+			$id = absint( $product_id );
+			if ( $id <= 0 || 'product' !== get_post_type( $id ) || ! is_array( $row ) ) {
+				continue;
+			}
+			$state  = sanitize_text_field( (string) ( $row['state'] ?? '' ) );
+			$reason = mb_substr( sanitize_textarea_field( (string) ( $row['reason'] ?? '' ) ), 0, 400 );
+			if ( self::FORBIDDEN === $state ) {
+				update_post_meta( $id, self::META_KEY, self::FORBIDDEN );
+				if ( '' !== $reason ) {
+					update_post_meta( $id, self::META_REASON_KEY, $reason );
+				} else {
+					delete_post_meta( $id, self::META_REASON_KEY );
+				}
+			} elseif ( self::ALLOWED === $state ) {
+				delete_post_meta( $id, self::META_KEY );
+				delete_post_meta( $id, self::META_REASON_KEY );
+			}
+		}
 	}
 
 	/**

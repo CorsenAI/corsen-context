@@ -124,7 +124,7 @@ class Corsen_Context_MCP_Server {
 		// the 2026-09-01 independent review: exact-match-only missed stacks
 		// with atypical permalink structures).
 		$suffix     = '/corsen-context/v1/mcp';
-		$rest_route  = isset( $_GET['rest_route'] ) ? (string) wp_unslash( $_GET['rest_route'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification.Recommended -- preflight response only; no state change, no data leaked.
+		$rest_route = isset( $_GET['rest_route'] ) ? (string) wp_unslash( $_GET['rest_route'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification.Recommended -- preflight response only; no state change, no data leaked.
 		$rest_route = untrailingslashit( '/' . ltrim( $rest_route, '/' ) );
 		$incoming   = untrailingslashit( $incoming );
 		$suffix_hit = '' !== $suffix && substr( $incoming, -strlen( $suffix ) ) === $suffix;

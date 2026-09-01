@@ -342,6 +342,40 @@ class Corsen_Context_Control_Center {
 					</div>
 				</div>
 
+				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+					<h2><?php esc_html_e( 'Agent purchase policy', 'corsen-context' ); ?></h2>
+					<p class="ccx-desc"><?php esc_html_e( 'Per-product rule an agent reads from get_product and from every advertised description. Save this page to store it. These values render live into the MCP contract, llms.txt and the /llms.txt#agent-conduct-policy copy — nothing is duplicated by hand.', 'corsen-context' ); ?></p>
+					<div class="ccx-grid">
+						<?php
+						$policy_products = get_posts(
+							array(
+								'post_type'      => 'product',
+								'post_status'    => 'publish',
+								'posts_per_page' => 50,
+								'orderby'        => 'title',
+								'order'          => 'ASC',
+							)
+						);
+						foreach ( $policy_products as $policy_product ) :
+							$pid    = (int) $policy_product->ID;
+							$policy = Corsen_Context_Agent_Policy::product_policy( $pid );
+							?>
+							<div class="ccx-card <?php echo Corsen_Context_Agent_Policy::FORBIDDEN === $policy['agentPurchase'] ? 'ccx-card--off' : ''; ?>">
+								<p class="ccx-title"><?php echo esc_html( get_the_title( $pid ) ); ?></p>
+								<label class="ccx-sec"><?php esc_html_e( 'Agents may purchase', 'corsen-context' ); ?>
+									<select name="cc_agent_policy[<?php echo esc_attr( $pid ); ?>][state]">
+										<option value="allowed" <?php selected( $policy['agentPurchase'], 'allowed' ); ?>><?php esc_html_e( 'allowed (default)', 'corsen-context' ); ?></option>
+										<option value="forbidden" <?php selected( $policy['agentPurchase'], 'forbidden' ); ?>><?php esc_html_e( 'forbidden — hand the URL to a human', 'corsen-context' ); ?></option>
+									</select>
+								</label>
+								<label class="ccx-sec"><?php esc_html_e( 'Reason shown to agents', 'corsen-context' ); ?>
+									<input type="text" class="large-text" maxlength="400" name="cc_agent_policy[<?php echo esc_attr( $pid ); ?>][reason]" value="<?php echo esc_attr( Corsen_Context_Agent_Policy::FORBIDDEN === $policy['agentPurchase'] ? (string) get_post_meta( $pid, Corsen_Context_Agent_Policy::META_REASON_KEY, true ) : '' ); ?>" />
+								</label>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+
 				<?php submit_button( __( 'Save Control Center', 'corsen-context' ) ); ?>
 			</form>
 
