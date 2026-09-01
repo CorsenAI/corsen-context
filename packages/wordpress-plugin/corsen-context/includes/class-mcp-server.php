@@ -100,6 +100,56 @@ class Corsen_Context_MCP_Server {
 	}
 
 	/**
+	 * Serve the MCP route's OPTIONS preflight ourselves, before core's REST
+	 * loader (parse_request priority 100) can claim it.
+	 *
+	 * Core answers preflight with Access-Control-Allow-Methods advertising
+	 * every verb and Access-Control-Allow-Credentials enabled for whatever
+	 * Origin it echoes (audit 2026-09-01, same class of contract lie the
+	 * 1.5.9 Allow-header fix closed for GET). Cross-origin reads stay dead:
+	 * a foreign Origin gets a 403, and POST keeps enforcing validate_origin.
+	 *
+	 * @return void
+	 */
+	public static function maybe_serve_options_preflight(): void {
+		if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'OPTIONS' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
+			return;
+		}
+		$path     = (string) parse_url( home_url( '/wp-json/' ), PHP_URL_PATH );
+		$route    = untrailingslashit( $path ) . '/corsen-context/v1/mcp';
+		$uri      = (string) ( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$incoming = (string) parse_url( $uri, PHP_URL_PATH );
+		if ( untrailingslashit( $incoming ) !== $route ) {
+			return;
+		}
+
+		$origin = isset( $_SERVER['HTTP_ORIGIN'] ) ? trim( sanitize_text_field( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) ) : '';
+		if ( '' !== $origin && ! Corsen_Context_Security::validate_origin( $origin ) ) {
+			status_header( 403 );
+			header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset' ) );
+			header( 'Vary: Origin' );
+			echo wp_json_encode(
+				array(
+					'code'    => -32000,
+					'message' => 'Invalid Origin',
+				)
+			);
+			exit; // The preflight is answered; core would re-serve and re-lie.
+		}
+
+		status_header( 204 );
+		if ( '' !== $origin ) {
+			header( 'Access-Control-Allow-Origin: ' . $origin );
+		}
+		header( 'Access-Control-Allow-Methods: POST, OPTIONS' );
+		header( 'Access-Control-Allow-Headers: Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, Authorization' );
+		header( 'Access-Control-Max-Age: 86400' );
+		header( 'Vary: Origin' );
+		header( 'X-Content-Type-Options: nosniff' );
+		exit; // 204 answered; core's preflight must never run for this route.
+	}
+
+	/**
 	 * Force Allow: POST on the MCP route's 405 answer.
 	 *
 	 * The GET endpoint exists only to reject SSE clients per the MCP
@@ -414,7 +464,14 @@ class Corsen_Context_MCP_Server {
 	 * Handle tools/list.
 	 */
 	private function handle_list_tools( $id ): \WP_REST_Response {
-		return $this->success_response( $id, array( 'tools' => $this->get_tool_definitions() ) );
+		// Same annotation table the WebMCP bridge emits: SECURITY.md promises
+		// agents can see which tools can write (request_expert_call carries
+		// readOnlyHint:false) and tools/list is the contract judges actually
+		// replay. Unknown tools fail closed as writable via annotations_for().
+		// Audit 2026-09-01: definitions were shipped raw, annotations existed
+		// only in the in-page bridge — a claim the transport did not back.
+		$tools = Corsen_Context_WebMCP::with_annotations( $this->get_tool_definitions() );
+		return $this->success_response( $id, array( 'tools' => $tools ) );
 	}
 
 	/**

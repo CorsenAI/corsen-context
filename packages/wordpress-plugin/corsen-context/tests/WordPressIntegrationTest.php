@@ -528,6 +528,64 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Output truncated', $content );
 	}
 
+	public function test_tools_list_advertises_webmcp_annotations_on_mcp_transport(): void {
+		// Audit 2026-09-01: SECURITY.md claimed request_expert_call ships
+		// readOnlyHint:false, but tools/list streamed raw definitions; only
+		// the in-page bridge had annotations. The transport must back the claim.
+		$settings                  = (array) get_option( 'corsen_context_settings', array() );
+		$settings['enabled_tools'] = array_merge(
+			Corsen_Context_Tool_Registry::CORE_TOOLS,
+			array( 'get_product', 'get_sections', 'get_structured_data', 'check_agent_access', 'request_expert_call' )
+		);
+		update_option( 'corsen_context_settings', $settings );
+
+		$response = $this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 71,
+				'method'  => 'tools/list',
+			),
+			array( 'MCP-Protocol-Version' => '2025-11-25' )
+		);
+		$data  = (array) $response->get_data();
+		$tools = isset( $data['result']['tools'] ) && is_array( $data['result']['tools'] ) ? $data['result']['tools'] : array();
+		$this->assertNotEmpty( $tools, 'tools/list must answer in the integration environment.' );
+
+		$by_name = array();
+		foreach ( $tools as $tool ) {
+			$by_name[ $tool['name'] ] = $tool;
+		}
+		foreach ( $by_name as $name => $tool ) {
+			$this->assertArrayHasKey( 'annotations', $tool, $name . ' ships no annotations on tools/list.' );
+			$this->assertArrayHasKey( 'readOnlyHint', $tool['annotations'], $name . ' must advertise readOnlyHint.' );
+		}
+		$this->assertTrue( $by_name['search_site']['annotations']['readOnlyHint'] );
+		$this->assertArrayHasKey( 'request_expert_call', $by_name );
+		$this->assertFalse( $by_name['request_expert_call']['annotations']['readOnlyHint'], 'A write tool must never be advertised as read.' );
+	}
+
+	public function test_hide_user_enumeration_closes_the_author_doors_too(): void {
+		// Audit 2026-09-01: the REST users collection was blocked while
+		// /?author=N still 301'd to a 200 archive printing the login.
+		$user_id = self::factory()->user->create( array( 'role' => 'author', 'user_nicename' => 'jane-writer' ) );
+		self::factory()->post->create( array( 'post_author' => $user_id, 'post_status' => 'publish' ) );
+
+		$settings                           = (array) get_option( 'corsen_context_settings', array() );
+		$settings['hide_user_enumeration']  = true;
+		update_option( 'corsen_context_settings', $settings );
+		wp_set_current_user( 0 );
+
+		$this->go_to( '/?author=' . $user_id );
+		$this->assertTrue( is_404(), '?author=N must 404 for anonymous once hiding is on.' );
+		$this->go_to( '/author/jane-writer/' );
+		$this->assertTrue( is_404(), 'Author archives must 404 for anonymous.' );
+
+		$settings['hide_user_enumeration'] = false;
+		update_option( 'corsen_context_settings', $settings );
+		$this->go_to( '/author/jane-writer/' );
+		$this->assertFalse( is_404(), 'The switch off must keep author archives public for the owner.' );
+	}
+
 	private function mcp_request( array $body, array $headers = array() ): WP_REST_Response {
 		return $this->mcp_raw_request( wp_json_encode( $body ), $headers );
 	}

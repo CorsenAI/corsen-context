@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.10
+Stable tag: 1.5.11
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,9 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.11 - 2026-09-01 =
+* `tools/list` now emits WebMCP annotations (`readOnlyHint` per tool; `request_expert_call` is explicitly `readOnlyHint: false`) on the MCP transport, so SECURITY.md's claim is backed on the wire and not only in the in-page bridge. `get_sections` documents `"top"` and now always lists and resolves it, even as a zero-byte intro. When "Hide user enumeration" is on, `/?author=N` and `/author/{login}` archives also answer 404 to anonymous visitors instead of leaking logins through the classic doors. The MCP route's OPTIONS preflight is answered by the plugin (`POST, OPTIONS`, no credentials) instead of core advertising every verb.
 
 = 1.5.10 - 2026-09-01 =
 * `get_product(slug)` integrity: slug lookups verify the stored `post_name` and apply the same owner exposure policy as URL lookups. A stale or excluded slug now returns not-found instead of silently serving a different product (found by external live audit).

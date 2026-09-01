@@ -60,32 +60,44 @@ with an empty `202` response. No SSE stream or resumable session is claimed.
 
 ## Human-and-agent demonstration
 
-The flagship uses **Aurora Kits, a fictional robotics business and deterministic
-demo corpus**. Its facts exist to make browser/client runs reproducible; they
-are not commercial offers.
+The flagship is this site itself: **webmcp.corsen.ai, a production WordPress
+install selling Corsen Context licenses**. Its catalogue facts are
+deterministic and replayable. The fictional Aurora Kits corpus now lives on
+the non-WordPress reference stacks (e.g. express-webmcp.corsen.ai), where the
+same demo prompts remain replayable there.
 
-In a WebMCP-capable client, the demonstration prompt is:
+In a WebMCP-capable client pointed at the flagship, the demonstration prompt
+is:
 
-> I have EUR 100 for an 11-year-old and need a kit with no soldering. Compare
-> the available kits and recommend one from this site with the price and reason.
+> Compare the licensed editions on this site and recommend the one an
+> individual developer should buy, with its price and what it unlocks.
 
 The expected observable sequence is:
 
-1. the client calls `search_site`;
-2. one returned same-origin URL is passed to `get_page_content`;
-3. the answer identifies Explorer v2 from the published EUR 89, age 10+, 24
-   projects, and no-soldering facts and links to the page; and
+1. the client calls `tools/list` and sees the tool set with WebMCP
+   `readOnlyHint` annotations — the core contract tools true, and the opt-in
+   `request_expert_call` submission tool explicitly false;
+2. `list_content` with `{"type":"product"}` returns the whole typed catalogue
+   in one call: every per-stack edition at 9 EUR and the flagship at 29 EUR,
+   with currency, stock state, and images — no 1+N round-trips;
+3. `get_product` with the flagship slug returns live WooCommerce fields
+   (price, stock, purchasability) without any checkout page;
 4. no write, click, form submission, cookie, or visitor credential is used.
 
-Two further deterministic paths cover the three-step `AK-E17` support guide
-and the verified-school delivery/discount policy. A boundary prompt asks what
-the four tools cannot do and must be answered from the public access page, not
-from an annotation claim.
+Two further deterministic paths cover the `WEBMCP100` grant (discovered via
+`search_site`, read with `get_page_content` on `/store/`) and chunked reading
+(`get_sections`: outline, then one section within the 8192-byte budget, with
+the documented `"top"` id resolving). A boundary prompt asks what the
+endpoint refuses, and the answers are replayable HTTP receipts: `GET` → `405`
+with `Allow: POST`, `OPTIONS` → `POST, OPTIONS` without credentials, and
+anonymous `/wp-json/wp/v2/users` and `/?author=1` → `404`.
 
 The owner side of the final recording changes one WordPress exposure setting
 and repeats the same query to prove that a human can revoke or restore a public
-path without giving the browser a private session. This claim remains pending
-until the final live receipt exists.
+path without giving the browser a private session. This claim was replayed on
+2026-09-01: saving the Control Center now preserves `hide_user_enumeration`
+(anonymous user enumeration stays `404` afterwards) and a deliberately empty
+content-type selection persists as "expose nothing".
 
 An HTTP request that finds the bridge script is not sufficient evidence. The
 final demo receipt must record the exact browser/client version, page URL,
@@ -98,7 +110,7 @@ levels of native integration:
 
 | Stack              | What a site owner receives                                     |
 | ------------------ | -------------------------------------------------------------- |
-| WordPress          | native PHP plugin; repository candidate is 1.4.1               |
+| WordPress          | native PHP plugin; repository candidate is 1.5.11               |
 | Next.js App Router | npm 2.0.0 candidate plus reference app                         |
 | Astro              | npm 2.0.0 candidate plus SSR reference app                     |
 | Express            | framework-agnostic core plus reference server                  |

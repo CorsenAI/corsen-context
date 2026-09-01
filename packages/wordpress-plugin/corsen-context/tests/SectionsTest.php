@@ -82,6 +82,20 @@ class SectionsTest extends WP_UnitTestCase {
 		$this->assertSame( count( $ids ), count( array_unique( $ids ) ), 'Section ids must be unique.' );
 	}
 
+	public function test_top_id_is_always_listed_and_resolves(): void {
+		// Audit 2026-09-01: the schema documents "top" but the converter
+		// emits the H1 first, so the entry never existed and every client
+		// call died with section_not_found. A documented id must resolve.
+		$this->post( "\n\n<h2>Only</h2>\n<p>x</p>" );
+		$uri     = home_url( '/guide/' );
+		$outline = Corsen_Context_Sections::execute( array( 'uri' => $uri ) );
+		$this->assertTrue( $outline['ok'] );
+		$this->assertContains( 'top', array_column( $outline['result']['sections'], 'id' ) );
+		$top = Corsen_Context_Sections::execute( array( 'uri' => $uri, 'section' => 'top' ) );
+		$this->assertTrue( $top['ok'], 'Documented id "top" must resolve even on zero-byte intros.' );
+		$this->assertSame( 0, $top['result']['totalBytes'] );
+	}
+
 	public function test_chunk_boundaries_never_split_utf8(): void {
 		// Audit 2026-09-01: byte-budget substr could end a chunk inside a
 		// multi-byte codepoint. 3200 euro signs = 9600 bytes, 3 per char.

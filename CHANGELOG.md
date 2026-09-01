@@ -48,6 +48,29 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.11] - 2026-09-01
+
+### The transport now backs every claim (independent review 2026-09-01)
+
+- `tools/list` now emits the WebMCP annotation table on the MCP transport
+  (`readOnlyHint`, `untrustedContentHint`, and for `request_expert_call`
+  `readOnlyHint: false`). Until now the annotations existed only in the
+  in-page bridge, so SECURITY.md described a promise the wire did not keep.
+- `get_sections`: the id `"top"` documented by the inputSchema is now always
+  listed in the outline (zero bytes when the page opens on its heading) and
+  always resolves, instead of every client call dying with
+  `section_not_found`.
+- The owner switch "Hide user enumeration" now also closes the classic doors:
+  `/?author=N` and `/author/{login}` archives answer 404 to anonymous visitors
+  before core's canonical redirect can leak the login in a `Location` header.
+  The 1.5.4 fix had only blocked the REST users collection.
+- The MCP route's `OPTIONS` preflight is answered by the plugin (`Allow: POST,
+  OPTIONS`, no credentials, `Vary: Origin`) instead of core advertising every
+  verb with `Access-Control-Allow-Credentials` for any echoed origin — the
+  same class of transport lie the 1.5.9 `Allow` fix closed for `GET`.
+- Tests: 153 unit (adds the always-resolving `top` regression) and 2 new
+  integration cases (annotation emission, author-door blocking).
+
 ## WordPress plugin [1.5.10] - 2026-09-01
 * `get_product(slug)` integrity: the resolver now verifies the candidate's stored
   `post_name` (slugs are exact or nothing) and the slug branch obeys the same

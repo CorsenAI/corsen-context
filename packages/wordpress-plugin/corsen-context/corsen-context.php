@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version:           1.5.10
+ * Version:           1.5.11
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.10' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.11' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -105,6 +105,16 @@ final class Corsen_Context {
 
 		// Opt-in hardening: user enumeration hidden from anonymous REST reads.
 		add_filter( 'rest_endpoints', array( 'Corsen_Context_Security', 'maybe_hide_user_enumeration' ) );
+
+		// Same switch, second door: /?author=N and /author/{login} archives
+		// answer 404 to anonymous. Priority 5 beats core's canonical redirect
+		// so the login never leaks in a Location header (audit 2026-09-01).
+		add_action( 'template_redirect', array( 'Corsen_Context_Security', 'maybe_block_author_archives' ), 5 );
+
+		// The MCP route's OPTIONS preflight is served here, not by core's REST
+		// loader on parse_request priority 100: core advertised PUT/PATCH/DELETE
+		// and credentials on a POST-only endpoint (audit 2026-09-01).
+		add_action( 'parse_request', array( 'Corsen_Context_MCP_Server', 'maybe_serve_options_preflight' ), 99 );
 
 		// WordPress Abilities API surface (inert before WP 6.9).
 		Corsen_Context_Abilities::init();

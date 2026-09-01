@@ -433,4 +433,28 @@ class Corsen_Context_Security {
 		}
 		return $endpoints;
 	}
+
+	/**
+	 * Same switch, second door: the REST collection was closed while the
+	 * classic /author/{login} archive and the ?author=N probe (audit
+	 * 2026-09-01: 301 to a 200 page printing the admin login) stayed open.
+	 * Runs at template_redirect priority 5, ahead of core's canonical
+	 * redirect, so the login never leaks even in a Location header.
+	 *
+	 * @return void
+	 */
+	public static function maybe_block_author_archives(): void {
+		$settings = get_option( 'corsen_context_settings', array() );
+		if ( empty( $settings['hide_user_enumeration'] ) || is_user_logged_in() ) {
+			return;
+		}
+		if ( ! isset( $GLOBALS['wp_query'] ) || ! $GLOBALS['wp_query'] instanceof \WP_Query ) {
+			return;
+		}
+		$query = $GLOBALS['wp_query'];
+		if ( $query->is_author() || isset( $query->query_vars['author'] ) || isset( $query->query_vars['author_name'] ) ) {
+			$query->set_404();
+			status_header( 404 );
+		}
+	}
 }

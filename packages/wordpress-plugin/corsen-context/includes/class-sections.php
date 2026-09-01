@@ -210,8 +210,10 @@ class Corsen_Context_Sections {
 	}
 
 	/**
-	 * Flat outline: one entry per heading line plus a "top" entry when
-	 * content precedes the first heading. Sections are flat on purpose:
+	 * Flat outline: one entry per heading line plus a "top" entry for the
+	 * content before the first heading (always listed, sometimes zero bytes,
+	 * so the id documented in the schema always resolves). Sections are flat
+	 * on purpose:
 	 * subtree semantics would surprise more agents than they help.
 	 *
 	 * @param string $markdown Page markdown from the converter.
@@ -245,18 +247,19 @@ class Corsen_Context_Sections {
 			);
 		}
 
-		if ( $starts[0]['pos'] > 0 ) {
-			$intro = trim( substr( $markdown, 0, $starts[0]['pos'] ) );
-			if ( '' !== $intro ) {
-				$out[] = array(
-					'id'       => 'top',
-					'level'    => 0,
-					'heading'  => '',
-					'bytes'    => strlen( $intro ),
-					'markdown' => $intro,
-				);
-			}
-		}
+		// "top" is always listed, even as a zero-byte entry when the page
+		// opens straight on its H1: the inputSchema documents the id, and an
+		// id a client can write but never resolve is a contract lie (audit
+		// 2026-09-01: "top" was documented yet unreachable on every flagship
+		// page, since the converter always emits the H1 first).
+		$intro = trim( substr( $markdown, 0, $starts[0]['pos'] ) );
+		$out[] = array(
+			'id'       => 'top',
+			'level'    => 0,
+			'heading'  => '',
+			'bytes'    => strlen( $intro ),
+			'markdown' => $intro,
+		);
 
 		$count = count( $starts );
 		for ( $i = 0; $i < $count; $i++ ) {
