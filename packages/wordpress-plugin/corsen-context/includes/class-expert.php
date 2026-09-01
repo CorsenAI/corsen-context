@@ -180,7 +180,7 @@ class Corsen_Context_Expert {
 	 * @param array<string,string> $args Normalized args (validated, unused).
 	 * @return array<string,mixed> Shape ['ok'=>false,'error'=>...,'code'=>'human_only'].
 	 */
-	public static function execute( array $args ): array {
+	public static function execute( array $args ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- intake is refused by policy before arguments are read.
 		// HUMANS ONLY since 1.5.12 (governed-agent demo + honest governance):
 		// the expert intake is an offer to people. The tool stays advertised
 		// so agents can READ the rule; every agent call is refused here with
