@@ -567,8 +567,8 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 	public function test_hide_user_enumeration_closes_the_author_doors_too(): void {
 		// Audit 2026-09-01: the REST users collection was blocked while
 		// /?author=N still 301'd to a 200 archive printing the login.
-		$user_id = self::factory()->user->create( array( 'role' => 'author', 'user_nicename' => 'jane-writer' ) );
-		self::factory()->post->create( array( 'post_author' => $user_id, 'post_status' => 'publish' ) );
+		$user_id  = self::factory()->user->create( array( 'role' => 'author', 'user_nicename' => 'jane-writer' ) );
+		$post_id  = self::factory()->post->create( array( 'post_author' => $user_id, 'post_status' => 'publish' ) );
 
 		$settings                           = (array) get_option( 'corsen_context_settings', array() );
 		$settings['hide_user_enumeration']  = true;
@@ -579,6 +579,14 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$this->assertTrue( is_404(), '?author=N must 404 for anonymous once hiding is on.' );
 		$this->go_to( '/author/jane-writer/' );
 		$this->assertTrue( is_404(), 'Author archives must 404 for anonymous.' );
+
+		// Positive control (live lesson 2026-09-01: an isset(query_vars) check
+		// 404'd the ENTIRE anonymous site, front page included, while both
+		// negative assertions above stayed green). Normal pages must survive.
+		$this->go_to( '/?p=' . $post_id );
+		$this->assertFalse( is_404(), 'A regular post must stay readable with the switch on.' );
+		$this->go_to( home_url( '/' ) );
+		$this->assertFalse( is_404(), 'The front page must stay readable with the switch on.' );
 
 		$settings['hide_user_enumeration'] = false;
 		update_option( 'corsen_context_settings', $settings );

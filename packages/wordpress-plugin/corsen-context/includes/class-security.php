@@ -452,7 +452,12 @@ class Corsen_Context_Security {
 			return;
 		}
 		$query = $GLOBALS['wp_query'];
-		if ( $query->is_author() || isset( $query->query_vars['author'] ) || isset( $query->query_vars['author_name'] ) ) {
+		// is_author() is true for /author/{login}, /author/{id} AND ?author=N
+		// once the main query parsed them. Never test query_vars with isset():
+		// core seeds 'author' => '' on EVERY front query, and the first 1.5.11
+		// deploy 404'd the whole anonymous site through that trap (same-day
+		// live regression, caught by verify:live SURFACE_FAILURE home=404).
+		if ( $query->is_author() ) {
 			$query->set_404();
 			status_header( 404 );
 		}
