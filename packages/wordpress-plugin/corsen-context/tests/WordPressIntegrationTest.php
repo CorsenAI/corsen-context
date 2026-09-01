@@ -427,10 +427,21 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$request  = new WP_REST_Request( 'GET', '/corsen-context/v1/mcp' );
 		$response = rest_do_request( $request );
 		$this->assertSame( 405, $response->get_status() );
-		// Core rebuilds Allow from the route's registered methods after the
-		// callback runs; the filter must win so the header matches the 405
-		// answer, the documented contract, and the nine other stacks.
-		$this->assertSame( 'POST', $response->get_header( 'Allow' ) );
+		// rest_do_request() only runs dispatch(); the Allow header is rebuilt
+		// by core's rest_send_allow_header() inside the rest_post_dispatch
+		// chain that serve_request() runs after dispatch (verified in the
+		// WP 6.8/6.9/7.0 sources: the filter is absent from dispatch()).
+		// Replay that chain so the test proves our priority-20 filter wins
+		// over the core-computed `POST, GET, OPTIONS`, not just the callback.
+		$response = apply_filters( 'rest_post_dispatch', $response, rest_get_server(), $request );
+		// WP_REST_Response has no get_header(): read get_headers() case-insensitively.
+		$allow = null;
+		foreach ( $response->get_headers() as $name => $value ) {
+			if ( 'allow' === strtolower( (string) $name ) ) {
+				$allow = $value;
+			}
+		}
+		$this->assertSame( 'POST', $allow );
 	}
 
 	public function test_global_switch_suppresses_discovery_and_route_registration(): void {
