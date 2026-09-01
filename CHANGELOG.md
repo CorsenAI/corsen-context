@@ -48,6 +48,34 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.13] - 2026-09-01
+
+### Honest enforcement + review hardening (second independent review)
+
+- `auth_callback` for the two policy meta keys checked
+  `current_user_can('edit_post_meta', ...)`, which re-enters the callback for
+  registered protected meta; it now checks `edit_post` (Core's own documented
+  pattern).
+- The agent head banner was injected unconditionally; it now renders only when
+  the master switch and the MCP channel are both on — no advertising a channel
+  the owner disabled.
+- Owner reason truncation no longer depends on `mbstring`: a PCRE `//u`
+  fallback keeps UTF-8 intact on hosts without it (found by review; the flag
+  is not in WP's required list).
+- `llms.txt` now opens with **START HERE for AI agents** and its policy block
+  distinguishes, in the file itself, what the server hard-refuses (expert
+  intake, `human_only`) from `agentPurchase`, which is a binding contract
+  instruction backed mechanically by the store's coupon rules. SECURITY.md
+  states the same boundary; the earlier "server-side checkout path is closed
+  to unattended agents" sentence overstated the mechanism and is corrected.
+- Zero-drift made literal: the human-only form notice is generated from the
+  policy table (`[corsen_human_only_notice]`); the Elementor form carries the
+  shortcode instead of hand-written prose. Shared `cc-nav.js` rebuilt on the
+  DOM API — no `innerHTML` sink fed by page attributes anymore (3 CodeQL
+  `js/xss-through-dom` alerts resolved at the source, all copies).
+- Tests: 165 unit tests green (banner gating, truncation, notice, owner form),
+  phpcs clean.
+
 ## WordPress plugin [1.5.12] - 2026-09-01
 
 ### Governed-agent policy (single source, server-enforced)
@@ -55,7 +83,8 @@
 - One policy table (`class-agent-policy.php`) renders into **every** channel:
   MCP `tools/list` descriptions, the WebMCP bridge, `llms.txt`, an HTML head
   banner visible to naive parsers, and the `[corsen_agent_policy]` page
-  shortcode. No hand-written copy can drift from the wire.
+  shortcode. No machine-facing copy could drift from the wire; human-facing
+  form prose was still hand-written at this point — corrected in 1.5.13.
 - `request_expert_call` is now **human-only by policy**: still advertised (so
   agents can read the rule), refused server-side for every agent call with
   error code `human_only` + handoff URL, before any throttle or storage.

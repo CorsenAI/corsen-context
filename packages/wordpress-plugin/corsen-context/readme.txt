@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.12
+Stable tag: 1.5.13
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,9 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.13 - 2026-09-01 =
+* Policy honesty + hardening (second independent review): the REST meta `auth_callback` no longer calls `edit_post_meta` (which re-entered itself for registered protected meta) and checks `edit_post` instead, as Core documents. The agent head banner renders only when the MCP channel is actually enabled — a disabled channel is never advertised. Long owner reasons are truncated without requiring mbstring. `llms.txt` opens with "START HERE for AI agents" and its policy block now states precisely what the server refuses (expert intake, error `human_only`) versus what is a binding contract instruction (`agentPurchase`, backed by the store's own coupon rules — the plugin never intercepts human checkout). The human-only form notice is generated from the same table (`[corsen_human_only_notice]`), so the form copy is the wire copy.
 
 = 1.5.12 - 2026-09-01 =
 * Governed-agent policy: one server-side policy table now renders into every channel (MCP `tools/list` descriptions, the WebMCP bridge, `llms.txt`, an HTML head banner for parsers, and the `[corsen_agent_policy]` page) so no channel can drift from another. `request_expert_call` becomes **human-only by policy**: it stays advertised so an agent can read the rule, but every agent call is refused with error code `human_only` plus a handoff URL, before any throttle or storage side effect. `get_product` output carries `agentPurchase` (`allowed`|`forbidden`) and `agentPurchaseReason` from owner-set product meta, and the tool description states that a forbidden product must be handed to a human, never checked out by the agent. OPTIONS preflight matching also tolerates `rest_route` and atypical permalink prefixes.

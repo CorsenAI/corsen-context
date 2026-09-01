@@ -82,4 +82,67 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$this->assertContains( 'request_expert_call', $policy['humanOnlyTools'] );
 		$this->assertStringStartsWith( 'http', $policy['humanHandoffUrl'] );
 	}
+
+	public function test_human_only_notice_is_generated_from_the_policy(): void {
+		$notice = Corsen_Context_Agent_Policy::render_human_only_notice();
+		$this->assertStringContainsString( 'Human-only form.', $notice );
+		$this->assertStringContainsString( 'human_only', $notice );
+		$this->assertStringContainsString( (string) home_url( '/' ), $notice );
+	}
+
+	public function test_head_banner_only_when_master_and_mcp_enabled(): void {
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array( 'enabled' => true, 'mcp_enabled' => false );
+		ob_start();
+		Corsen_Context_Agent_Policy::render_head_banner();
+		$off = (string) ob_get_clean();
+		$this->assertSame( '', $off, 'banner must not advertise a channel the owner disabled' );
+
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array( 'enabled' => false, 'mcp_enabled' => true );
+		ob_start();
+		Corsen_Context_Agent_Policy::render_head_banner();
+		$off2 = (string) ob_get_clean();
+		$this->assertSame( '', $off2, 'banner must not advertise when the master switch is off' );
+
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array( 'enabled' => true, 'mcp_enabled' => true );
+		ob_start();
+		Corsen_Context_Agent_Policy::render_head_banner();
+		$on = (string) ob_get_clean();
+		unset( $GLOBALS['corsen_test_options']['corsen_context_settings'] );
+		$this->assertStringContainsString( 'AI AGENTS', $on );
+		$this->assertStringContainsString( 'human-only', $on );
+	}
+
+	public function test_owner_form_writes_state_and_truncates_multibyte_reason(): void {
+		$GLOBALS['corsen_test_post_types'][431] = 'product';
+		$long                                   = str_repeat( 'accréditation éè ☂ — ', 100 );
+		Corsen_Context_Agent_Policy::handle_owner_form_submission(
+			array( 431 => array( 'state' => 'forbidden', 'reason' => $long ) )
+		);
+		$meta   = $GLOBALS['corsen_test_postmeta'][431];
+		$stored = (string) $meta[ Corsen_Context_Agent_Policy::META_REASON_KEY ];
+		$this->assertSame( 'forbidden', $meta[ Corsen_Context_Agent_Policy::META_KEY ] );
+		$this->assertLessThanOrEqual( 400, function_exists( 'mb_strlen' ) ? mb_strlen( $stored ) : strlen( $stored ) );
+		$this->assertSame( 1, preg_match( '//u', $stored ), 'truncation must not split a multibyte character' );
+		$this->assertStringStartsWith( 'accréditation', $stored );
+	}
+
+	public function test_owner_form_allowed_state_clears_policy_meta(): void {
+		$GLOBALS['corsen_test_post_types'][432] = 'product';
+		$GLOBALS['corsen_test_postmeta'][432]   = array(
+			Corsen_Context_Agent_Policy::META_KEY        => 'forbidden',
+			Corsen_Context_Agent_Policy::META_REASON_KEY => 'was forbidden',
+		);
+		$GLOBALS['corsen_test_deleted_meta']    = array();
+		Corsen_Context_Agent_Policy::handle_owner_form_submission(
+			array( 432 => array( 'state' => 'allowed', 'reason' => 'ignored' ) )
+		);
+		$deleted = array_map(
+			static function ( array $row ): array {
+				return array( (int) $row[0], (string) $row[1] );
+			},
+			$GLOBALS['corsen_test_deleted_meta']
+		);
+		$this->assertContains( array( 432, Corsen_Context_Agent_Policy::META_KEY ), $deleted );
+		$this->assertContains( array( 432, Corsen_Context_Agent_Policy::META_REASON_KEY ), $deleted );
+	}
 }

@@ -353,6 +353,24 @@ if ( ! function_exists( 'update_post_meta' ) ) {
 		return true;
 	}
 }
+if ( ! function_exists( 'delete_post_meta' ) ) {
+	function delete_post_meta( $id, $key ) {
+		unset( $GLOBALS['corsen_test_postmeta'][ $id ][ $key ] );
+		$GLOBALS['corsen_test_deleted_meta'][] = array( $id, $key );
+		return true;
+	}
+}
+if ( ! function_exists( 'get_post_type' ) ) {
+	function get_post_type( $id = 0 ) {
+		return $GLOBALS['corsen_test_post_types'][ $id ] ?? 'product';
+	}
+}
+if ( ! function_exists( 'is_admin' ) ) {
+	function is_admin(): bool { return false; }
+}
+if ( ! function_exists( 'absint' ) ) {
+	function absint( $n ): int { return abs( (int) $n ); }
+}
 if ( ! function_exists( 'wp_mail' ) ) {
 	function wp_mail( $to, $subject, $message, $headers = '', $attachments = array() ): bool {
 		$GLOBALS['corsen_test_mails'][] = compact( 'to', 'subject', 'message' );

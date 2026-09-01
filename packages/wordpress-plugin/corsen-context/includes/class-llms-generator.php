@@ -48,6 +48,8 @@ class Corsen_Context_Llms_Generator {
 		$site_url  = home_url();
 		$mcp_url   = Corsen_Context_MCP_Server::endpoint_url();
 		$lines     = array( '# ' . $site_name, '' );
+		$lines[]   = '> START HERE for AI agents: the Agent conduct policy below is binding. Read it before calling any tool or submitting any form on this site.';
+		$lines[]   = '';
 
 		if ( $site_desc ) {
 			$lines[] = '> ' . $site_desc;

@@ -17,13 +17,22 @@ additionally expose owner-toggled extension tools (for example `get_product`,
 `get_sections`, `check_agent_access`, and `request_expert_call`); these are off
 by default, and `request_expert_call` is explicitly annotated
 `readOnlyHint: false` because it files a private owner-side submission. Since
-1.5.12 it is also **human-only by policy**: the tool stays advertised so an
+1.5.12 it is also **human-only**: the tool stays advertised so an
 agent can read the rule, but the server refuses every agent call with error
-code `human_only` and a handoff URL — the expert intake is a governed demo of
-policy an agent must obey, not an agent action. Products additionally carry
-`agentPurchase` (`allowed`|`forbidden`, owner-set): on `forbidden`, an agent
-must not start checkout and the server-side checkout path is closed to
-unattended agents. Extension tools are intended to return only the public
+code `human_only` and a handoff URL, before any throttle or storage side
+effect — this is a real server-side refusal, executed on every MCP and
+WebMCP call. Products additionally carry `agentPurchase`
+(`allowed`|`forbidden`, owner-set). Its enforcement is stated precisely:
+it is a **binding instruction in the agent's contract** (tool description,
+per-product payload, `llms.txt`, generated form notice), and the store backs
+it mechanically where the store can: the demo checkout lane is a 100% coupon
+whose products are owner-managed, so a forbidden product cannot be obtained
+through it (WooCommerce rejects the coupon with a 400 on that cart). The
+plugin does not — and cannot honestly claim to — intercept WooCommerce
+checkout for agents browsing with payment methods no plugin can attribute;
+that boundary is the operator's (no card is issued to demo agents), and the
+contract is what governs agent behaviour. Extension tools are intended to
+return only the public
 corpus selected by the site owner. They do not create, update, delete, or
 purchase site data on an agent's own authority.
 
