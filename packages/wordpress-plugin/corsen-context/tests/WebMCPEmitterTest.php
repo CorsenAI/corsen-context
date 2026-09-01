@@ -44,10 +44,12 @@ final class WebMCPEmitterTest extends TestCase {
 		}
 	}
 
-	public function test_unknown_tool_falls_back_to_safest_annotations(): void {
+	public function test_unknown_tool_fails_closed_as_writable(): void {
+		// v1.5.2: a tool missing from the table must NEVER be advertised as
+		// a safe read. Unknown means assume-writable.
 		$this->assertSame(
 			array(
-				'readOnlyHint'         => true,
+				'readOnlyHint'         => false,
 				'untrustedContentHint' => true,
 			),
 			Corsen_Context_WebMCP::annotations_for( 'not_a_tool' )

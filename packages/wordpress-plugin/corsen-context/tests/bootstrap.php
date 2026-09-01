@@ -251,6 +251,17 @@ if ( ! function_exists( '__return_true' ) ) {
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $k, $v, $e = 0 ): bool { return true; }
 }
+if ( ! function_exists( 'wp_count_posts' ) ) {
+	function wp_count_posts( $type ) {
+		$o           = new \stdClass();
+		$o->publish = 0;
+		$o->private  = (int) ( $GLOBALS['corsen_test_expert_count'] ?? 0 );
+		return $o;
+	}
+}
+if ( ! function_exists( 'esc_js' ) ) {
+	function esc_js( $text ): string { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
+}
 if ( ! function_exists( 'wp_get_attachment_image_src' ) ) {
 	function wp_get_attachment_image_src( $id, $size = 'thumbnail' ) {
 		return $GLOBALS['corsen_test_media_src'] ?? array( 'https://example.com/img.jpg', 800, 600 );

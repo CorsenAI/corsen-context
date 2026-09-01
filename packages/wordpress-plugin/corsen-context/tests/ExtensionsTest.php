@@ -231,6 +231,64 @@ class ExtensionsTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * v1.5.2: every known tool must declare annotations explicitly, and an
+	 * unknown tool must never be advertised as a read.
+	 */
+	public function test_annotations_are_explicit_and_fail_closed(): void {
+		foreach ( Corsen_Context_Tool_Registry::known() as $name ) {
+			$a = Corsen_Context_WebMCP::annotations_for( $name );
+			$this->assertSame(
+				'request_expert_call' !== $name,
+				$a['readOnlyHint'],
+				$name . ' must declare the correct readOnlyHint explicitly.'
+			);
+		}
+		$fall = Corsen_Context_WebMCP::annotations_for( 'some_future_write_tool' );
+		$this->assertFalse( $fall['readOnlyHint'] );
+		$this->assertTrue( $fall['untrustedContentHint'] );
+	}
+
+	/**
+	 * v1.5.2: WooCommerce transactional pages (cart/checkout/account) are
+	 * excluded from machine surfaces even when pages are allowed.
+	 */
+	public function test_woo_system_pages_never_exposed(): void {
+		$post            = new \WP_Post();
+		$post->ID        = 101;
+		$post->post_type = 'page';
+		$post->post_name = 'cart';
+		$GLOBALS['corsen_test_posts'] = array( $post );
+		$this->settings( array( 'post_types' => array( 'post', 'page' ) ) );
+		$server = new Corsen_Context_MCP_Server();
+		// Control: without the Woo pointer, the page is exposed.
+		$base   = $server->execute_tool( 'list_content', array( 'type' => 'page' ) );
+		$this->assertCount( 1, $base['result']['items'] );
+		// WooCommerce declares page 101 as its cart page.
+		$GLOBALS['corsen_test_options']['woocommerce_cart_page_id'] = 101;
+		$server2  = new Corsen_Context_MCP_Server();
+		$outcome  = $server2->execute_tool( 'list_content', array( 'type' => 'page' ) );
+		$this->assertCount( 0, $outcome['result']['items'] );
+		unset( $GLOBALS['corsen_test_options']['woocommerce_cart_page_id'], $GLOBALS['corsen_test_posts'] );
+	}
+
+	/**
+	 * v1.5.2: successful tool calls carry typed structuredContent; list-shaped
+	 * results are wrapped under items (MCP requires an object root).
+	 */
+	public function test_success_results_carry_structured_content(): void {
+		$this->settings();
+		$server = new Corsen_Context_MCP_Server();
+		$method = new \ReflectionMethod( $server, 'handle_call_tool' );
+		$method->setAccessible( true );
+		$response = $method->invoke( $server, array( 'name' => 'get_sitemap', 'arguments' => array() ), 'req-1' );
+		$data     = $response->get_data();
+		$this->assertIsArray( $data['result']['structuredContent'] );
+		$this->assertArrayHasKey( 'items', $data['result']['structuredContent'] );
+		$this->assertSame( $data['result']['structuredContent']['items'], json_decode( $data['result']['content'][0]['text'], true ) );
+		$this->assertFalse( $data['result']['isError'] );
+	}
+
+	/**
 	 * v1.5.1: images are {url,width,height,alt} descriptors, not bare URLs.
 	 */
 	public function test_media_descriptor_shape(): void {

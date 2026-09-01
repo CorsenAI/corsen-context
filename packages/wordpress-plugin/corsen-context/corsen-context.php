@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version:           1.5.1
+ * Version:           1.5.2
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.1' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.2' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -67,6 +67,21 @@ final class Corsen_Context {
 	}
 
 	/**
+	 * Same-origin discovery for HTTP clients that never parse HTML:
+	 * Link rel="mcp" on frontend document responses.
+	 */
+	public function add_mcp_link_header(): void {
+		if ( is_admin() || headers_sent() ) {
+			return;
+		}
+		$settings = get_option( 'corsen_context_settings', array() );
+		if ( empty( $settings['enabled'] ) || empty( $settings['mcp_enabled'] ) ) {
+			return;
+		}
+		header( 'Link: <' . rest_url( 'corsen-context/v1/mcp' ) . '>; rel="mcp"', false );
+	}
+
+	/**
 	 * Register hooks.
 	 */
 	private function init_hooks(): void {
@@ -84,6 +99,9 @@ final class Corsen_Context {
 
 		// REST API endpoints (MCP server).
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
+
+		// Opt-in hardening: user enumeration hidden from anonymous REST reads.
+		add_filter( 'rest_endpoints', array( 'Corsen_Context_Security', 'maybe_hide_user_enumeration' ) );
 
 		// WordPress Abilities API surface (inert before WP 6.9).
 		Corsen_Context_Abilities::init();
@@ -107,8 +125,9 @@ final class Corsen_Context {
 		add_action( 'delete_post', array( $this, 'invalidate_cache' ), 10, 1 );
 		add_action( 'transition_post_status', array( $this, 'invalidate_cache_on_transition' ), 10, 3 );
 
-		// Optional <link rel="mcp"> in head.
+		// Optional <link rel="mcp"> in head, plus the HTTP Link header twin.
 		add_action( 'wp_head', array( $this, 'add_mcp_link_tag' ) );
+		add_action( 'template_redirect', array( $this, 'add_mcp_link_header' ) );
 
 		// Optional WebMCP bridge for agents running inside the page.
 		add_action( 'wp_head', array( new Corsen_Context_WebMCP(), 'render' ), 20 );

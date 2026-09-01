@@ -62,14 +62,16 @@ class Corsen_Context_WebMCP {
 	);
 
 	/**
-	 * Annotations for a tool. Unknown tools fall back to the safest pair.
+	 * Annotations for a tool. Unknown tools fall back to the safe assumption
+	 * that they can write: a future tool missing from the table must never be
+	 * advertised as a read.
 	 *
 	 * @param string $name Tool name.
 	 * @return array<string,bool>
 	 */
 	public static function annotations_for( string $name ): array {
 		return self::ANNOTATIONS[ $name ] ?? array(
-			'readOnlyHint'         => true,
+			'readOnlyHint'         => false,
 			'untrustedContentHint' => true,
 		);
 	}
@@ -271,6 +273,8 @@ class Corsen_Context_WebMCP {
             .join('\\n');
           throw new Error(errorText || 'Corsen Context: tool execution failed');
         }
+        var structured = body && body.result && body.result.structuredContent;
+        if (structured && typeof structured === 'object') return structured;
         var content = body && body.result && body.result.content;
         if (!Array.isArray(content)) return '';
         return content

@@ -237,6 +237,9 @@ class Corsen_Context_Llms_Generator {
 				if ( ! $post instanceof \WP_Post || 'publish' !== $post->post_status || ! empty( $post->post_password ) ) {
 					return false;
 				}
+				if ( $post instanceof \WP_Post && Corsen_Context_Tool_Registry::is_woo_system_page( (int) $post->ID ) ) {
+					return false;
+				}
 
 				$path = wp_parse_url( get_permalink( $post ), PHP_URL_PATH );
 				if ( ! is_string( $path ) || $this->is_path_excluded( $path, $exclude ) ) {

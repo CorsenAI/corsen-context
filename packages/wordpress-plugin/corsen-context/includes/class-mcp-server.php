@@ -254,7 +254,10 @@ class Corsen_Context_MCP_Server {
 			if ( '' === $protocol_header ) {
 				$protocol_header = '2025-03-26';
 			}
-			if ( self::PROTOCOL_VERSION !== $protocol_header ) {
+			// Streamable HTTP makes the header optional and assumes
+			// 2025-03-26 by default. Accept released revisions; only reject a
+			// version the client explicitly announced and we do not know.
+			if ( ! in_array( $protocol_header, array( '2025-03-26', '2025-06-18', self::PROTOCOL_VERSION ), true ) ) {
 				return $this->http_error_response( 400, 'Unsupported MCP-Protocol-Version' );
 			}
 		}
@@ -690,16 +693,27 @@ class Corsen_Context_MCP_Server {
 			return $this->tool_error_response( $id, 'Unable to encode the tool result as UTF-8 JSON.' );
 		}
 
+		// MCP structuredContent must be an object: list-shaped results are
+		// wrapped under items, scalars under value. The legacy JSON text part
+		// stays for clients that only read content.
+		$structured = $result;
+		if ( ! is_array( $result ) ) {
+			$structured = array( 'value' => $result );
+		} elseif ( array() === $result || array_keys( $result ) === range( 0, count( $result ) - 1 ) ) {
+			$structured = array( 'items' => $result );
+		}
+
 		return $this->success_response(
 			$id,
 			array(
-				'content' => array(
+				'content'           => array(
 					array(
 						'type' => 'text',
 						'text' => $encoded,
 					),
 				),
-				'isError' => false,
+				'structuredContent' => $structured,
+				'isError'           => false,
 			)
 		);
 	}
@@ -1002,6 +1016,18 @@ class Corsen_Context_MCP_Server {
 	}
 
 	/**
+	 * WooCommerce transactional pages (cart, checkout, account, terms) never
+	 * belong on a public machine surface: they carry per-visitor state and
+	 * owner-facing flows. Excluded even when the page post type is selected.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	private function is_woo_system_page( int $post_id ): bool {
+		return Corsen_Context_Tool_Registry::is_woo_system_page( $post_id );
+	}
+
+	/**
 	 * Check whether a post is allowed to be exposed through public endpoints.
 	 */
 	private function is_post_exposable( \WP_Post $post ): bool {
@@ -1010,6 +1036,10 @@ class Corsen_Context_MCP_Server {
 		}
 
 		if ( ! empty( $post->post_password ) ) {
+			return false;
+		}
+
+		if ( $this->is_woo_system_page( (int) $post->ID ) ) {
 			return false;
 		}
 
@@ -1070,7 +1100,7 @@ class Corsen_Context_MCP_Server {
 				'title'       => $meta['title'],
 				'description' => $meta['description'],
 				'snippet'     => trim( $snippet ) . '...',
-				'score'       => 1,
+				'rank'        => count( $results ) + 1,
 			);
 		}
 

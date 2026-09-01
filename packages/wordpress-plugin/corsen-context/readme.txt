@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,23 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.2 - 2026-09-01 =
+* Successful tool results now carry MCP structuredContent (typed JSON; list
+  results wrapped under items) and the in-page bridge returns the object
+  instead of a JSON string. The legacy text part is kept for compatibility.
+* MCP-Protocol-Version: missing header now falls back to 2025-03-26 as the
+  Streamable HTTP spec requires; released revisions are accepted.
+* Unknown tools no longer default to readOnlyHint true: unregistered means
+  treat-as-writable until declared.
+* search_site reports an honest positional rank instead of a fake score of 1.
+* WooCommerce cart/checkout/account/terms pages are excluded from every
+  machine surface automatically, even when the page post type is selected.
+* New opt-in REST hardening: hide /wp/v2/users enumeration from anonymous
+  agents (logged-in requests unaffected).
+* HTTP Link rel="mcp" discovery header on frontend responses.
+* Control Center can now purge the private expert-request inbox (the pruning
+  promise is finally wired to a button).
 
 = 1.5.1 - 2026-09-01 =
 * Product lists (list_content type=product) now carry compact commercial fields

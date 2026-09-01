@@ -29,6 +29,31 @@ class Corsen_Context_Tool_Registry {
 	public const OPTIONAL_TOOLS = array( 'get_product', 'request_expert_call' );
 
 	/**
+	 * WooCommerce transactional pages (cart, checkout, account, terms) are
+	 * never public machine content: per-visitor state and owner flows. One
+	 * canonical rule used by the MCP surfaces AND the llms.txt generator.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_woo_system_page( int $post_id ): bool {
+		if ( $post_id <= 0 ) {
+			return false;
+		}
+		foreach ( array(
+			'woocommerce_cart_page_id',
+			'woocommerce_checkout_page_id',
+			'woocommerce_myaccount_page_id',
+			'woocommerce_terms_page_id',
+		) as $woo_opt ) {
+			if ( (int) get_option( $woo_opt, 0 ) === $post_id ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Every tool name the plugin knows about (also the sanitize whitelist).
 	 *
 	 * @return string[]

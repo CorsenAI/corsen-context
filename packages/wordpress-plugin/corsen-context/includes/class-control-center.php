@@ -31,6 +31,7 @@ class Corsen_Context_Control_Center {
 	private function __construct() {
 		add_action( 'admin_menu', array( $this, 'add_menu' ), 11 );
 		add_action( 'admin_post_corsen_ccx_purge_audit', array( $this, 'handle_purge_audit' ) );
+		add_action( 'admin_post_corsen_ccx_purge_expert', array( $this, 'handle_purge_expert' ) );
 	}
 
 	/**
@@ -43,6 +44,30 @@ class Corsen_Context_Control_Center {
 		check_admin_referer( 'corsen_ccx_purge_audit' );
 		Corsen_Context_Audit::purge();
 		wp_safe_redirect( admin_url( 'options-general.php?page=corsen-context-control&ccx_msg=purged' ) );
+		exit;
+	}
+
+	/**
+	 * Owner pruning: empty the private expert-request inbox. The code has
+	 * always promised "owner prunes in Control Center" — this keeps it.
+	 */
+	public function handle_purge_expert(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'corsen-context' ) );
+		}
+		check_admin_referer( 'corsen_ccx_purge_expert' );
+		$expert_posts = get_posts(
+			array(
+				'post_type'      => 'cc_expert_request',
+				'post_status'    => 'private',
+				'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- Admin bulk purge, capped batch, ids only.
+				'fields'         => 'ids',
+			)
+		);
+		foreach ( $expert_posts as $expert_post_id ) {
+			wp_delete_post( (int) $expert_post_id, true );
+		}
+		wp_safe_redirect( admin_url( 'options-general.php?page=corsen-context-control&ccx_msg=expert_purged' ) );
 		exit;
 	}
 
@@ -314,7 +339,14 @@ class Corsen_Context_Control_Center {
 				</table>
 				<p>
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_audit' ), 'corsen_ccx_purge_audit' ) ); ?>"><?php esc_html_e( 'Empty the audit log', 'corsen-context' ); ?></a>
-				</p>
+					<?php
+					$expert_counts  = wp_count_posts( 'cc_expert_request' );
+					$expert_pending = ( $expert_counts instanceof \stdClass && isset( $expert_counts->private ) ) ? (int) $expert_counts->private : 0;
+					?>
+					<?php if ( $expert_pending > 0 ) : ?>
+						<a class="button" style="margin-left:8px;" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_expert' ), 'corsen_ccx_purge_expert' ) ); ?>" onclick="return confirm('<?php echo esc_js( sprintf( 'Permanently delete %d expert request(s)?', $expert_pending ) ); ?>');">Purge expert requests (<?php echo (int) $expert_pending; ?>)</a>
+					<?php endif; ?>
+					</p>
 			<?php endif; ?>
 		</div>
 		<?php

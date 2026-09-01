@@ -48,6 +48,12 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.2] - 2026-09-01
+* structuredContent on success (bridge returns objects), protocol-version
+  fallback 2025-03-26 per spec, annotation default fails closed (writable),
+  rank replaces fake score, Woo transactional pages auto-excluded,
+  opt-in user-enumeration block, HTTP Link rel=mcp, expert inbox purge.
+
 ## WordPress plugin [1.5.1] - 2026-09-01
 * list_content(type=product): compact price/currency/inStock/image/slug when
   get_product is exposed (1 call instead of 1+N; measured 182x token saving).

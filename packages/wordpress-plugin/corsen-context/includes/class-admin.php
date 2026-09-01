@@ -248,6 +248,17 @@ class Corsen_Context_Admin {
 			)
 		);
 		add_settings_field(
+			'hide_user_enumeration',
+			'Hide User Enumeration',
+			array( $this, 'render_checkbox' ),
+			'corsen-context',
+			'corsen_context_security',
+			array(
+				'field' => 'hide_user_enumeration',
+				'label' => 'Block anonymous reads of /wp/v2/users (author logins). Logged-in requests keep working.',
+			)
+		);
+		add_settings_field(
 			'credit',
 			'Show Credit',
 			array( $this, 'render_checkbox' ),
@@ -298,6 +309,7 @@ class Corsen_Context_Admin {
 		$requested_tools                        = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS ) );
 		$sanitized['enabled_tools']             = array_values( array_intersect( $all_tools, $requested_tools ) );
 		$sanitized['audit_enabled']             = ! empty( $input['audit_enabled'] );
+		$sanitized['hide_user_enumeration']     = ! empty( $input['hide_user_enumeration'] );
 		$sanitized['expert_enabled']            = ! empty( $input['expert_enabled'] );
 		$sanitized['expert_notify']             = ! empty( $input['expert_notify'] );
 		$sanitized['expert_email']              = sanitize_email( (string) ( $input['expert_email'] ?? '' ) );

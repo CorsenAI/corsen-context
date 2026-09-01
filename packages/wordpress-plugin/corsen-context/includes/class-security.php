@@ -418,4 +418,19 @@ class Corsen_Context_Security {
 
 		return hash_equals( $api_key, $provided );
 	}
+
+	/**
+	 * Owner opt-in: anonymous agents must not enumerate author logins through
+	 * the core REST users collection. Logged-in requests keep working.
+	 *
+	 * @param array<string,mixed> $endpoints Registered REST routes.
+	 * @return array<string,mixed>
+	 */
+	public static function maybe_hide_user_enumeration( array $endpoints ): array {
+		$settings = get_option( 'corsen_context_settings', array() );
+		if ( ! empty( $settings['hide_user_enumeration'] ) && ! is_user_logged_in() ) {
+			unset( $endpoints['/wp/v2/users'], $endpoints['/wp/v2/users/(?P<id>[\d]+)'] );
+		}
+		return $endpoints;
+	}
 }
