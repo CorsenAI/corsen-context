@@ -304,3 +304,8 @@ composer run test:unit
 For a public deployment, run `pnpm verify:live` and then execute the documented
 browser call chain. Treat a skipped test, mock, stale deployment, `401`, `429`,
 or HTTP-only bridge inspection as an incomplete result rather than a pass.
+
+Code scanning findings are never left silently open: each is fixed in shipped
+code or dismissed with a written rationale recorded in
+`docs/CODEQL-TRIAGE.md`, and that file names the three findings that were
+genuinely fixed (DOM sinks, polynomial regex, check-then-write race).
