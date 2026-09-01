@@ -34,6 +34,32 @@ class Corsen_Context_Agent_Policy {
 	public static function init(): void {
 		add_action( 'wp_head', array( __CLASS__, 'render_head_banner' ), 1 );
 		add_shortcode( 'corsen_agent_policy', array( __CLASS__, 'render_shortcode' ) );
+		add_action( 'init', array( __CLASS__, 'register_meta' ), 9 );
+	}
+
+	/**
+	 * Owner-set policy meta, REST-exposed so Control Centers and admin UIs
+	 * can set the policy durably (auth enforced per-meta).
+	 */
+	public static function register_meta(): void {
+		register_post_meta( 'product', self::META_KEY, array(
+			'type'              => 'string',
+			'single'            => true,
+			'show_in_rest'      => true,
+			'sanitize_callback' => 'sanitize_key',
+			'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+				return (bool) current_user_can( 'edit_post_meta', $post_id, $meta_key );
+			},
+		) );
+		register_post_meta( 'product', self::META_REASON_KEY, array(
+			'type'              => 'string',
+			'single'            => true,
+			'show_in_rest'      => true,
+			'sanitize_callback' => 'sanitize_text_field',
+			'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+				return (bool) current_user_can( 'edit_post_meta', $post_id, $meta_key );
+			},
+		) );
 	}
 
 	/**
