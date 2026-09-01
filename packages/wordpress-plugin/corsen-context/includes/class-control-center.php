@@ -125,6 +125,16 @@ class Corsen_Context_Control_Center {
 				'desc'  => __( 'Agents list newest items per content type, with pagination.', 'corsen-context' ),
 				'state' => 'live',
 			),
+			'get_sections'        => array(
+				'title' => __( 'Sections reader', 'corsen-context' ),
+				'desc'  => __( 'Agents read one page as a bounded outline, then exactly the section they want — huge pages stop blowing their token budget.', 'corsen-context' ),
+				'state' => 'live',
+			),
+			'get_structured_data' => array(
+				'title' => __( 'Structured data (JSON-LD)', 'corsen-context' ),
+				'desc'  => __( 'Agents read the typed JSON-LD this page already publishes (products, recipes, FAQs), sanitized and size-capped.', 'corsen-context' ),
+				'state' => 'live',
+			),
 			'get_product'         => array(
 				'title' => __( 'Get product (WooCommerce)', 'corsen-context' ),
 				'desc'  => __( 'Agents read price, stock and images of one product. Read-only.', 'corsen-context' ),

@@ -218,8 +218,13 @@ class Corsen_Context_Agent_Access {
 			'limit_response_size' => self::BODY_CAP,
 		);
 
-		$response = 'mcp' === $target
-			? wp_remote_post(
+		if ( 'mcp' === $target ) {
+			// Speak the protocol properly: the endpoint answers 415 to a
+			// form-encoded body, which would blame the CDN for our own headers.
+			$args['headers']['Content-Type']         = 'application/json';
+			$args['headers']['Accept']               = 'application/json, text/event-stream';
+			$args['headers']['MCP-Protocol-Version'] = '2025-11-25';
+			$response                                = wp_remote_post(
 				$url,
 				array_merge(
 					$args,
@@ -233,8 +238,10 @@ class Corsen_Context_Agent_Access {
 						),
 					)
 				)
-			)
-			: wp_remote_get( $url, $args );
+			);
+		} else {
+			$response = wp_remote_get( $url, $args );
+		}
 
 		$code          = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 		$server_header = is_wp_error( $response ) ? '' : strtolower( (string) wp_remote_retrieve_header( $response, 'server' ) );

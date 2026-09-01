@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag:        1.5.4
+Stable tag:        1.5.8
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,18 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.8 - 2026-09-01 =
+* Agent-access self-test: the MCP probe now really sends JSON-RPC headers (`Content-Type: application/json`, `Accept`, `MCP-Protocol-Version`) so the endpoint answers 200 instead of 415; a test asserts the probe's own headers so the fix cannot silently vanish again.
+
+= 1.5.7 - 2026-09-01 =
+* `check_agent_access` routing fix: the MCP server's tool-call switch now dispatches the tool (it was advertised by `tools/list` but returned "Tool not found" on call); a server-level regression test covers end-to-end routing for the tool.
+
+= 1.5.6 - 2026-09-01 =
+* Control Center now carries a card for every registered tool. Previously `get_sections` and `get_structured_data` had no card, so saving the Control Center form dropped them from the enabled set - a real owner-footgun, now covered by a regression test that fails if any tool lacks its card.
+
+= 1.5.5 - 2026-09-01 =
+* Version bump only in practice: the probe-header fix announced here did not make it into that build (the edit silently failed to apply and no test covered it); it actually ships in 1.5.8 with a header-assertion test.
 
 = 1.5.4 - 2026-09-01 =
 * New opt-in tool `check_agent_access`: agents read the result of the owner's latest agent-access self-test (did real ClaudeBot, ChatGPT-User and GPTBot clients get through the CDN, with the HTTP code and answering edge per probe). Read-only snapshot, zero arguments, never triggers egress itself.

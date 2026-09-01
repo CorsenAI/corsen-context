@@ -518,6 +518,7 @@ class Corsen_Context_MCP_Server {
 			case 'get_product':
 			case 'get_sections':
 			case 'get_structured_data':
+			case 'check_agent_access':
 			case 'request_expert_call':
 				$extension = Corsen_Context_Tool_Registry::execute( $tool_name, $arguments );
 				if ( empty( $extension['ok'] ) ) {

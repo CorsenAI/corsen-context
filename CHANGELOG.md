@@ -48,6 +48,18 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.8] - 2026-09-01
+* Agent-access MCP probe sends proper JSON-RPC headers (endpoint answers 200, not 415); new test asserts the probe's own headers (the 1.5.5 announced fix had silently failed to apply - caught by live re-verification, never by the suite).
+
+## WordPress plugin [1.5.7] - 2026-09-01
+* `check_agent_access` call routing added to the MCP server switch (was advertised but not callable); server-level routing regression test added (tools/list presence alone no longer trusted as proof of callability).
+
+## WordPress plugin [1.5.6] - 2026-09-01
+* Fix owner-footgun: Control Center catalog now covers every known tool (`get_sections`/`get_structured_data` cards were missing, so a CC form-save silently dropped them); regression test enforces catalog completeness.
+
+## WordPress plugin [1.5.5] - 2026-09-01
+* Version bump only in practice: the probe-header fix announced here silently failed to apply and is genuinely shipped in 1.5.8 with a test.
+
 ## WordPress plugin [1.5.4] - 2026-09-01
 * `check_agent_access` (opt-in, fail-closed): read-only report of the owner's latest agent-access self-test — ClaudeBot/ChatGPT-User/GPTBot/control UAs against own llms.txt + MCP endpoint, HTTP code and answering edge per probe.
 * Control Center "Agent access" card: nonce-protected button runs the loopback probe (max one run per 5 min, status codes only, no credentials, self-URL guard), renders the verdict table and Cloudflare fix guidance.

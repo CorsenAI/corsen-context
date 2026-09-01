@@ -21,6 +21,27 @@ class AgentAccessTest extends WP_UnitTestCase {
 		$this->assertNull( Corsen_Context_Agent_Access::validate( array( 'url' => 'https://evil.example' ) ) );
 	}
 
+	public function test_run_probes_self_urls_with_protocol_headers_on_mcp(): void {
+		$GLOBALS['corsen_test_http_response'] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array( 'server' => 'cloudflare', 'cf-ray' => 'deadbeef' ),
+			'body'     => 'ok',
+		);
+		Corsen_Context_Agent_Access::run();
+		$mcp_seen = 0;
+		foreach ( $GLOBALS['corsen_test_http_calls'] as $call ) {
+			if ( 'POST' !== $call[0] ) {
+				continue;
+			}
+			++$mcp_seen;
+			$headers = $call[2]['headers'];
+			$this->assertSame( 'application/json', $headers['Content-Type'], 'the MCP probe must declare its media type' );
+			$this->assertStringContainsString( 'application/json', $headers['Accept'] );
+			$this->assertArrayHasKey( 'MCP-Protocol-Version', $headers );
+		}
+		$this->assertSame( 4, $mcp_seen );
+	}
+
 	public function test_execute_never_probes_and_says_so_when_unrun(): void {
 		$out = Corsen_Context_Agent_Access::execute( array() );
 		$this->assertTrue( $out['ok'] );
@@ -119,6 +140,32 @@ class AgentAccessTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'note', $run );
 		$this->assertLessThanOrEqual( 200, strlen( $run['note'] ) );
 		$this->assertStringNotContainsString( '<b>', $run['note'] );
+	}
+
+	public function test_control_center_catalog_covers_every_known_tool(): void {
+		$ref     = new \ReflectionMethod( 'Corsen_Context_Control_Center', 'tool_catalog' );
+		$ref->setAccessible( true );
+		$catalog = $ref->invoke( Corsen_Context_Control_Center::instance() );
+		foreach ( Corsen_Context_Tool_Registry::known() as $tool ) {
+			$this->assertArrayHasKey( $tool, $catalog, 'Control Center must carry a card for ' . $tool . ' (saving without a card once silently stripped it)' );
+		}
+	}
+
+	public function test_mcp_server_routes_the_tool_end_to_end(): void {
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'enabled'       => true,
+			'mcp_enabled'   => true,
+			'enabled_tools' => array( 'check_agent_access' ),
+		);
+		$server = new Corsen_Context_MCP_Server();
+		$ref    = new \ReflectionMethod( $server, 'execute_tool' );
+		$ref->setAccessible( true );
+		$r = $ref->invoke( $server, 'check_agent_access', array() );
+		$this->assertNotEmpty( $r['ok'], 'execute_tool must route to the registry' );
+		$this->assertSame( 0, $r['result']['ran_at'] );
+		$bad = $ref->invoke( $server, 'check_agent_access', array( 'url' => 'https://evil.example' ) );
+		$this->assertEmpty( $bad['ok'] );
+		$this->assertSame( 'invalid_params', $bad['code'] );
 	}
 
 	public function test_registry_exposes_definition_outside_the_manifest(): void {
