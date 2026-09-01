@@ -99,6 +99,7 @@ class WP_Post {
 	public string $post_content      = '';
 	public string $post_excerpt      = '';
 	public string $post_type         = 'post';
+	public string $post_name         = 'test-post';
 	public string $post_status       = 'publish';
 	public string $post_password     = '';
 	public string $post_date_gmt     = '';
@@ -249,6 +250,22 @@ if ( ! function_exists( '__return_true' ) ) {
 }
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $k, $v, $e = 0 ): bool { return true; }
+}
+if ( ! function_exists( 'wp_get_attachment_image_src' ) ) {
+	function wp_get_attachment_image_src( $id, $size = 'thumbnail' ) {
+		return $GLOBALS['corsen_test_media_src'] ?? array( 'https://example.com/img.jpg', 800, 600 );
+	}
+}
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $post_id, $key = '', $single = false ) {
+		if ( '' === $key ) {
+			return array();
+		}
+		return $GLOBALS['corsen_test_postmeta'][ (int) $post_id ][ $key ] ?? '';
+	}
+}
+if ( ! function_exists( 'get_woocommerce_currency' ) ) {
+	function get_woocommerce_currency(): string { return $GLOBALS['corsen_test_currency'] ?? 'EUR'; }
 }
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $h ): bool { return true; }

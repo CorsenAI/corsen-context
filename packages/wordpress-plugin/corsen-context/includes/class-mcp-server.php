@@ -404,7 +404,7 @@ class Corsen_Context_MCP_Server {
 			if ( ! empty( $outcome['protocol_error'] ) ) {
 				return $this->error_response( $id, -32602, (string) $outcome['error'] );
 			}
-			return $this->tool_error_response( $id, (string) $outcome['error'] );
+			return $this->tool_error_response( $id, (string) $outcome['error'], $outcome );
 		}
 
 		return $this->tool_result_response( $id, $outcome['result'] );
@@ -467,6 +467,7 @@ class Corsen_Context_MCP_Server {
 		if ( null === $arguments ) {
 			return array(
 				'ok'    => false,
+				'code'  => 'invalid_params',
 				'error' => 'Invalid tool parameters. Check this tool\'s inputSchema from tools/list and retry with only documented fields, types, and bounds.',
 			);
 		}
@@ -497,6 +498,7 @@ class Corsen_Context_MCP_Server {
 				if ( null === $result ) {
 					return array(
 						'ok'    => false,
+						'code'  => 'not_found',
 						'error' => 'Resource not found or not exposed. Use a URL returned by search_site, list_content, or get_sitemap.',
 					);
 				}
@@ -514,10 +516,15 @@ class Corsen_Context_MCP_Server {
 			case 'request_expert_call':
 				$extension = Corsen_Context_Tool_Registry::execute( $tool_name, $arguments );
 				if ( empty( $extension['ok'] ) ) {
-					return array(
+					$failure = array(
 						'ok'    => false,
 						'error' => (string) ( $extension['error'] ?? 'The tool could not complete.' ),
+						'code'  => (string) ( $extension['code'] ?? 'request_failed' ),
 					);
+					if ( isset( $extension['retry_after'] ) ) {
+						$failure['retry_after'] = (int) $extension['retry_after'];
+					}
+					return $failure;
 				}
 				$result = $extension['result'];
 				break;
@@ -698,19 +705,32 @@ class Corsen_Context_MCP_Server {
 	}
 
 	/** Return an actionable MCP tool error without turning it into a protocol error. */
-	private function tool_error_response( $id, string $message ): \WP_REST_Response {
-		return $this->success_response(
+	private function tool_error_response( $id, string $message, array $outcome = array() ): \WP_REST_Response {
+		$machine = array(
+			'ok'         => false,
+			'error_code' => (string) ( $outcome['code'] ?? 'request_failed' ),
+			'message'    => $message,
+		);
+		if ( isset( $outcome['retry_after'] ) ) {
+			$machine['retry_after'] = (int) $outcome['retry_after'];
+		}
+		$response = $this->success_response(
 			$id,
 			array(
-				'content' => array(
+				'content'           => array(
 					array(
 						'type' => 'text',
 						'text' => $message,
 					),
 				),
-				'isError' => true,
+				'isError'           => true,
+				'structuredContent' => $machine,
 			)
 		);
+		if ( isset( $outcome['retry_after'] ) && method_exists( $response, 'header' ) ) {
+			$response->header( 'Retry-After', (string) (int) $outcome['retry_after'] );
+		}
+		return $response;
 	}
 
 	/**
@@ -1121,15 +1141,33 @@ class Corsen_Context_MCP_Server {
 		$total  = count( $posts );
 		$offset = ( $page - 1 ) * $limit;
 		$items  = array();
+		// Compact commercial fields on product lists: one call replaces N
+		// get_product round-trips, but only when the owner exposed that tool.
+		$enrich = 'product' === $type
+			&& class_exists( 'Corsen_Context_Products' )
+			&& Corsen_Context_Products::woocommerce_active()
+			&& in_array( 'get_product', $this->get_enabled_tools(), true );
 		foreach ( array_slice( $posts, $offset, $limit ) as $post ) {
-			$meta    = Corsen_Context_Content_Converter::get_post_metadata( $post );
-			$items[] = array(
+			$meta = Corsen_Context_Content_Converter::get_post_metadata( $post );
+			$item = array(
 				'url'          => $meta['url'],
 				'title'        => $meta['title'],
 				'description'  => $meta['description'],
 				'type'         => $post->post_type,
 				'lastModified' => $meta['modified'],
 			);
+			if ( $enrich ) {
+				$product = wc_get_product( (int) $post->ID );
+				if ( $product instanceof \WC_Product ) {
+					$price            = $product->get_price();
+					$item['slug']     = (string) $post->post_name;
+					$item['price']    = is_numeric( $price ) ? (float) $price : null;
+					$item['currency'] = (string) get_woocommerce_currency();
+					$item['inStock']  = (bool) $product->is_in_stock();
+					$item['image']    = Corsen_Context_Products::media( (int) $product->get_image_id() );
+				}
+			}
+			$items[] = $item;
 		}
 
 		return array(

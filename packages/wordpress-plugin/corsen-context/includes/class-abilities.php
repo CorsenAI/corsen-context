@@ -186,6 +186,8 @@ class Corsen_Context_Abilities {
 							'title'        => array( 'type' => 'string' ),
 							'type'         => array( 'type' => 'string' ),
 							'lastModified' => array( 'type' => 'string' ),
+							'price'        => array( 'type' => 'number' ),
+							'inStock'      => array( 'type' => 'boolean' ),
 						),
 						'required'   => array( 'url' ),
 					),
@@ -200,6 +202,8 @@ class Corsen_Context_Abilities {
 						'currency'    => array( 'type' => 'string' ),
 						'inStock'     => array( 'type' => 'boolean' ),
 						'stockStatus' => array( 'type' => 'string' ),
+						'image'       => array( 'type' => 'object' ),
+						'gallery'     => array( 'type' => 'array' ),
 					),
 					'required'   => array( 'url', 'title' ),
 				);

@@ -182,13 +182,14 @@ class Corsen_Context_Expert {
 	 */
 	public static function execute( array $args ): array {
 		if ( ! self::configured() ) {
-			return self::fail( 'The site owner has not configured a destination for expert requests.' );
+			return self::fail( 'The site owner has not configured a destination for expert requests.', 'not_configured' );
 		}
-		if ( ! self::check_throttle() ) {
-			return self::fail( 'Too many requests from this address recently. Try again later, or use the contact form on the page.' );
+		$retry_after = self::throttle_retry_after();
+		if ( $retry_after > 0 ) {
+			return self::fail( 'Too many requests from this address recently. Retry in about ' . $retry_after . ' seconds, or use the contact form on the page.', 'rate_limited', array( 'retry_after' => $retry_after ) );
 		}
 		if ( self::kept_count() >= self::MAX_KEPT ) {
-			return self::fail( 'The site\'s expert-request inbox is currently full. Use the visible contact form or try again later.' );
+			return self::fail( 'The site\'s expert-request inbox is currently full. Use the visible contact form or try again later.', 'inbox_full' );
 		}
 
 		$post_id = wp_insert_post(
@@ -232,15 +233,23 @@ class Corsen_Context_Expert {
 	/**
 	 * Fixed-window throttle: PER_IP_PER_HOUR submissions per hour per salted IP.
 	 */
-	private static function check_throttle(): bool {
+	private static function throttle_retry_after(): int {
 		$ip    = Corsen_Context_Security::get_client_ip();
 		$key   = 'corsen_expt_' . substr( hash_hmac( 'sha256', $ip, wp_salt( 'auth' ) ), 0, 32 );
 		$count = (int) get_transient( $key );
 		if ( $count >= self::PER_IP_PER_HOUR ) {
-			return false;
+			$start = (int) get_transient( $key . '_start' );
+			if ( $start <= 0 ) {
+				$start = time();
+				set_transient( $key . '_start', $start, HOUR_IN_SECONDS );
+			}
+			return max( 60, ( $start + HOUR_IN_SECONDS ) - time() );
+		}
+		if ( 0 === $count ) {
+			set_transient( $key . '_start', time(), HOUR_IN_SECONDS );
 		}
 		set_transient( $key, $count + 1, HOUR_IN_SECONDS );
-		return true;
+		return 0;
 	}
 
 	/**
@@ -269,12 +278,18 @@ class Corsen_Context_Expert {
 	 * Fail shape.
 	 *
 	 * @param string $message Agent-readable reason (never user data).
+	 * @param string $code    Machine-readable error code.
+	 * @param array  $extra   Extra machine fields such as retry_after.
 	 * @return array<string,mixed>
 	 */
-	private static function fail( string $message ): array {
-		return array(
-			'ok'    => false,
-			'error' => $message,
+	private static function fail( string $message, string $code = 'request_failed', array $extra = array() ): array {
+		return array_merge(
+			array(
+				'ok'    => false,
+				'error' => $message,
+				'code'  => $code,
+			),
+			$extra
 		);
 	}
 }

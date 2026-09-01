@@ -152,6 +152,8 @@ class ExtensionsTest extends WP_UnitTestCase {
 		);
 		$this->assertFalse( $outcome['ok'] );
 		$this->assertStringContainsString( 'Too many requests', $outcome['error'] );
+		$this->assertSame( 'rate_limited', $outcome['code'] );
+		$this->assertGreaterThanOrEqual( 60, (int) $outcome['retry_after'] );
 		$this->assertSame( array(), $GLOBALS['corsen_test_inserts'] );
 	}
 
@@ -180,6 +182,7 @@ class ExtensionsTest extends WP_UnitTestCase {
 		);
 		$this->assertFalse( $both['ok'] );
 		$this->assertStringContainsString( 'Invalid tool parameters', $both['error'] );
+		$this->assertSame( 'invalid_params', $both['code'] );
 	}
 
 	/**
@@ -187,8 +190,11 @@ class ExtensionsTest extends WP_UnitTestCase {
 	 * slug lookup must go through WC_Product_Query. Regression guard for the
 	 * live bug where the active-gate required that removed function.
 	 */
-	public function test_get_product_slug_lookup_modern_woocommerce_path(): void {
-		if ( ! function_exists( 'WooCommerce' ) && ! class_exists( 'WooCommerce' ) ) {
+	/**
+	 * Simulate a modern (HPOS-era) WooCommerce runtime once per process.
+	 */
+	private function ensure_modern_woo_runtime(): void {
+		if ( ! class_exists( 'WooCommerce' ) ) {
 			eval( 'class WooCommerce {}' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stub for a runtime we are simulating.
 		}
 		if ( ! class_exists( 'WC_Product_Query' ) ) {
@@ -198,8 +204,18 @@ class ExtensionsTest extends WP_UnitTestCase {
 			); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stub for a runtime we are simulating.
 		}
 		if ( ! function_exists( 'wc_get_product' ) ) {
-			eval( 'function wc_get_product( $id ) { return null; }' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stub: product lookup resolves but returns nothing published.
+			eval(
+				'class WC_Product { public $data; public function __construct( $data = array() ) { $this->data = $data; } ' .
+				'public function get_price() { return $this->data["price"] ?? null; } ' .
+				'public function is_in_stock() { return ! empty( $this->data["instock"] ); } ' .
+				'public function get_image_id() { return (int) ( $this->data["image_id"] ?? 0 ); } } ' .
+				'function wc_get_product( $id ) { return isset( $GLOBALS["corsen_fix_product"] ) && $GLOBALS["corsen_fix_product"] instanceof WC_Product ? $GLOBALS["corsen_fix_product"] : null; }'
+			); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stubs: modern Woo runtime we are simulating.
 		}
+	}
+
+	public function test_get_product_slug_lookup_modern_woocommerce_path(): void {
+		$this->ensure_modern_woo_runtime();
 		$this->assertTrue( Corsen_Context_Products::woocommerce_active(), 'Gate must trust class + wc_get_product only.' );
 		$this->settings(
 			array(
@@ -212,6 +228,57 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertFalse( $outcome['ok'] );
 		$this->assertStringNotContainsString( 'not active', $outcome['error'] );
 		$this->assertStringContainsString( 'Product not found or not published', $outcome['error'] );
+	}
+
+	/**
+	 * v1.5.1: images are {url,width,height,alt} descriptors, not bare URLs.
+	 */
+	public function test_media_descriptor_shape(): void {
+		$GLOBALS['corsen_test_postmeta'][7]['_wp_attachment_image_alt'] = 'Capture atelier';
+		$m = Corsen_Context_Products::media( 7 );
+		$this->assertSame( 'https://example.com/img.jpg', $m['url'] );
+		$this->assertSame( 800, $m['width'] );
+		$this->assertSame( 600, $m['height'] );
+		$this->assertSame( 'Capture atelier', $m['alt'] );
+		unset( $GLOBALS['corsen_test_postmeta'][7] );
+		$this->assertNull( Corsen_Context_Products::media( 7 )['alt'] );
+		$this->assertNull( Corsen_Context_Products::media( 0 ) );
+	}
+
+	/**
+	 * v1.5.1: list_content(type=product) carries compact commercial fields
+	 * only while the owner exposes get_product (1 call replaces 1+N).
+	 */
+	public function test_list_content_product_enrichment(): void {
+		$this->ensure_modern_woo_runtime();
+		$post                    = new \WP_Post();
+		$post->ID                = 123;
+		$post->post_type         = 'product';
+		$post->post_name         = 'gants-latin';
+		$GLOBALS['corsen_test_posts'] = array( $post );
+		$this->settings(
+			array(
+				'enabled_tools' => $this->enable_all_core_plus( 'get_product' ),
+				'post_types'    => array( 'post', 'page', 'product' ),
+			)
+		);
+		$GLOBALS['corsen_fix_product'] = new \WC_Product( array( 'price' => '19.90', 'instock' => true, 'image_id' => 7 ) );
+		$server  = new Corsen_Context_MCP_Server();
+		$outcome = $server->execute_tool( 'list_content', array( 'type' => 'product' ) );
+		$this->assertTrue( $outcome['ok'] );
+		$item = $outcome['result']['items'][0];
+		$this->assertSame( 'gants-latin', $item['slug'] );
+		$this->assertSame( 19.9, $item['price'] );
+		$this->assertSame( 'EUR', $item['currency'] );
+		$this->assertTrue( $item['inStock'] );
+		$this->assertIsArray( $item['image'] );
+		$this->assertSame( 'https://example.com/img.jpg', $item['image']['url'] );
+		// Owner hides get_product again: fields disappear (fail-closed parity).
+		$this->settings( array( 'post_types' => array( 'post', 'page', 'product' ) ) );
+		$server2 = new Corsen_Context_MCP_Server();
+		$out2    = $server2->execute_tool( 'list_content', array( 'type' => 'product' ) );
+		$this->assertArrayNotHasKey( 'price', $out2['result']['items'][0] );
+		unset( $GLOBALS['corsen_test_posts'], $GLOBALS['corsen_fix_product'] );
 	}
 
 	public function test_get_product_validate(): void {

@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,17 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.1 - 2026-09-01 =
+* Product lists (list_content type=product) now carry compact commercial fields
+  (slug, price, currency, inStock, image) when get_product is exposed: one call
+  replaces one-per-product round-trips.
+* get_product images are structured objects {url, width, height, alt} so agents
+  can reason about photos without downloading them.
+* Machine-readable error codes (invalid_params, not_found, rate_limited,
+  not_configured, inbox_full) in structuredContent on every MCP tool error.
+* Rate-limited expert submissions return retry_after seconds and a Retry-After
+  HTTP header instead of a blind "try again later".
 
 = 1.5.0 - 2026-09-01 =
 * Feature: Control Center page (Settings > Corsen Context Control) — one card per surface and tool with exposed / needs-config / off badges, a what-agents-see preview built from the actually exposed tool list, and one-click audit log purge.

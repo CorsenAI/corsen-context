@@ -128,6 +128,30 @@ class Corsen_Context_Products {
 	}
 
 	/**
+	 * Structured media descriptor: URL plus the metadata an agent needs to
+	 * decide whether to look at the image at all (alt text, dimensions).
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 * @return array<string,mixed>|null
+	 */
+	public static function media( int $attachment_id ): ?array {
+		if ( $attachment_id <= 0 ) {
+			return null;
+		}
+		$src = wp_get_attachment_image_src( $attachment_id, 'large' );
+		if ( ! is_array( $src ) || empty( $src[0] ) ) {
+			return null;
+		}
+		$alt = trim( (string) get_post_meta( $attachment_id, '_wp_attachment_image_alt', true ) );
+		return array(
+			'url'    => (string) $src[0],
+			'width'  => isset( $src[1] ) ? (int) $src[1] : null,
+			'height' => isset( $src[2] ) ? (int) $src[2] : null,
+			'alt'    => '' === $alt ? null : $alt,
+		);
+	}
+
+	/**
 	 * Execute get_product.
 	 *
 	 * @param array<string,string> $args Normalized args from validate().
@@ -216,13 +240,13 @@ class Corsen_Context_Products {
 			'lastModified' => (string) get_post_modified_time( 'c', true, $id ),
 		);
 
-		$image = wp_get_attachment_image_url( (int) $product->get_image_id(), 'large' );
-		if ( is_string( $image ) && '' !== $image ) {
-			$data['image'] = $image;
+		$featured = self::media( (int) $product->get_image_id() );
+		if ( null !== $featured ) {
+			$data['image'] = $featured;
 		}
 		foreach ( array_slice( (array) $product->get_gallery_image_ids(), 0, 5 ) as $att ) {
-			$gal = wp_get_attachment_image_url( (int) $att, 'large' );
-			if ( is_string( $gal ) && '' !== $gal ) {
+			$gal = self::media( (int) $att );
+			if ( null !== $gal ) {
 				$data['gallery'][] = $gal;
 			}
 		}

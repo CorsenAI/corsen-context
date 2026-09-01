@@ -48,6 +48,13 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.1] - 2026-09-01
+* list_content(type=product): compact price/currency/inStock/image/slug when
+  get_product is exposed (1 call instead of 1+N; measured 182x token saving).
+* get_product image+gallery as {url,width,height,alt} objects.
+* structuredContent error codes on MCP tool errors + retry_after/Retry-After
+  on expert rate limiting.
+
 ## WordPress plugin [1.5.0] - Candidate - 2026-09-01
 
 ### WordPress plugin
