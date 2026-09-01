@@ -110,7 +110,7 @@ levels of native integration:
 
 | Stack              | What a site owner receives                                     |
 | ------------------ | -------------------------------------------------------------- |
-| WordPress          | native PHP plugin; repository candidate is 1.5.11               |
+| WordPress          | native PHP plugin; repository candidate is 1.5.12               |
 | Next.js App Router | npm 2.0.0 candidate plus reference app                         |
 | Astro              | npm 2.0.0 candidate plus SSR reference app                     |
 | Express            | framework-agnostic core plus reference server                  |

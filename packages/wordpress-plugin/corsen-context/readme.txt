@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.11
+Stable tag: 1.5.12
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -13,7 +13,7 @@ Publish selected public WordPress content through llms.txt and an MCP-style JSON
 
 == Description ==
 
-**Corsen Context** publishes a bounded overview of selected public WordPress content and provides four core read-only content tools through a JSON-RPC endpoint. Five further extension tools are opt-in and owner-controlled: `get_product` (live price, stock, images and variants via WooCommerce), `get_sections` (a page outline plus one bounded section per call), `get_structured_data` (typed JSON-LD blocks), `check_agent_access` (reads the result of the owner's latest agent-access self-test) and `request_expert_call` (files a private owner-side submission, like a contact form; it is annotated readOnlyHint:false). 1.5.0 also registers the enabled tools through the experimental WebMCP browser API when the site owner opts in and the browser exposes that API, and through the WordPress Abilities API on WordPress 6.9 or newer.
+**Corsen Context** publishes a bounded overview of selected public WordPress content and provides four core read-only content tools through a JSON-RPC endpoint. Five further extension tools are opt-in and owner-controlled: `get_product` (live price, stock, images and variants via WooCommerce, plus an `agentPurchase` policy the agent must respect), `get_sections` (a page outline plus one bounded section per call), `get_structured_data` (typed JSON-LD blocks), `check_agent_access` (reads the result of the owner's latest agent-access self-test) and `request_expert_call` (a human-only expert intake, annotated readOnlyHint:false and refused server-side for AI callers with error code human_only). 1.5.0 also registers the enabled tools through the experimental WebMCP browser API when the site owner opts in and the browser exposes that API, and through the WordPress Abilities API on WordPress 6.9 or newer.
 
 = What it does =
 
@@ -151,6 +151,9 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.12 - 2026-09-01 =
+* Governed-agent policy: one server-side policy table now renders into every channel (MCP `tools/list` descriptions, the WebMCP bridge, `llms.txt`, an HTML head banner for parsers, and the `[corsen_agent_policy]` page) so no channel can drift from another. `request_expert_call` becomes **human-only by policy**: it stays advertised so an agent can read the rule, but every agent call is refused with error code `human_only` plus a handoff URL, before any throttle or storage side effect. `get_product` output carries `agentPurchase` (`allowed`|`forbidden`) and `agentPurchaseReason` from owner-set product meta, and the tool description states that a forbidden product must be handed to a human, never checked out by the agent. OPTIONS preflight matching also tolerates `rest_route` and atypical permalink prefixes.
 
 = 1.5.11 - 2026-09-01 =
 * `tools/list` now emits WebMCP annotations (`readOnlyHint` per tool; `request_expert_call` is explicitly `readOnlyHint: false`) on the MCP transport, so SECURITY.md's claim is backed on the wire and not only in the in-page bridge. `get_sections` documents `"top"` and now always lists and resolves it, even as a zero-byte intro. When "Hide user enumeration" is on, `/?author=N` and `/author/{login}` archives also answer 404 to anonymous visitors instead of leaking logins through the classic doors. The MCP route's OPTIONS preflight is answered by the plugin (`POST, OPTIONS`, no credentials) instead of core advertising every verb.

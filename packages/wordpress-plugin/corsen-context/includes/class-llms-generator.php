@@ -61,9 +61,12 @@ class Corsen_Context_Llms_Generator {
 				&& class_exists( 'Corsen_Context_Expert' )
 				&& Corsen_Context_Expert::configured();
 			$lines[]   = $has_write
-				? 'For dynamic access, compatible clients can use the MCP-style JSON-RPC endpoint below: read-only content tools plus an opt-in private request submission.'
+				? 'For dynamic access, compatible clients can use the MCP-style JSON-RPC endpoint below: read-only content tools plus a human-only expert request channel that agents must not call.'
 				: 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
 			$lines[]   = 'MCP endpoint: ' . $mcp_url;
+		}
+		foreach ( Corsen_Context_Agent_Policy::llms_lines() as $policy_line ) {
+			$lines[] = $policy_line;
 		}
 		$lines[] = '';
 

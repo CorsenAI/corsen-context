@@ -105,7 +105,7 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertIsArray( Corsen_Context_Expert::validate( array_merge( $good, array( 'website' => 'https://corp.fr' ) ) ) );
 	}
 
-	public function test_expert_execute_stores_private_submission_and_notifies(): void {
+	public function test_expert_mcp_call_is_human_only_and_owner_store_path_still_works(): void {
 		$this->settings(
 			array(
 				'enabled_tools'  => $this->enable_all_core_plus( 'request_expert_call' ),
@@ -114,19 +114,27 @@ class ExtensionsTest extends WP_UnitTestCase {
 				'expert_notify'  => true,
 			)
 		);
-		$server  = new Corsen_Context_MCP_Server();
-		$outcome = $server->execute_tool(
-			'request_expert_call',
-			array(
-				'name'    => 'Marie',
-				'email'   => 'marie@corp.fr',
-				'website' => 'https://corp.fr',
-				'stack'   => 'WordPress',
-				'message' => 'Parlons pricing.',
-			)
+		$good = array(
+			'name'    => 'Marie',
+			'email'   => 'marie@corp.fr',
+			'website' => 'https://corp.fr',
+			'stack'   => 'WordPress',
+			'message' => 'Parlons pricing.',
 		);
-		$this->assertTrue( $outcome['ok'] );
-		$this->assertTrue( $outcome['result']['queued'] );
+		// Governed surface (1.5.12): every agent call is refused, with the
+		// handoff URL, BEFORE anything else runs. No insert, no mail.
+		$server  = new Corsen_Context_MCP_Server();
+		$outcome = $server->execute_tool( 'request_expert_call', $good );
+		$this->assertFalse( $outcome['ok'] );
+		$this->assertSame( 'human_only', $outcome['code'] );
+		$this->assertStringContainsString( 'humans only', $outcome['error'] );
+		$this->assertStringContainsString( home_url( '/' ), $outcome['error'] );
+		$this->assertSame( array(), $GLOBALS['corsen_test_inserts'] );
+		// The owner-side storage keeps working unchanged (human form path,
+		// future owner-approved delegation).
+		$stored = Corsen_Context_Expert::store_submission( Corsen_Context_Expert::validate( $good ) );
+		$this->assertTrue( $stored['ok'] );
+		$this->assertTrue( $stored['result']['queued'] );
 		$this->assertCount( 1, $GLOBALS['corsen_test_inserts'] );
 		$this->assertSame( 'cc_expert_request', $GLOBALS['corsen_test_inserts'][0]['post_type'] );
 		$this->assertSame( 'private', $GLOBALS['corsen_test_inserts'][0]['post_status'] );
@@ -145,10 +153,10 @@ class ExtensionsTest extends WP_UnitTestCase {
 		);
 		$key = 'corsen_expt_' . substr( hash_hmac( 'sha256', Corsen_Context_Security::get_client_ip(), wp_salt( 'auth' ) ), 0, 32 );
 		$GLOBALS['corsen_test_transients'][ $key ] = 5;
-		$server  = new Corsen_Context_MCP_Server();
-		$outcome = $server->execute_tool(
-			'request_expert_call',
-			array( 'name' => 'A', 'email' => 'a@b.fr', 'message' => 'hello' )
+		// Throttle guards the storage path (the MCP path never reaches it:
+		// human-only refusal happens first).
+		$outcome = Corsen_Context_Expert::store_submission(
+			Corsen_Context_Expert::validate( array( 'name' => 'A', 'email' => 'a@b.fr', 'message' => 'hello' ) )
 		);
 		$this->assertFalse( $outcome['ok'] );
 		$this->assertStringContainsString( 'Too many requests', $outcome['error'] );

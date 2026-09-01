@@ -77,7 +77,7 @@ class Corsen_Context_Expert {
 	public static function definition(): array {
 		return array(
 			'name'        => 'request_expert_call',
-			'description' => 'Submit this site\'s expert-request form as a structured call, on the user\'s behalf: name and email are required, website and stack optional, message required. Creates a private submission for the site owner; nothing on the site is published or changed. Never include passwords, tokens or API keys in any field.',
+			'description' => 'HUMANS ONLY — an AI agent must NOT call this tool. The server refuses every agent submission (error code human_only); if your user wants an expert call, hand them the page URL so they submit the form themselves. Submissions are stored privately for the site owner; nothing on the site is published or changed. Never include passwords, tokens or API keys in any field.',
 			'inputSchema' => array(
 				'type'                 => 'object',
 				'properties'           => array(
@@ -175,12 +175,36 @@ class Corsen_Context_Expert {
 	}
 
 	/**
+	 * MCP/WebMCP intake: refused by policy since 1.5.12 (human-only).
+	 *
+	 * @param array<string,string> $args Normalized args (validated, unused).
+	 * @return array<string,mixed> Shape ['ok'=>false,'error'=>...,'code'=>'human_only'].
+	 */
+	public static function execute( array $args ): array {
+		// HUMANS ONLY since 1.5.12 (governed-agent demo + honest governance):
+		// the expert intake is an offer to people. The tool stays advertised
+		// so agents can READ the rule; every agent call is refused here with
+		// an instructive receipt, before any throttle or storage side effect.
+		return self::fail(
+			'This channel is for humans only. An AI agent must not submit expert requests: give your user this page instead and let them fill the form — ' . Corsen_Context_Agent_Policy::human_handoff_url(),
+			'human_only',
+			array(
+				'policy'     => 'request_expert_call=human-only',
+				'handoffUrl' => Corsen_Context_Agent_Policy::human_handoff_url(),
+			)
+		);
+	}
+
+	/**
 	 * Store + notify. Never leaks stored data back to the caller.
+	 *
+	 * Kept for the human HTML form path and future owner-approved delegation;
+	 * no MCP/WebMCP call reaches it (see execute()).
 	 *
 	 * @param array<string,string> $args Normalized args.
 	 * @return array<string,mixed> Shape ['ok'=>bool,'result'=>mixed,'error'=>string].
 	 */
-	public static function execute( array $args ): array {
+	public static function store_submission( array $args ): array {
 		if ( ! self::configured() ) {
 			return self::fail( 'The site owner has not configured a destination for expert requests.', 'not_configured' );
 		}

@@ -119,7 +119,16 @@ class Corsen_Context_MCP_Server {
 		$route    = untrailingslashit( $path ) . '/corsen-context/v1/mcp';
 		$uri      = (string) ( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$incoming = (string) wp_parse_url( $uri, PHP_URL_PATH );
-		if ( untrailingslashit( $incoming ) !== $route ) {
+		// Tolerate plain/index.php permalinks: match the pretty path, a site
+		// prefix ending in the route, or the rest_route query form (P1 from
+		// the 2026-09-01 independent review: exact-match-only missed stacks
+		// with atypical permalink structures).
+		$suffix     = '/corsen-context/v1/mcp';
+		$rest_route = isset( $_GET['rest_route'] ) ? (string) wp_unslash( $_GET['rest_route'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$rest_route = untrailingslashit( '/' . ltrim( $rest_route, '/' ) );
+		$incoming   = untrailingslashit( $incoming );
+		$suffix_hit = '' !== $suffix && substr( $incoming, -strlen( $suffix ) ) === $suffix;
+		if ( $incoming !== $route && ! $suffix_hit && $rest_route !== $suffix ) {
 			return;
 		}
 

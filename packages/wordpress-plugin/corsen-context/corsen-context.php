@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version:           1.5.11
+ * Version: 1.5.12
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.11' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.12' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -27,6 +27,7 @@ define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-security.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-content-converter.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-llms-generator.php';
+require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-agent-policy.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-mcp-server.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-webmcp.php';
 require_once CORSEN_CONTEXT_PLUGIN_DIR . 'includes/class-admin.php';
@@ -119,6 +120,9 @@ final class Corsen_Context {
 
 		// WordPress Abilities API surface (inert before WP 6.9).
 		Corsen_Context_Abilities::init();
+
+		// Agent conduct policy: single source rendered everywhere (1.5.11->12).
+		Corsen_Context_Agent_Policy::init();
 
 		// Private storage for expert requests (registered only when configured).
 		Corsen_Context_Expert::init();

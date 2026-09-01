@@ -35,7 +35,7 @@ class Corsen_Context_Products {
 	public static function definition(): array {
 		return array(
 			'name'        => 'get_product',
-			'description' => 'Read one product from this store with live commercial data: price, sale status, stock status and quantity, images, categories, and for variable products up to 20 variants with their price and availability. Pass exactly one of slug or uri, taken from list_content(type=product) or search_site output. Read-only.',
+			'description' => 'Read one product from this store with live commercial data: price, sale status, stock status and quantity, images, categories, and for variable products up to 20 variants with their price and availability. Pass exactly one of slug or uri, taken from list_content(type=product) or search_site output. Every product also carries agentPurchase (allowed|forbidden) with a reason: on forbidden, an AI agent must not start checkout — hand the product URL to a human. Read-only.',
 			'inputSchema' => array(
 				'type'                 => 'object',
 				'properties'           => array(
@@ -236,27 +236,30 @@ class Corsen_Context_Products {
 		$regular = $product->get_regular_price();
 		$sale    = $product->get_sale_price();
 		$short   = wp_strip_all_tags( (string) $product->get_short_description(), true );
+		$policy  = Corsen_Context_Agent_Policy::product_policy( $id );
 		$data    = array(
-			'url'          => (string) get_permalink( $id ),
-			'slug'         => (string) $product->get_slug(),
-			'title'        => wp_strip_all_tags( (string) get_the_title( $id ), true ),
-			'type'         => (string) $product->get_type(),
-			'sku'          => (string) $product->get_sku(),
-			'description'  => '' !== $short ? substr( $short, 0, self::MAX_DESCRIPTION ) : '',
-			'price'        => is_numeric( $price ) ? (float) $price : null,
-			'regularPrice' => is_numeric( $regular ) ? (float) $regular : null,
-			'salePrice'    => is_numeric( $sale ) ? (float) $sale : null,
-			'currency'     => (string) get_woocommerce_currency(),
-			'priceHtml'    => wp_strip_all_tags( (string) $product->get_price_html(), true ),
-			'onSale'       => (bool) $product->is_on_sale(),
-			'purchasable'  => (bool) $product->is_purchasable(),
-			'inStock'      => (bool) $product->is_in_stock(),
-			'stockStatus'  => (string) $product->get_stock_status(),
-			'image'        => null,
-			'gallery'      => array(),
-			'categories'   => self::term_names( $id, 'product_cat' ),
-			'tags'         => self::term_names( $id, 'product_tag' ),
-			'lastModified' => (string) get_post_modified_time( 'c', true, $id ),
+			'url'                 => (string) get_permalink( $id ),
+			'slug'                => (string) $product->get_slug(),
+			'title'               => wp_strip_all_tags( (string) get_the_title( $id ), true ),
+			'type'                => (string) $product->get_type(),
+			'sku'                 => (string) $product->get_sku(),
+			'description'         => '' !== $short ? substr( $short, 0, self::MAX_DESCRIPTION ) : '',
+			'price'               => is_numeric( $price ) ? (float) $price : null,
+			'regularPrice'        => is_numeric( $regular ) ? (float) $regular : null,
+			'salePrice'           => is_numeric( $sale ) ? (float) $sale : null,
+			'currency'            => (string) get_woocommerce_currency(),
+			'priceHtml'           => wp_strip_all_tags( (string) $product->get_price_html(), true ),
+			'onSale'              => (bool) $product->is_on_sale(),
+			'purchasable'         => (bool) $product->is_purchasable(),
+			'inStock'             => (bool) $product->is_in_stock(),
+			'stockStatus'         => (string) $product->get_stock_status(),
+			'agentPurchase'       => $policy['agentPurchase'],
+			'agentPurchaseReason' => $policy['agentPurchaseReason'],
+			'image'               => null,
+			'gallery'             => array(),
+			'categories'          => self::term_names( $id, 'product_cat' ),
+			'tags'                => self::term_names( $id, 'product_tag' ),
+			'lastModified'        => (string) get_post_modified_time( 'c', true, $id ),
 		);
 
 		$featured = self::media( (int) $product->get_image_id() );

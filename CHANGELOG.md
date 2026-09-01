@@ -48,6 +48,26 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.12] - 2026-09-01
+
+### Governed-agent policy (single source, server-enforced)
+
+- One policy table (`class-agent-policy.php`) renders into **every** channel:
+  MCP `tools/list` descriptions, the WebMCP bridge, `llms.txt`, an HTML head
+  banner visible to naive parsers, and the `[corsen_agent_policy]` page
+  shortcode. No hand-written copy can drift from the wire.
+- `request_expert_call` is now **human-only by policy**: still advertised (so
+  agents can read the rule), refused server-side for every agent call with
+  error code `human_only` + handoff URL, before any throttle or storage.
+- `get_product` output carries `agentPurchase` (`allowed`|`forbidden`) and
+  `agentPurchaseReason` from owner-set product meta (`_cc_agent_purchase`);
+  the tool description makes the rule explicit: forbidden = hand the URL to
+  a human, never start checkout.
+- OPTIONS preflight matching tolerates `rest_route` and atypical permalink
+  prefixes (P1 from the 2026-09-01 independent review).
+- Tests: `AgentPolicyTest` (8) + expert tests re-aimed at the new law;
+  161 unit tests green, phpcs clean.
+
 ## WordPress plugin [1.5.11] - 2026-09-01
 
 ### The transport now backs every claim (independent review 2026-09-01)

@@ -177,6 +177,7 @@ require_once dirname( __DIR__ ) . '/includes/class-products.php';
 require_once dirname( __DIR__ ) . '/includes/class-sections.php';
 require_once dirname( __DIR__ ) . '/includes/class-structured-data.php';
 require_once dirname( __DIR__ ) . '/includes/class-agent-access.php';
+require_once dirname( __DIR__ ) . '/includes/class-agent-policy.php';
 require_once dirname( __DIR__ ) . '/includes/class-expert.php';
 require_once dirname( __DIR__ ) . '/includes/class-audit.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';

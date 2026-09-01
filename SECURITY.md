@@ -16,9 +16,16 @@ The core contract of callable tools is `search_site`, `get_page_content`,
 additionally expose owner-toggled extension tools (for example `get_product`,
 `get_sections`, `check_agent_access`, and `request_expert_call`); these are off
 by default, and `request_expert_call` is explicitly annotated
-`readOnlyHint: false` because it files a private owner-side submission. They are intended to return only the public
-corpus selected by the site owner. They do not create, update, delete, purchase,
-or submit data.
+`readOnlyHint: false` because it files a private owner-side submission. Since
+1.5.12 it is also **human-only by policy**: the tool stays advertised so an
+agent can read the rule, but the server refuses every agent call with error
+code `human_only` and a handoff URL — the expert intake is a governed demo of
+policy an agent must obey, not an agent action. Products additionally carry
+`agentPurchase` (`allowed`|`forbidden`, owner-set): on `forbidden`, an agent
+must not start checkout and the server-side checkout path is closed to
+unattended agents. Extension tools are intended to return only the public
+corpus selected by the site owner. They do not create, update, delete, or
+purchase site data on an agent's own authority.
 
 Tool results can contain text written by site authors, imported from another
 system, or supplied through comments. Consumers must treat that text as
