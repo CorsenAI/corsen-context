@@ -98,6 +98,9 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertNull( Corsen_Context_Expert::validate( array( 'name' => 'X', 'message' => 'hi' ) ) );
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'email' => 'not-an-email' ) ) ) );
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'mon api_key: sk-abcdefghijkl1234' ) ) ) );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'Mon mot de passe wordpress est: S3cr3tPass!' ) ) ) );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'ma clé API sk-proj-abcdef1234567890 pour avancer' ) ) ) );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'voici mon jeton github_pat_11ABCDEFGH0123456789abcdefghij' ) ) ) );
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'website' => 'javascript:alert(1)' ) ) ) );
 		$this->assertIsArray( Corsen_Context_Expert::validate( array_merge( $good, array( 'website' => 'https://corp.fr' ) ) ) );
 	}
@@ -177,6 +180,38 @@ class ExtensionsTest extends WP_UnitTestCase {
 		);
 		$this->assertFalse( $both['ok'] );
 		$this->assertStringContainsString( 'Invalid tool parameters', $both['error'] );
+	}
+
+	/**
+	 * Modern WooCommerce (HPOS era) has no wc_get_product_id_by_slug() global:
+	 * slug lookup must go through WC_Product_Query. Regression guard for the
+	 * live bug where the active-gate required that removed function.
+	 */
+	public function test_get_product_slug_lookup_modern_woocommerce_path(): void {
+		if ( ! function_exists( 'WooCommerce' ) && ! class_exists( 'WooCommerce' ) ) {
+			eval( 'class WooCommerce {}' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stub for a runtime we are simulating.
+		}
+		if ( ! class_exists( 'WC_Product_Query' ) ) {
+			eval(
+				'class WC_Product_Query_Fixture_Stub { public function __construct( $args ) {} public function get_products() { return array( 4242 ); } } ' .
+				'class_alias( WC_Product_Query_Fixture_Stub::class, "WC_Product_Query" );'
+			); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stub for a runtime we are simulating.
+		}
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			eval( 'function wc_get_product( $id ) { return null; }' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stub: product lookup resolves but returns nothing published.
+		}
+		$this->assertTrue( Corsen_Context_Products::woocommerce_active(), 'Gate must trust class + wc_get_product only.' );
+		$this->settings(
+			array(
+				'enabled_tools' => $this->enable_all_core_plus( 'get_product' ),
+				'post_types'    => array( 'post', 'page', 'product' ),
+			)
+		);
+		$server  = new Corsen_Context_MCP_Server();
+		$outcome = $server->execute_tool( 'get_product', array( 'slug' => 'modern-product' ) );
+		$this->assertFalse( $outcome['ok'] );
+		$this->assertStringNotContainsString( 'not active', $outcome['error'] );
+		$this->assertStringContainsString( 'Product not found or not published', $outcome['error'] );
 	}
 
 	public function test_get_product_validate(): void {

@@ -29,7 +29,7 @@ class Corsen_Context_Expert {
 	private const MAX_KEPT = 500;
 
 	/** Patterns that mean "the caller is about to leak secrets into a public-facing tool". */
-	private const SECRET_PATTERNS = '/(api[_\- ]?key|secret[_\- ]?key|access[_\- ]?token|private[_\- ]?key|pass(word|phrase)|BEGIN[ A-Z]*PRIVATE|sk-[A-Za-z0-9]{12,}|ghp_[A-Za-z0-9]{20,}|xox[bap]-[A-Za-z0-9-]{10,})/i';
+	private const SECRET_PATTERNS = '/(api[-_ ]?key|secret[-_ ]?key|access[-_ ]?token|private[-_ ]?key|pass(word|phrase)|mot[- ]?de[- ]?passe|cl[ée][- ]?api|jeton|token|BEGIN[ A-Z]*PRIVATE|sk-[A-Za-z0-9_-]{12,}|gh[po]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{20,}|xox[bap]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})/i';
 
 	/**
 	 * Register the private storage post type when the feature is configured on.

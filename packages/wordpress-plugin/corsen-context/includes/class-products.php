@@ -96,7 +96,35 @@ class Corsen_Context_Products {
 	 * Whether WooCommerce is active enough to serve this tool.
 	 */
 	public static function woocommerce_active(): bool {
-		return class_exists( 'WooCommerce' ) && function_exists( 'wc_get_product' ) && function_exists( 'wc_get_product_id_by_slug' );
+		return class_exists( 'WooCommerce' ) && function_exists( 'wc_get_product' );
+	}
+
+	/**
+	 * Resolve a product ID from its slug.
+	 *
+	 * The wc_get_product_id_by_slug() global is legacy (removed in modern
+	 * WooCommerce); WC_Product_Query is the HPOS-aware lookup.
+	 *
+	 * @param string $slug Product slug.
+	 * @return int Product ID or 0.
+	 */
+	private static function resolve_id_by_slug( string $slug ): int {
+		if ( function_exists( 'wc_get_product_id_by_slug' ) ) {
+			return (int) wc_get_product_id_by_slug( $slug );
+		}
+		if ( class_exists( 'WC_Product_Query' ) ) {
+			$query = new \WC_Product_Query(
+				array(
+					'slug'   => $slug,
+					'limit'  => 1,
+					'return' => 'ids',
+					'status' => 'publish',
+				)
+			);
+			$ids   = $query->get_products();
+			return $ids ? (int) reset( $ids ) : 0;
+		}
+		return 0;
 	}
 
 	/**
@@ -115,7 +143,7 @@ class Corsen_Context_Products {
 
 		$product_id = 0;
 		if ( '' !== $args['slug'] ) {
-			$product_id = (int) wc_get_product_id_by_slug( $args['slug'] );
+			$product_id = self::resolve_id_by_slug( $args['slug'] );
 		} elseif ( '' !== $args['uri'] ) {
 			if ( ! Corsen_Context_Tool_Registry::public_url_ok( $args['uri'] ) ) {
 				return self::fail( 'URL rejected: not a public same-site URL, or the path is excluded by the site owner.' );
