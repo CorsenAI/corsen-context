@@ -69,6 +69,30 @@ class ControlCenterTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'search_site, get_page_content', $html );
 	}
 
+	/**
+	 * Audit 2026-09-01: saving the Control Center silently turned OFF
+	 * hide_user_enumeration and credit, and re-enabled post,page when every
+	 * content type had been deliberately unchecked. The form must post a
+	 * complete, unambiguous picture of owner intent.
+	 */
+	public function test_control_center_form_posts_every_owner_boolean(): void {
+		$this->settings( array( 'hide_user_enumeration' => true, 'credit' => true ) );
+		$html = $this->render();
+		$this->assertStringContainsString( 'corsen_context_settings[hide_user_enumeration]', $html );
+		$this->assertStringContainsString( 'corsen_context_settings[credit]', $html );
+		$this->assertStringContainsString( 'corsen_context_settings[post_types_present]', $html );
+	}
+
+	public function test_sanitize_honours_deliberately_empty_content_types(): void {
+		$admin  = Corsen_Context_Admin::instance();
+		$clean  = $admin->sanitize_settings( array( 'enabled' => '1', 'post_types_present' => '1', 'post_types' => array() ) );
+		$this->assertSame( array(), $clean['post_types'] );
+		$clean2 = $admin->sanitize_settings( array( 'enabled' => '1', 'post_types_present' => '1' ) );
+		$this->assertSame( array(), $clean2['post_types'] );
+		$legacy = $admin->sanitize_settings( array( 'enabled' => '1' ) );
+		$this->assertSame( array( 'post', 'page' ), $legacy['post_types'] );
+	}
+
 	public function test_sanitize_of_control_center_form_uses_shared_pipeline(): void {
 		// The Control Center must reuse the exact sanitizer of the classic page.
 		$reflection = new ReflectionMethod( Corsen_Context_Admin::class, 'sanitize_settings' );

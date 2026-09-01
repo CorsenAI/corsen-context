@@ -301,6 +301,8 @@ class Corsen_Context_Control_Center {
 					<div class="ccx-card ccx-card--wide">
 						<p class="ccx-title"><?php esc_html_e( 'Content types agents may read', 'corsen-context' ); ?></p>
 						<?php
+						// Deliberate-empty support: see sanitize_settings( post_types_present ).
+						echo '<input type="hidden" name="corsen_context_settings[post_types_present]" value="1" />';
 						$post_types = get_post_types( array( 'public' => true ), 'objects' );
 						foreach ( $post_types as $pt ) {
 							if ( 'attachment' === $pt->name ) {
@@ -326,6 +328,8 @@ class Corsen_Context_Control_Center {
 								<input type="number" name="corsen_context_settings[cache_ttl]" min="60" max="86400" class="small-text" value="<?php echo esc_attr( $settings['cache_ttl'] ?? 3600 ); ?>" />
 							</label>
 							<label class="ccx-sec"><input type="checkbox" name="corsen_context_settings[include_author]" value="1" <?php checked( ! empty( $settings['include_author'] ) ); ?> /> <?php esc_html_e( 'Expose author names', 'corsen-context' ); ?></label>
+							<label class="ccx-sec"><input type="hidden" name="corsen_context_settings[hide_user_enumeration]" value="0" /><input type="checkbox" name="corsen_context_settings[hide_user_enumeration]" value="1" <?php checked( ! empty( $settings['hide_user_enumeration'] ) ); ?> /> <?php esc_html_e( 'Hide user enumeration', 'corsen-context' ); ?></label>
+							<label class="ccx-sec"><input type="hidden" name="corsen_context_settings[credit]" value="0" /><input type="checkbox" name="corsen_context_settings[credit]" value="1" <?php checked( ! empty( $settings['credit'] ) ); ?> /> <?php esc_html_e( 'Show credit', 'corsen-context' ); ?></label>
 						</div>
 						<label class="ccx-sec" style="display:block;margin-top:10px;"><?php esc_html_e( 'Hidden paths (one per line)', 'corsen-context' ); ?>
 							<textarea name="corsen_context_settings[exclude_paths]" rows="3" class="large-text"><?php echo esc_textarea( $settings['exclude_paths'] ?? '' ); ?></textarea>

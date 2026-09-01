@@ -127,7 +127,23 @@ class Corsen_Context_Sections {
 		$sections = self::outline( $markdown );
 
 		if ( ! isset( $args['section'] ) ) {
-			$listed    = array_slice( $sections, 0, self::MAX_OUTLINE );
+			// Outline = index, not payload: ids, headings and byte sizes
+			// only. Embedding each section's markdown made the "cheap"
+			// outline larger than get_page_content of the whole page
+			// (95,570 B vs 85,212 B measured live 2026-09-01).
+			$listed    = array_values(
+				array_map(
+					static function ( array $section ): array {
+						return array(
+							'id'      => $section['id'],
+							'level'   => $section['level'],
+							'heading' => $section['heading'],
+							'bytes'   => $section['bytes'],
+						);
+					},
+					array_slice( $sections, 0, self::MAX_OUTLINE )
+				)
+			);
 			$result    = array(
 				'url'          => $meta['url'],
 				'title'        => $meta['title'],
@@ -155,6 +171,7 @@ class Corsen_Context_Sections {
 			$bytes = strlen( $body );
 			$off   = isset( $args['offset'] ) ? self::snap_offset( $body, (int) $args['offset'] ) : 0;
 			$chunk = substr( $body, $off, self::SECTION_BUDGET );
+			$chunk = self::trim_partial_utf8( $chunk );
 			$next  = $off + strlen( $chunk );
 
 			$result = array(
@@ -246,13 +263,18 @@ class Corsen_Context_Sections {
 			$end  = $i + 1 < $count ? $starts[ $i + 1 ]['pos'] : strlen( $markdown );
 			$body = rtrim( substr( $markdown, $starts[ $i ]['pos'], $end - $starts[ $i ]['pos'] ) );
 			$slug = self::slug( $starts[ $i ]['heading'] );
-			if ( isset( $used[ $slug ] ) ) {
-				++$used[ $slug ];
-				$slug .= '-' . $used[ $slug ];
-			} else {
-				$used[ $slug ] = 1;
+			// Unique by construction, even against literal "-N" suffixes:
+			// the old counter let a heading "Foo-2" collide with the second
+			// "Foo" (audit 2026-09-01).
+			$candidate = $slug;
+			$n         = 1;
+			while ( isset( $used[ $candidate ] ) ) {
+				++$n;
+				$candidate = $slug . '-' . $n;
 			}
-			$out[] = array(
+			$used[ $candidate ] = true;
+			$slug               = $candidate;
+			$out[]              = array(
 				'id'       => $slug,
 				'level'    => $starts[ $i ]['level'],
 				'heading'  => $starts[ $i ]['heading'],
@@ -298,5 +320,33 @@ class Corsen_Context_Sections {
 			--$offset;
 		}
 		return $offset;
+	}
+
+	/**
+	 * Drop a trailing partial UTF-8 sequence so a budgeted chunk never
+	 * ends mid-codepoint (byte-budget slicing cut emoji and accents in
+	 * half under the raw substr; audit 2026-09-01).
+	 *
+	 * @param string $chunk Raw byte slice.
+	 * @return string Slice ending on a complete character.
+	 */
+	private static function trim_partial_utf8( string $chunk ): string {
+		$len = strlen( $chunk );
+		for ( $i = 1; $i <= 4 && $i <= $len; ++$i ) {
+			$o = ord( $chunk[ $len - $i ] );
+			if ( $o < 0x80 ) {
+				break; // ASCII tail: complete.
+			}
+			if ( $o >= 0xC0 ) {
+				$need   = $o >= 0xF0 ? 4 : ( $o >= 0xE0 ? 3 : 2 );
+				$actual = $i;
+				if ( $actual < $need ) {
+					return substr( $chunk, 0, $len - $i );
+				}
+				break; // Complete lead sequence at the tail.
+			}
+			// Continuation byte: keep walking back to the lead byte.
+		}
+		return $chunk;
 	}
 }

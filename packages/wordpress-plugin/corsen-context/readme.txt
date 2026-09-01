@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.9
+Stable tag: 1.5.10
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -13,7 +13,7 @@ Publish selected public WordPress content through llms.txt and an MCP-style JSON
 
 == Description ==
 
-**Corsen Context** publishes a bounded overview of selected public WordPress content and provides four core read-only content tools through a JSON-RPC endpoint. Two further extension tools are opt-in and owner-controlled: `get_product` (live price, stock and images via WooCommerce) and `request_expert_call` (files a private owner-side submission, like a contact form). 1.5.0 also registers the enabled tools through the experimental WebMCP browser API when the site owner opts in and the browser exposes that API, and through the WordPress Abilities API on WordPress 6.9 or newer.
+**Corsen Context** publishes a bounded overview of selected public WordPress content and provides four core read-only content tools through a JSON-RPC endpoint. Five further extension tools are opt-in and owner-controlled: `get_product` (live price, stock, images and variants via WooCommerce), `get_sections` (a page outline plus one bounded section per call), `get_structured_data` (typed JSON-LD blocks), `check_agent_access` (reads the result of the owner's latest agent-access self-test) and `request_expert_call` (files a private owner-side submission, like a contact form; it is annotated readOnlyHint:false). 1.5.0 also registers the enabled tools through the experimental WebMCP browser API when the site owner opts in and the browser exposes that API, and through the WordPress Abilities API on WordPress 6.9 or newer.
 
 = What it does =
 
@@ -151,6 +151,14 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.10 - 2026-09-01 =
+* `get_product(slug)` integrity: slug lookups verify the stored `post_name` and apply the same owner exposure policy as URL lookups. A stale or excluded slug now returns not-found instead of silently serving a different product (found by external live audit).
+* `get_sections` outline integrity: outline entries are an index (`id`, `level`, `heading`, `bytes`) and no longer embed each section's markdown, which had made the "cheap" outline larger than `get_page_content` of the same page. Section ids are collision-free even against literal `-N` suffixes, and byte-budget chunks never split a UTF-8 codepoint.
+* Control Center save integrity: the form now posts `hide_user_enumeration` and `credit` explicitly (they were silently switched off by every Control Center save), and a deliberately empty content-type selection persists as "expose nothing" instead of silently reverting to `post,page`.
+
+= 1.5.9 - 2026-09-01 =
+* MCP route `Allow` header: the 405 GET answer now advertises `POST` only. WordPress Core was overwriting it with the route's registered methods (`POST, GET, OPTIONS`); a `rest_post_dispatch` filter at priority 20 now wins after core's own filter.
 
 = 1.5.8 - 2026-09-01 =
 * Agent-access self-test: the MCP probe now really sends JSON-RPC headers (`Content-Type: application/json`, `Accept`, `MCP-Protocol-Version`) so the endpoint answers 200 instead of 415; a test asserts the probe's own headers so the fix cannot silently vanish again.

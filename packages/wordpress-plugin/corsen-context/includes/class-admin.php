@@ -314,14 +314,14 @@ class Corsen_Context_Admin {
 		$sanitized['expert_notify']             = ! empty( $input['expert_notify'] );
 		$sanitized['expert_email']              = sanitize_email( (string) ( $input['expert_email'] ?? '' ) );
 		$sanitized['webmcp_origin_trial_token'] = substr( (string) preg_replace( '/[^A-Za-z0-9+\/=]/', '', (string) ( $input['webmcp_origin_trial_token'] ?? '' ) ), 0, 4096 );
-		// Constrain persisted post types to publicly-registered types so a
-		// crafted POST can't expose a private/internal type via MCP.
-		$public_types            = array_keys( get_post_types( array( 'public' => true ) ) );
-		$requested_types         = array_map( 'sanitize_text_field', (array) ( $input['post_types'] ?? array( 'post', 'page' ) ) );
-		$sanitized['post_types'] = array_values( array_intersect( $requested_types, $public_types ) );
-		if ( empty( $sanitized['post_types'] ) ) {
-			$sanitized['post_types'] = array( 'post', 'page' );
-		}
+		// The editing form sets this marker when it actually rendered the
+		// content-type checkboxes. With the marker, an empty selection is a
+		// deliberate "expose nothing" choice; silently restoring post,page
+		// contradicted the whole owner-control promise (audit 2026-09-01).
+		$intentional_types             = array_key_exists( 'post_types_present', $input );
+		$public_types                  = array_keys( get_post_types( array( 'public' => true ) ) );
+		$requested_types               = array_map( 'sanitize_text_field', (array) ( $input['post_types'] ?? ( $intentional_types ? array() : array( 'post', 'page' ) ) ) );
+		$sanitized['post_types']       = array_values( array_intersect( $requested_types, $public_types ) );
 		$sanitized['exclude_paths']    = sanitize_textarea_field( $input['exclude_paths'] ?? '' );
 		$sanitized['rate_limit']       = min( max( intval( $input['rate_limit'] ?? 100 ), 10 ), 1000 );
 		$sanitized['cache_ttl']        = min( max( intval( $input['cache_ttl'] ?? 3600 ), 60 ), 86400 );
@@ -512,6 +512,9 @@ class Corsen_Context_Admin {
 		$settings   = get_option( 'corsen_context_settings', array() );
 		$selected   = $settings['post_types'] ?? array( 'post', 'page' );
 		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+		// Marker: this form renders the full checkbox set, so an empty
+		// selection is the owner's deliberate "expose nothing" choice.
+		echo '<input type="hidden" name="corsen_context_settings[post_types_present]" value="1" />';
 
 		foreach ( $post_types as $pt ) {
 			if ( 'attachment' === $pt->name ) {

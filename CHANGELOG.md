@@ -48,6 +48,21 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.10] - 2026-09-01
+* `get_product(slug)` integrity: the resolver now verifies the candidate's stored
+  `post_name` (slugs are exact or nothing) and the slug branch obeys the same
+  owner exposure policy as the URL branch. Previously a stale query silently
+  returned a DIFFERENT product and bypassed exclusions (external live audit).
+* `get_sections` outline is an index: entries expose only `id`, `level`,
+  `heading`, `bytes`. Embedding each section's markdown had made the "cheap"
+  outline (95 KB) bigger than `get_page_content` of the same page (85 KB).
+  Section ids are collision-free even against literal `-N` suffixes, and
+  byte-budget chunks never split a UTF-8 codepoint.
+* Control Center save integrity: the form posts `hide_user_enumeration` and
+  `credit` explicitly (every CC save silently switched them off), and a
+  deliberately empty content-type selection persists as "expose nothing"
+  instead of reverting to `post,page`.
+
 ## WordPress plugin [1.5.9] - 2026-09-01
 * MCP route `Allow` header: the 405 GET answer now advertises `POST` only.
   WordPress Core was overwriting it with the route's registered methods

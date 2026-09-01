@@ -1,8 +1,8 @@
 # Corsen Context security model
 
-Corsen Context exposes public website content through read-only interfaces. It
-does not make private content public safely by inference: the site operator and
-content provider remain part of the security boundary.
+Corsen Context exposes public website content through read-only interfaces for
+its core contract. It does not make private content public safely by inference:
+the site operator and content provider remain part of the security boundary.
 
 This document separates behavior implemented by the repository from controls
 that a deployment must supply. Report suspected vulnerabilities privately
@@ -11,8 +11,12 @@ Do not include credentials, private content, or exploit data in a public issue.
 
 ## Scope and trust boundary
 
-The distributed callable tools are `search_site`, `get_page_content`,
-`list_content`, and `get_sitemap`. They are intended to return only the public
+The core contract of callable tools is `search_site`, `get_page_content`,
+`list_content`, and `get_sitemap`, all read-only. The WordPress flagship can
+additionally expose owner-toggled extension tools (for example `get_product`,
+`get_sections`, `check_agent_access`, and `request_expert_call`); these are off
+by default, and `request_expert_call` is explicitly annotated
+`readOnlyHint: false` because it files a private owner-side submission. They are intended to return only the public
 corpus selected by the site owner. They do not create, update, delete, purchase,
 or submit data.
 

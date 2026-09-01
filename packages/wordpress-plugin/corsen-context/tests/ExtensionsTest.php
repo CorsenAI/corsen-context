@@ -227,7 +227,66 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$outcome = $server->execute_tool( 'get_product', array( 'slug' => 'modern-product' ) );
 		$this->assertFalse( $outcome['ok'] );
 		$this->assertStringNotContainsString( 'not active', $outcome['error'] );
-		$this->assertStringContainsString( 'Product not found or not published', $outcome['error'] );
+		$this->assertStringContainsString( 'Product not found or not exposed', $outcome['error'] );
+	}
+
+	/**
+	 * Audit 2026-09-01 (LIVE): get_product(slug) silently served a DIFFERENT
+	 * product because the query arg was ignored and the first ID won. The
+	 * resolver must verify the stored post_name and never trade entities.
+	 */
+	public function test_get_product_slug_never_serves_a_different_product(): void {
+		$this->ensure_modern_woo_runtime();
+		if ( ! function_exists( 'get_page_by_path' ) ) {
+			eval( 'if ( ! defined( \'OBJECT\' ) ) { define( \'OBJECT\', \'OBJECT\' ); } function get_page_by_path( $path, $output = OBJECT, $type = \'post\' ) { return $GLOBALS[\'corsen_test_page_by_path\'] ?? null; }' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Simulating WP core function for the unit run.
+		}
+		$this->settings(
+			array(
+				'enabled_tools' => $this->enable_all_core_plus( 'get_product' ),
+				'post_types'    => array( 'post', 'page', 'product' ),
+			)
+		);
+		$wrong                = new \WP_Post();
+		$wrong->ID            = 4242;
+		$wrong->post_type     = 'product';
+		$wrong->post_status   = 'publish';
+		$wrong->post_name     = 'corsen-context-mediawiki';
+		$GLOBALS['corsen_test_page_by_path'] = $wrong;
+		$GLOBALS['corsen_test_post']         = $wrong;
+		$GLOBALS['corsen_fix_product']       = new \WC_Product( array( 'price' => 9, 'instock' => true ) );
+		$server                              = new Corsen_Context_MCP_Server();
+		$outcome                             = $server->execute_tool( 'get_product', array( 'slug' => 'corsen-context' ) );
+		$this->assertFalse( $outcome['ok'], 'A slug matching no product must never return another product.' );
+		$this->assertStringNotContainsString( 'mediawiki', strtolower( (string) wp_json_encode( $outcome ) ) );
+		unset( $GLOBALS['corsen_test_page_by_path'], $GLOBALS['corsen_fix_product'] );
+	}
+
+	/**
+	 * The slug branch must obey the owner exclusion policy exactly like the
+	 * URI branch (audit 2026-09-01: it skipped it entirely).
+	 */
+	public function test_get_product_slug_branch_respects_owner_exclusion(): void {
+		$this->ensure_modern_woo_runtime();
+		$this->settings(
+			array(
+				'enabled_tools' => $this->enable_all_core_plus( 'get_product' ),
+				'post_types'    => array( 'post', 'page', 'product' ),
+			)
+		);
+		$right                       = new \WP_Post();
+		$right->ID                   = 4242;
+		$right->post_type            = 'product';
+		$right->post_status          = 'publish';
+		$right->post_name            = 'modern-product';
+		$GLOBALS['corsen_test_page_by_path'] = $right;
+		$GLOBALS['corsen_test_post']         = $right;
+		$GLOBALS['corsen_fix_product']       = new \WC_Product( array( 'price' => 9, 'instock' => true ) );
+		$GLOBALS['corsen_test_url_to_postid'] = 0; // owner policy cannot resolve the permalink to an exposed post.
+		$server                              = new Corsen_Context_MCP_Server();
+		$outcome                             = $server->execute_tool( 'get_product', array( 'slug' => 'modern-product' ) );
+		$this->assertFalse( $outcome['ok'], 'Slug lookups must pass the same exposure gate as URIs.' );
+		$this->assertStringContainsString( 'not exposed', $outcome['error'] );
+		unset( $GLOBALS['corsen_test_page_by_path'], $GLOBALS['corsen_fix_product'], $GLOBALS['corsen_test_url_to_postid'] );
 	}
 
 	/**

@@ -60,6 +60,45 @@ class SectionsTest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $outcome['result']['totalBytes'] );
 	}
 
+	public function test_outline_entries_carry_index_not_payload(): void {
+		$this->post( "<h2>Install</h2>\n<p>" . str_repeat( 'payload padding ', 60 ) . "</p>" );
+		$outcome = Corsen_Context_Sections::execute( array( 'uri' => home_url( '/guide/' ) ) );
+		$this->assertTrue( $outcome['ok'] );
+		// Audit 2026-09-01: the "cheap" outline embedded every section's
+		// markdown and was bigger than get_page_content of the same page.
+		foreach ( $outcome['result']['sections'] as $entry ) {
+			$this->assertSame( array( 'id', 'level', 'heading', 'bytes' ), array_keys( $entry ) );
+		}
+		$outline_bytes = strlen( (string) wp_json_encode( $outcome['result']['sections'] ) );
+		$this->assertGreaterThan( $outline_bytes, $outcome['result']['totalBytes'], 'Outline must stay smaller than the page it indexes.' );
+	}
+
+	public function test_duplicate_heading_ids_never_collide(): void {
+		// Audit 2026-09-01: "Foo, Foo, Foo-2" produced two "foo-2" ids.
+		$this->post( "<h2>Foo</h2>\n<p>a</p>\n<h2>Foo</h2>\n<p>b</p>\n<h2>Foo-2</h2>\n<p>c</p>" );
+		$outcome = Corsen_Context_Sections::execute( array( 'uri' => home_url( '/guide/' ) ) );
+		$this->assertTrue( $outcome['ok'] );
+		$ids = array_column( $outcome['result']['sections'], 'id' );
+		$this->assertSame( count( $ids ), count( array_unique( $ids ) ), 'Section ids must be unique.' );
+	}
+
+	public function test_chunk_boundaries_never_split_utf8(): void {
+		// Audit 2026-09-01: byte-budget substr could end a chunk inside a
+		// multi-byte codepoint. 3200 euro signs = 9600 bytes, 3 per char.
+		$big = str_repeat( '€', 3200 );
+		$this->post( "<h2>Big</h2>\n<p>" . $big . "</p>" );
+		$uri     = home_url( '/guide/' );
+		$outcome = Corsen_Context_Sections::execute( array( 'uri' => $uri, 'section' => 'big' ) );
+		$this->assertTrue( $outcome['ok'] );
+		$md = $outcome['result']['markdown'];
+		$this->assertTrue( mb_check_encoding( $md, 'UTF-8' ), 'First chunk must end on a character boundary.' );
+		$next   = $outcome['result']['nextOffset'];
+		$second = Corsen_Context_Sections::execute( array( 'uri' => $uri, 'section' => 'big', 'offset' => $next ) );
+		$md2    = $second['result']['markdown'];
+		$this->assertTrue( mb_check_encoding( $md2, 'UTF-8' ) );
+		$this->assertSame( $outcome['result']['totalBytes'], strlen( $md ) + strlen( $md2 ), 'Pagination must be lossless.' );
+	}
+
 	public function test_section_read_returns_bounded_slice_with_pagination(): void {
 		$big  = str_repeat( 'lorem ipsum dolor ', 600 ); // ~10800 bytes.
 		$this->post( "<h2>Long</h2>\n<p>{$big}</p>" );

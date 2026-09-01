@@ -109,22 +109,34 @@ class Corsen_Context_Products {
 	 * @return int Product ID or 0.
 	 */
 	private static function resolve_id_by_slug( string $slug ): int {
+		// Never trust a lookup we cannot verify: WC_Product_Query silently
+		// ignores an unsupported "slug" arg and returns the first product,
+		// which made get_product(slug=X) serve a different product entirely
+		// (audited live 2026-09-01). Resolve, then require the product's own
+		// stored slug to match, case-insensitive, or report not-found.
+		$candidate = 0;
 		if ( function_exists( 'wc_get_product_id_by_slug' ) ) {
-			return (int) wc_get_product_id_by_slug( $slug );
+			$candidate = (int) wc_get_product_id_by_slug( $slug );
 		}
-		if ( class_exists( 'WC_Product_Query' ) ) {
-			$query = new \WC_Product_Query(
-				array(
-					'slug'   => $slug,
-					'limit'  => 1,
-					'return' => 'ids',
-					'status' => 'publish',
-				)
-			);
-			$ids   = $query->get_products();
-			return $ids ? (int) reset( $ids ) : 0;
+		if ( $candidate <= 0 && function_exists( 'get_page_by_path' ) ) {
+			$page      = get_page_by_path( $slug, OBJECT, 'product' );
+			$candidate = $page ? (int) $page->ID : 0;
 		}
-		return 0;
+		if ( $candidate <= 0 || ! function_exists( 'wc_get_product' ) ) {
+			return 0;
+		}
+		// Verify the candidate really carries the requested slug: WP's
+		// post_name is the authoritative slug, and product data objects
+		// have been observed to lag it on migrated stores.
+		$post_obj = get_post( $candidate );
+		if ( ! $post_obj || 0 !== strcasecmp( (string) $post_obj->post_name, $slug ) ) {
+			return 0;
+		}
+		$product = wc_get_product( $candidate );
+		if ( ! $product ) {
+			return 0;
+		}
+		return $candidate;
 	}
 
 	/**
@@ -168,8 +180,15 @@ class Corsen_Context_Products {
 		$product_id = 0;
 		if ( '' !== $args['slug'] ) {
 			$product_id = self::resolve_id_by_slug( $args['slug'] );
+			// The slug branch must obey the same owner policy as the URI
+			// branch: a guessed slug may not read a product whose URL the
+			// owner excluded (audited 2026-09-01: it bypassed exclusions).
+			$permalink = $product_id > 0 ? (string) get_permalink( $product_id ) : '';
+			if ( '' === $permalink || null === Corsen_Context_Tool_Registry::exposable_post( $permalink ) ) {
+				return self::fail( 'Product not found or not exposed to agents. Use a slug returned by list_content(type=product).' );
+			}
 		} elseif ( '' !== $args['uri'] ) {
-			if ( ! Corsen_Context_Tool_Registry::public_url_ok( $args['uri'] ) ) {
+			if ( null === Corsen_Context_Tool_Registry::exposable_post( $args['uri'] ) ) {
 				return self::fail( 'URL rejected: not a public same-site URL, or the path is excluded by the site owner.' );
 			}
 			$product_id = (int) url_to_postid( $args['uri'] );
