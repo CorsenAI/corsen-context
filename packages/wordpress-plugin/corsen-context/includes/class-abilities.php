@@ -232,6 +232,37 @@ class Corsen_Context_Abilities {
 					),
 					'required'   => array( 'url', 'blocks' ),
 				);
+			case 'check_agent_access':
+				return array(
+					'type'       => 'object',
+					'properties' => array(
+						'ran_at'  => array( 'type' => 'integer' ),
+						'summary' => array(
+							'type'       => 'object',
+							'properties' => array(
+								'total'     => array( 'type' => 'integer' ),
+								'reachable' => array( 'type' => 'integer' ),
+								'blocked'   => array( 'type' => 'integer' ),
+							),
+						),
+						'checks'  => array(
+							'type'  => 'array',
+							'items' => array(
+								'type'       => 'object',
+								'properties' => array(
+									'target'    => array( 'type' => 'string' ),
+									'ua'        => array( 'type' => 'string' ),
+									'code'      => array( 'type' => 'integer' ),
+									'reachable' => array( 'type' => 'boolean' ),
+									'edge'      => array( 'type' => 'string' ),
+									'blocked'   => array( 'type' => 'boolean' ),
+								),
+							),
+						),
+						'note'    => array( 'type' => 'string' ),
+						'fresh'   => array( 'type' => 'boolean' ),
+					),
+				);
 			case 'request_expert_call':
 				return array(
 					'type'       => 'object',

@@ -176,6 +176,7 @@ require_once dirname( __DIR__ ) . '/includes/class-tool-registry.php';
 require_once dirname( __DIR__ ) . '/includes/class-products.php';
 require_once dirname( __DIR__ ) . '/includes/class-sections.php';
 require_once dirname( __DIR__ ) . '/includes/class-structured-data.php';
+require_once dirname( __DIR__ ) . '/includes/class-agent-access.php';
 require_once dirname( __DIR__ ) . '/includes/class-expert.php';
 require_once dirname( __DIR__ ) . '/includes/class-audit.php';
 require_once dirname( __DIR__ ) . '/includes/class-mcp-server.php';
@@ -245,6 +246,39 @@ if ( ! function_exists( 'wp_register_ability' ) ) {
 if ( ! function_exists( 'wp_register_ability_category' ) ) {
 	function wp_register_ability_category( string $name, array $args ): void {
 		$GLOBALS['corsen_test_ability_categories'][ $name ] = $args;
+	}
+}
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( $url, $args = array() ) {
+		$GLOBALS['corsen_test_http_calls'][] = array( 'GET', $url, $args );
+		return $GLOBALS['corsen_test_http_response'] ?? array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '' );
+	}
+}
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args = array() ) {
+		$GLOBALS['corsen_test_http_calls'][] = array( 'POST', $url, $args );
+		return $GLOBALS['corsen_test_http_response'] ?? array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '' );
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	function wp_remote_retrieve_response_code( $response ) {
+		$code = is_array( $response ) ? ( $response['response']['code'] ?? 0 ) : 0;
+		return (int) $code;
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	function wp_remote_retrieve_body( $response ) {
+		return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_header' ) ) {
+	function wp_remote_retrieve_header( $response, $header ) {
+		return is_array( $response ) ? (string) ( $response['headers'][ $header ] ?? '' ) : '';
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ): bool {
+		return $thing instanceof \WP_Error;
 	}
 }
 if ( ! function_exists( '__return_true' ) ) {

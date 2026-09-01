@@ -48,6 +48,10 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.4] - 2026-09-01
+* `check_agent_access` (opt-in, fail-closed): read-only report of the owner's latest agent-access self-test — ClaudeBot/ChatGPT-User/GPTBot/control UAs against own llms.txt + MCP endpoint, HTTP code and answering edge per probe.
+* Control Center "Agent access" card: nonce-protected button runs the loopback probe (max one run per 5 min, status codes only, no credentials, self-URL guard), renders the verdict table and Cloudflare fix guidance.
+
 ## WordPress plugin [1.5.3] - 2026-09-01
 * Extension tools `get_sections` (bounded outline + per-section reads with
   byte pagination) and `get_structured_data` (sanitized JSON-LD blocks), both

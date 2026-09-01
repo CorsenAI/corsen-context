@@ -26,7 +26,7 @@ class Corsen_Context_Tool_Registry {
 	public const CORE_TOOLS = array( 'search_site', 'get_page_content', 'list_content', 'get_sitemap' );
 
 	/** WordPress-runtime extensions, fail-closed (must be explicitly enabled). */
-	public const OPTIONAL_TOOLS = array( 'get_product', 'get_sections', 'get_structured_data', 'request_expert_call' );
+	public const OPTIONAL_TOOLS = array( 'get_product', 'get_sections', 'get_structured_data', 'check_agent_access', 'request_expert_call' );
 
 	/**
 	 * WooCommerce transactional pages (cart, checkout, account, terms) are
@@ -85,6 +85,8 @@ class Corsen_Context_Tool_Registry {
 				return Corsen_Context_Sections::definition();
 			case 'get_structured_data':
 				return Corsen_Context_Structured_Data::definition();
+			case 'check_agent_access':
+				return Corsen_Context_Agent_Access::definition();
 			case 'request_expert_call':
 				return Corsen_Context_Expert::configured() ? Corsen_Context_Expert::definition() : null;
 			default:
@@ -107,6 +109,8 @@ class Corsen_Context_Tool_Registry {
 				return Corsen_Context_Sections::validate( $arguments );
 			case 'get_structured_data':
 				return Corsen_Context_Structured_Data::validate( $arguments );
+			case 'check_agent_access':
+				return Corsen_Context_Agent_Access::validate( $arguments );
 			case 'request_expert_call':
 				return Corsen_Context_Expert::validate( $arguments );
 			default:
@@ -129,6 +133,8 @@ class Corsen_Context_Tool_Registry {
 				return Corsen_Context_Sections::execute( $args );
 			case 'get_structured_data':
 				return Corsen_Context_Structured_Data::execute( $args );
+			case 'check_agent_access':
+				return Corsen_Context_Agent_Access::execute( $args );
 			case 'request_expert_call':
 				return Corsen_Context_Expert::execute( $args );
 			default:

@@ -32,6 +32,22 @@ class Corsen_Context_Control_Center {
 		add_action( 'admin_menu', array( $this, 'add_menu' ), 11 );
 		add_action( 'admin_post_corsen_ccx_purge_audit', array( $this, 'handle_purge_audit' ) );
 		add_action( 'admin_post_corsen_ccx_purge_expert', array( $this, 'handle_purge_expert' ) );
+		add_action( 'admin_post_corsen_ccx_agent_check', array( $this, 'handle_agent_check' ) );
+	}
+
+	/**
+	 * Owner action: probe this site with real agent user agents (nonce link).
+	 */
+	public function handle_agent_check(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'corsen-context' ) );
+		}
+		check_admin_referer( 'corsen_ccx_agent_check' );
+		if ( class_exists( 'Corsen_Context_Agent_Access' ) ) {
+			Corsen_Context_Agent_Access::run();
+		}
+		wp_safe_redirect( admin_url( 'options-general.php?page=corsen-context-control&ccx_msg=agent_check_ran' ) );
+		exit;
 	}
 
 	/**
@@ -114,6 +130,11 @@ class Corsen_Context_Control_Center {
 				'desc'  => __( 'Agents read price, stock and images of one product. Read-only.', 'corsen-context' ),
 				'state' => 'live',
 			),
+			'check_agent_access'  => array(
+				'title' => __( 'Agent access self-test report', 'corsen-context' ),
+				'desc'  => __( 'Agents read the result of YOUR latest probe: could ClaudeBot, ChatGPT and GPTBot actually reach this site through the CDN? Triggered only by you, from the card below.', 'corsen-context' ),
+				'state' => 'live',
+			),
 			'request_expert_call' => array(
 				'title' => __( 'Request expert call (write tool)', 'corsen-context' ),
 				'desc'  => __( 'Agents submit the expert-request form as a structured tool call. Off by default, owner-controlled.', 'corsen-context' ),
@@ -145,6 +166,12 @@ class Corsen_Context_Control_Center {
 		<div class="wrap ccx-wrap">
 			<h1><?php esc_html_e( 'Corsen Context — Control Center', 'corsen-context' ); ?></h1>
 			<p class="ccx-sub"><?php esc_html_e( 'Every surface agents can reach, one card each. Turn exactly what you want on or off, then save.', 'corsen-context' ); ?></p>
+		<?php
+		$ccx_msg = isset( $_GET['ccx_msg'] ) ? sanitize_key( wp_unslash( $_GET['ccx_msg'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect flag, never a form submission.
+		if ( 'agent_check_ran' === $ccx_msg ) :
+			?>
+			<div class="notice notice-success inline"><p><?php esc_html_e( 'Agent-access check completed — see the result table below.', 'corsen-context' ); ?></p></div>
+		<?php endif; ?>
 
 			<style>
 				.ccx-wrap{max-width:1080px}
@@ -306,6 +333,91 @@ class Corsen_Context_Control_Center {
 
 			<h2><?php esc_html_e( 'What agents see right now', 'corsen-context' ); ?></h2>
 			<div class="ccx-preview"><?php echo esc_html( $this->agent_preview( $on, $exposed ) ); ?></div>
+
+			<h2><?php esc_html_e( 'Agent access — see yourself through a bot&rsquo;s eyes', 'corsen-context' ); ?></h2>
+			<div class="ccx-grid">
+				<div class="ccx-card ccx-card--wide">
+					<p class="ccx-desc"><?php esc_html_e( 'Fetches your own llms.txt and MCP endpoint with the real ClaudeBot, ChatGPT-User and GPTBot user agents, plus a control client. The request re-enters through your public URL, so CDN bot filters (Cloudflare and friends) apply exactly as they would for an outside agent. No credentials involved, nothing but status codes is stored, at most one run every five minutes.', 'corsen-context' ); ?></p>
+					<p>
+						<a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_agent_check' ), 'corsen_ccx_agent_check' ) ); ?>"><?php esc_html_e( 'Run the agent-access check now', 'corsen-context' ); ?></a>
+					</p>
+					<?php
+					$aa_run = class_exists( 'Corsen_Context_Agent_Access' ) ? Corsen_Context_Agent_Access::last() : null;
+					if ( is_array( $aa_run ) ) :
+						$aa_tally = Corsen_Context_Agent_Access::tally( $aa_run );
+						$aa_badge = $aa_tally['blocked'] > 0 ? 'ccx-badge--soon' : ( $aa_tally['reachable'] === $aa_tally['total'] && $aa_tally['total'] > 0 ? 'ccx-badge--on' : 'ccx-badge--off' );
+						?>
+						<p>
+							<span class="ccx-badge <?php echo esc_attr( $aa_badge ); ?>">
+								<?php
+								if ( $aa_tally['blocked'] > 0 ) {
+									esc_html_e( 'blocked for some agents', 'corsen-context' );
+								} elseif ( $aa_tally['total'] > 0 && $aa_tally['reachable'] === $aa_tally['total'] ) {
+									esc_html_e( 'all tested agents get through', 'corsen-context' );
+								} else {
+									esc_html_e( 'inconclusive', 'corsen-context' );
+								}
+								?>
+							</span>
+							<span class="ccx-meta" style="margin-left:10px;">
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: 1: date, 2: reachable count, 3: blocked count, 4: total count */
+										__( 'Ran %1$s — %2$d/%4$d reachable, %3$d blocked by the edge.', 'corsen-context' ),
+										wp_date( 'Y-m-d H:i T', $aa_run['ran_at'] ),
+										$aa_tally['reachable'],
+										$aa_tally['blocked'],
+										$aa_tally['total']
+									)
+								);
+								?>
+							</span>
+						</p>
+						<?php if ( ! empty( $aa_run['note'] ) ) : ?>
+							<p class="ccx-sec"><?php echo esc_html( $aa_run['note'] ); ?></p>
+						<?php endif; ?>
+						<table class="widefat striped" style="max-width:720px;">
+							<thead><tr>
+								<th><?php esc_html_e( 'Client', 'corsen-context' ); ?></th>
+								<th><?php esc_html_e( 'Surface', 'corsen-context' ); ?></th>
+								<th><?php esc_html_e( 'HTTP', 'corsen-context' ); ?></th>
+								<th><?php esc_html_e( 'Answered by', 'corsen-context' ); ?></th>
+								<th><?php esc_html_e( 'Verdict', 'corsen-context' ); ?></th>
+							</tr></thead>
+							<tbody>
+								<?php
+								$aa_uas = Corsen_Context_Agent_Access::uas();
+								foreach ( $aa_run['checks'] as $aa_check ) :
+									?>
+									<tr>
+										<td><?php echo esc_html( $aa_uas[ $aa_check['ua'] ]['label'] ); ?></td>
+										<td><code><?php echo esc_html( $aa_check['target'] ); ?></code></td>
+										<td><?php echo esc_html( 0 === $aa_check['code'] ? '—' : (string) $aa_check['code'] ); ?></td>
+										<td><?php echo esc_html( 'cloudflare' === $aa_check['edge'] ? 'Cloudflare edge' : ( 'direct' === $aa_check['edge'] ? 'this server' : 'unknown' ) ); ?></td>
+										<td>
+											<?php
+											if ( $aa_check['blocked'] ) {
+												esc_html_e( 'BLOCKED — a bot-filter layer refused this agent', 'corsen-context' );
+											} elseif ( $aa_check['reachable'] ) {
+												esc_html_e( 'reached WordPress', 'corsen-context' );
+											} else {
+												esc_html_e( 'no usable answer', 'corsen-context' );
+											}
+											?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+						<?php if ( $aa_tally['blocked'] > 0 ) : ?>
+							<p class="ccx-desc"><strong><?php esc_html_e( 'Fix:', 'corsen-context' ); ?></strong> <?php esc_html_e( 'in Cloudflare: Security → Bots, relax “Block AI bots” for this zone (or scope your existing WAF exception to this hostname), then re-run. Nothing in WordPress can override a block applied before your site is reached — which is exactly why this check exists.', 'corsen-context' ); ?></p>
+						<?php endif; ?>
+					<?php else : ?>
+						<p class="ccx-desc"><?php esc_html_e( 'Never run yet. Click the button once: if your CDN blocks AI crawlers today, this card is where you will see it, before a judge or a customer finds out.', 'corsen-context' ); ?></p>
+					<?php endif; ?>
+				</div>
+			</div>
 
 			<h2><?php esc_html_e( 'Recent tool calls', 'corsen-context' ); ?></h2>
 			<?php

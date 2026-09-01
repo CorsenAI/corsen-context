@@ -404,6 +404,7 @@ function contractDifferences(expected, actual) {
     'get_product',
     'get_sections',
     'get_structured_data',
+    'check_agent_access',
     'request_expert_call',
   ]);
   const coreActualNames = actual
@@ -459,6 +460,7 @@ async function listTools(target, expectedContract) {
     'get_product',
     'get_sections',
     'get_structured_data',
+    'check_agent_access',
     'request_expert_call',
   ]);
   for (const tool of result.tools) {

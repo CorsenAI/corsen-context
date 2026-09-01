@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.3
+Stable tag:        1.5.4
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -151,6 +151,10 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.4 - 2026-09-01 =
+* New opt-in tool `check_agent_access`: agents read the result of the owner's latest agent-access self-test (did real ClaudeBot, ChatGPT-User and GPTBot clients get through the CDN, with the HTTP code and answering edge per probe). Read-only snapshot, zero arguments, never triggers egress itself.
+* Control Center "Agent access" section: one nonce-protected button re-fetches your own llms.txt and MCP endpoint with real agent user agents. The loopback re-enters through your public URL, so CDN bot filters apply exactly as they do for an outside agent. No credentials, status codes only, one run per five minutes, Cloudflare fix guidance when the edge blocks agents.
 
 = 1.5.3 - 2026-09-01 =
 * New owner-toggled extension tools, outside the cross-runtime contract and

@@ -53,6 +53,10 @@ class Corsen_Context_WebMCP {
 			'readOnlyHint'         => true,
 			'untrustedContentHint' => true,
 		),
+		'check_agent_access'  => array(
+			'readOnlyHint'         => true,
+			'untrustedContentHint' => false,
+		),
 		'get_sections'        => array(
 			'readOnlyHint'         => true,
 			'untrustedContentHint' => true,

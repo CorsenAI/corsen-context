@@ -448,6 +448,7 @@ class Corsen_Context_Admin {
 			'get_product'         => 'Read one product with live price and stock (requires WooCommerce)',
 			'get_sections'        => 'Read a page as a bounded outline plus one section at a time (token-safe on large pages)',
 			'get_structured_data' => 'Read a page\'s JSON-LD typed data (products, recipes, FAQs) exactly as the site publishes it',
+			'check_agent_access'  => 'Report the owner\'s latest agent-access self-test (did real ClaudeBot/ChatGPT/GPTBot clients get through the CDN?)',
 			'request_expert_call' => 'Submit the expert-request form (WRITE tool; also needs the expert options below and stays hidden until a destination email is saved)',
 		);
 		$enabled  = $settings['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS;

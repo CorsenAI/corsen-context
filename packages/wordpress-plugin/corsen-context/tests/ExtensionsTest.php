@@ -42,7 +42,7 @@ class ExtensionsTest extends WP_UnitTestCase {
 
 	public function test_registry_split(): void {
 		$this->assertCount( 4, Corsen_Context_Tool_Registry::CORE_TOOLS );
-		$this->assertCount( 8, Corsen_Context_Tool_Registry::known() );
+		$this->assertCount( 9, Corsen_Context_Tool_Registry::known() );
 		$this->assertTrue( Corsen_Context_Tool_Registry::is_optional( 'get_product' ) );
 		$this->assertFalse( Corsen_Context_Tool_Registry::is_optional( 'search_site' ) );
 		$this->assertNull( Corsen_Context_Tool_Registry::extension_definition( 'search_site' ) );
