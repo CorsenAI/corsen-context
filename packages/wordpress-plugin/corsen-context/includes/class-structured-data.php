@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * get_structured_data tool implementation.
+ * Structured data tool implementation.
  */
 class Corsen_Context_Structured_Data {
 
@@ -101,7 +101,7 @@ class Corsen_Context_Structured_Data {
 		$seen = array();
 		$kept = array();
 		foreach ( $blocks as $block ) {
-			$key = json_encode( $block );
+			$key = wp_json_encode( $block );
 			if ( ! is_string( $key ) || isset( $seen[ $key ] ) ) {
 				continue;
 			}

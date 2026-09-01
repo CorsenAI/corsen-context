@@ -171,12 +171,12 @@ class Corsen_Context_Content_Converter {
 	/**
 	 * Convert one <table> subtree to a GitHub-flavored Markdown table.
 	 *
-	 * @param array<int,string> $match Full table match.
+	 * @param array<int,string> $cells Full table match.
 	 * @return string
 	 */
-	private static function table_to_markdown( array $match ): string {
-		if ( ! preg_match_all( '/<tr\b[^>]*>(.*?)<\/tr>/si', $match[0], $rows ) || empty( $rows[1] ) ) {
-			return ' ' . wp_strip_all_tags( $match[0] ) . ' ';
+	private static function table_to_markdown( array $cells ): string {
+		if ( ! preg_match_all( '/<tr\b[^>]*>(.*?)<\/tr>/si', $cells[0], $rows ) || empty( $rows[1] ) ) {
+			return ' ' . wp_strip_all_tags( $cells[0] ) . ' ';
 		}
 
 		$grid  = array();
@@ -199,7 +199,7 @@ class Corsen_Context_Content_Converter {
 			$grid[] = $cells;
 		}
 		if ( empty( $grid ) ) {
-			return ' ' . wp_strip_all_tags( $match[0] ) . ' ';
+			return ' ' . wp_strip_all_tags( $cells[0] ) . ' ';
 		}
 
 		$lines = array();

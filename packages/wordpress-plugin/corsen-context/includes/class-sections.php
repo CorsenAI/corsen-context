@@ -18,7 +18,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * get_sections tool implementation.
+ * Sections tool implementation.
  */
 class Corsen_Context_Sections {
 
