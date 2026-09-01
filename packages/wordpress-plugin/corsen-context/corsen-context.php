@@ -112,9 +112,10 @@ final class Corsen_Context {
 		add_action( 'template_redirect', array( 'Corsen_Context_Security', 'maybe_block_author_archives' ), 5 );
 
 		// The MCP route's OPTIONS preflight is served here, not by core's REST
-		// loader on parse_request priority 100: core advertised PUT/PATCH/DELETE
-		// and credentials on a POST-only endpoint (audit 2026-09-01).
-		add_action( 'parse_request', array( 'Corsen_Context_MCP_Server', 'maybe_serve_options_preflight' ), 99 );
+		// loader: rest_api_loaded hooks parse_request at priority 10 (not 100,
+		// audit 2026-09-01 first attempt at 99 was too late — core had already
+		// served the preflight advertising PUT/PATCH/DELETE and credentials).
+		add_action( 'parse_request', array( 'Corsen_Context_MCP_Server', 'maybe_serve_options_preflight' ), 5 );
 
 		// WordPress Abilities API surface (inert before WP 6.9).
 		Corsen_Context_Abilities::init();
