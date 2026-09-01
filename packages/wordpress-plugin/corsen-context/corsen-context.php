@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
- * Description: Publish selected public content through llms.txt and a read-only MCP-style JSON-RPC endpoint.
- * Version: 1.4.1
+ * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
+ * Version: 1.5.0
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.4.1' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.0' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );

@@ -48,6 +48,29 @@
   all nine npm examples without changing their lockfiles, builds them, and
   exercises their MCP and WebMCP surfaces.
 
+## WordPress plugin [1.5.0] - Candidate - 2026-09-01
+
+### WordPress plugin
+
+- Added the Control Center page: one card per surface and tool with honest
+  exposed / needs-config / off badges, a what-agents-see preview computed from
+  the actually exposed tool list, and a nonce-protected audit purge action.
+- Added the WordPress Abilities API surface: enabled tools register as
+ abilities on WordPress 6.9+, sharing the exact MCP input schemas and the
+  single server-side executor; inert on older versions.
+- Added two opt-in WordPress-only extension tools outside the cross-runtime
+  manifest: `get_product` (live WooCommerce price/stock/images/variants) and
+  `request_expert_call` (private owner-side submissions, rate limited,
+  credential-shaped input rejected before storage). Both default to OFF and
+  `request_expert_call` stays hidden until a destination email is configured.
+- Added a bounded local audit log (custom table, 500 rows / 30 days):
+  argument fingerprints and hashed IPs only, hourly pruning, admin-only view.
+- Hardened settings sanitization to fall back to the four core tools when the
+  tool selection is absent from a request.
+- The default `tools/list` remains exactly the four manifest tools; parity
+  tests are unchanged and still enforce the shared contract.
+- Test suite: 116 PHP unit tests / 499 assertions, phpcs clean.
+
 ## WordPress plugin [1.4.1] - Candidate - 2026-08-30
 
 ### Contract and plugin changes

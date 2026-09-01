@@ -57,7 +57,12 @@ class Corsen_Context_Llms_Generator {
 		$lines[] = '## About this AI Context File';
 		$lines[] = 'This file publishes selected public site content for clients and services that support the llms.txt convention.';
 		if ( ! empty( $settings['enabled'] ) && ! empty( $settings['mcp_enabled'] ) ) {
-			$lines[] = 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
+			$has_write = in_array( 'request_expert_call', (array) ( $settings['enabled_tools'] ?? array() ), true )
+				&& class_exists( 'Corsen_Context_Expert' )
+				&& Corsen_Context_Expert::configured();
+			$lines[]   = $has_write
+				? 'For dynamic access, compatible clients can use the MCP-style JSON-RPC endpoint below: read-only content tools plus an opt-in private request submission.'
+				: 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
 			$lines[] = 'MCP endpoint: ' . $mcp_url;
 		}
 		$lines[] = '';

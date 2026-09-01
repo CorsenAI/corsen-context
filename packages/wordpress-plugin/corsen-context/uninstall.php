@@ -33,6 +33,9 @@ $transient_patterns = array(
 	'_transient_timeout_corsen_rl_%',
 	'_transient_corsen_mcp_%',
 	'_transient_timeout_corsen_mcp_%',
+	'_transient_corsen_expt_%',
+	'_transient_timeout_corsen_expt_%',
+	'_transient_corsen_expert_count',
 );
 foreach ( $transient_patterns as $pattern ) {
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall must remove plugin transients by prefix.
@@ -43,4 +46,24 @@ foreach ( $transient_patterns as $pattern ) {
 		)
 	);
 	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+}
+
+// Remove the bounded audit log table and its install marker.
+// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own prefix-derived table, dropped on explicit plugin deletion.
+$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'corsen_context_audit' );
+// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+delete_option( 'corsen_context_audit_db_version' );
+
+// Remove every stored expert-request submission and its meta.
+$expert_ids = get_posts(
+	array(
+		'post_type'      => 'cc_expert_request',
+		'post_status'    => 'any',
+		'numberposts'    => -1,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+	)
+);
+foreach ( $expert_ids as $expert_id ) {
+	wp_delete_post( (int) $expert_id, true );
 }

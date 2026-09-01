@@ -5,15 +5,15 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Publish selected public WordPress content through llms.txt and a read-only MCP-style JSON-RPC endpoint.
+Publish selected public WordPress content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
 
 == Description ==
 
-**Corsen Context** publishes a bounded overview of selected public WordPress content and provides four read-only content tools through a JSON-RPC endpoint. Candidate 1.4.1 can also register the enabled tools through the experimental WebMCP browser API when the site owner opts in and the browser exposes that API.
+**Corsen Context** publishes a bounded overview of selected public WordPress content and provides four core read-only content tools through a JSON-RPC endpoint. Two further extension tools are opt-in and owner-controlled: `get_product` (live price, stock and images via WooCommerce) and `request_expert_call` (files a private owner-side submission, like a contact form). 1.5.0 also registers the enabled tools through the experimental WebMCP browser API when the site owner opts in and the browser exposes that API, and through the WordPress Abilities API on WordPress 6.9 or newer.
 
 = What it does =
 
@@ -29,10 +29,11 @@ The plugin provides three separate surfaces:
 
 * **Default surfaces** — `/llms.txt` and the public read-only endpoint are enabled; the heavier `/llms-full.txt` export and WebMCP bridge are opt-in.
 * **MCP 2025-11-25 target** — Supports `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, and `notifications/initialized`. The endpoint returns JSON responses and does not provide server-sent event streaming.
-* **4 available tools** — `search_site`, `get_page_content`, `list_content`, `get_sitemap`.
+* **4 core read-only tools** — `search_site`, `get_page_content`, `list_content`, `get_sitemap`; every other surface tool is an opt-in extension, off by default.
 * **SEO integration** — Reads Yoast SEO and Rank Math metadata for better descriptions.
 * **Request controls** — Rate limiting, strict input validation, same-site content URL checks, defensive MCP response headers, and optional API-key authentication.
-* **Admin settings page** — Choose public post types, exclude paths, set rate limits, toggle surfaces, and select any subset of the four tools.
+* **Admin settings page** — Choose public post types, exclude paths, set rate limits, toggle surfaces, and select any subset of the tools.
+* **Control Center** (Settings > Corsen Context Control) — one card per surface and tool, honest exposed/needs-config/off badges, what-agents-see preview, and a bounded local audit log with a one-click purge.
 * **Dashboard widget** — See your AI context status at a glance.
 * **Bounded generation** — Total item and output-byte limits protect the optional full-content export.
 * **Content safety** — Drafts, private posts, password-protected posts, excluded paths, and content vetoed by the exposure filter are not served.
@@ -73,14 +74,14 @@ Corsen Context is an open-source project by [Corsen AI](https://corsen.ai). The 
 3. Click "Install Now" then "Activate"
 4. Visit Settings > Corsen Context and review the exposed post types, paths, and surfaces.
 
-Check the version displayed by WordPress.org before installation. A stable version older than 1.4.1 does not contain this candidate's strict WebMCP contract. Installing an older stable version is valid for its documented MCP and llms.txt features, but it is not a way to test the 1.4.1 candidate.
+Check the version displayed by WordPress.org before installation. A stable version older than 1.5.0 does not contain the Control Center, the extension tools, or the Abilities API surface. Installing an older stable version is valid for its documented MCP and llms.txt features, but it is not a way to test the 1.5.0 candidate.
 
 = Manual candidate installation =
 
-1. Obtain a release asset that explicitly identifies version 1.4.1, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository.
+1. Obtain a release asset that explicitly identifies version 1.5.0, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository.
 2. The ZIP must contain one top-level `corsen-context` folder with `corsen-context.php`, `includes/`, `uninstall.php`, and `readme.txt`; do not upload the monorepo ZIP.
 3. Go to Plugins > Add New > Upload Plugin, upload that plugin ZIP, and activate it.
-4. Confirm version 1.4.1 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
+4. Confirm version 1.5.0 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
 
 = After Activation =
 
@@ -122,12 +123,12 @@ Yes. In Settings > Corsen Context you can:
 
 * Choose which post types to include (pages, posts, products, custom types)
 * Exclude specific URL paths
-* Choose which of the four tools MCP and WebMCP advertise and allow
+* Choose which tools MCP, WebMCP and the Abilities API advertise and allow (extension tools stay off until you enable them)
 * Disable MCP, llms.txt, or the entire plugin
 
 = Does it work with WooCommerce? =
 
-The standard public `product` post type can be selected. The plugin exports its stored public content under the same rendering and exclusion rules as other post types. Themes, product add-ons, memberships, prices, variations, and dynamic shortcodes can change what a visitor sees, so test the required WooCommerce fields and visibility rules on the target site before claiming compatibility.
+The standard public `product` post type can be selected. The plugin exports its stored public content under the same rendering and exclusion rules as other post types. Themes, product add-ons, memberships, prices, variations, and dynamic shortcodes can change what a visitor sees, so test the required WooCommerce fields and visibility rules on the target site before claiming compatibility. When you enable it, the `get_product` extension tool additionally serves live price, sale, stock, image, and (for variable products) variant data through WooCommerce APIs; it requires WooCommerce to be active and the product post type to be selected.
 
 = How do I protect the MCP endpoint? =
 
@@ -150,6 +151,15 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.0 - 2026-09-01 =
+* Feature: Control Center page (Settings > Corsen Context Control) — one card per surface and tool with exposed / needs-config / off badges, a what-agents-see preview built from the actually exposed tool list, and one-click audit log purge.
+* Feature: WordPress Abilities API integration — on WordPress 6.9+ each enabled tool is registered as an ability sharing the exact MCP input schemas and the single server-side executor; inert on older WordPress.
+* Feature: opt-in `get_product` extension tool — live price, sale, stock status/quantity, images, categories and up to 20 variants via WooCommerce APIs, behind the site's post-type policy and publish/password checks. Off by default; not part of the cross-runtime manifest contract.
+* Feature: opt-in `request_expert_call` extension tool — the site's expert-request form as a structured write call. It stays hidden until the feature is enabled and a destination email is saved, is rate limited per IP, rejects credential-shaped text before storing anything, and files private submissions that are never published or echoed back.
+* Feature: bounded local audit log — one row per tool call (name, argument fingerprint, hashed IP, outcome, duration), capped at 500 rows and 30 days, pruned on cron, visible and purgeable only by the site admin. Raw arguments and raw IPs are never stored.
+* Security: settings sanitization falls back to the four core tools — a request that omits the tool selection can never enable extension tools implicitly.
+* Quality: 116 PHP unit tests (499 assertions) covering the extension gates, throttle, secret rejection, private filing, and manifest parity; WordPress coding standards pass clean.
 
 = 1.4.1 - 2026-08-30 =
 * Security: tool inputs now reject wrong types, unknown properties, fractions, and out-of-range values instead of coercing them; the published JSON Schemas carry the same explicit bounds.
@@ -219,6 +229,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 * Clean uninstall (removes all options and transients)
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Adds the Control Center, the WordPress Abilities API surface, two opt-in extension tools (product data, expert requests) and a bounded audit log. Everything new defaults to OFF; the four core read-only tools and the public contract are unchanged.
 
 = 1.4.1 =
 Removes the experimental form write surface and strengthens strict MCP/WebMCP contract validation. Existing legacy form shortcodes render nothing.
