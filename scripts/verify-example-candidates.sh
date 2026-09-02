@@ -346,6 +346,7 @@ for example in "${EXAMPLES[@]}"; do
     --prefix "$example_dir" \
     --no-save \
     --package-lock=false \
+    --include=optional \
     --no-audit \
     --no-fund \
     "${candidate_archives[@]}"
