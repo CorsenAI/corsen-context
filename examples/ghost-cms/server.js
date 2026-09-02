@@ -29,12 +29,12 @@ async function loadPosts() {
   return (body.posts || [])
     .filter((p) => 'coming-soon' !== String(p.slug))
     .map((p) => ({
-    path: `/posts/${encodeURIComponent(String(p.slug))}`,
-    title: p.title,
-    description: p.excerpt || '',
-    text: p.plaintext || '',
-    lastModified: p.published_at,
-  }));
+      path: `/posts/${encodeURIComponent(String(p.slug))}`,
+      title: p.title,
+      description: p.excerpt || '',
+      text: p.plaintext || '',
+      lastModified: p.published_at,
+    }));
 }
 
 let postsCache = null;
@@ -839,67 +839,69 @@ ${inner}
 })();
 </script>
 <script>/* ============================================================
-   Corsen Context shared navigation  - logic (v2)
+   Corsen Context shared navigation  - logic (v3)
    Injects nav+footer into [data-cc-nav] / [data-cc-foot].
    Mobile toggle, aria-expanded, Escape, per-stack accent.
+   v3: builds every node through the DOM API (createElement /
+   textContent / setAttribute) — no innerHTML anywhere, so page
+   attributes can never be reinterpreted as HTML (CodeQL
+   js/xss-through-dom). href values pass a scheme allowlist.
    ============================================================ */
 (function () {
   'use strict';
 
-  function esc(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function accentOf(root) {
-    return root.getAttribute('data-accent') || '';
-  }
+  var FLAGSHIP = 'https://webmcp.corsen.ai';
+  var REPO = 'https://github.com/CorsenAI/corsen-context';
 
   function applyAccent(root) {
-    var acc = accentOf(root);
+    var acc = root.getAttribute('data-accent') || '';
     if (acc) root.style.setProperty('--cc-accent', acc);
   }
 
-  function buildNav(config) {
-    var stack = config.stack || 'Demo';
-    var flagshipUrl = 'https://webmcp.corsen.ai';
-    var links = [
-      { text: 'Live trace', href: '#live' },
-      { text: 'How it works', href: '#how' },
-      { text: 'All integrations', href: flagshipUrl + '/#integrations', external: true },
-      { text: 'GitHub', href: 'https://github.com/CorsenAI/corsen-context', external: true },
-    ];
+  /* href allowlist: in-page anchors, root-relative paths, http(s) only. */
+  function safeHref(value, fallback) {
+    var s = String(value || '').trim();
+    if (s.charAt(0) === '#' || s.charAt(0) === '/') return s;
+    if (/^https?:\/\//i.test(s)) return s;
+    return fallback;
+  }
 
-    var html = '<div class="cc-nav">' +
-      '<div class="cc-nav-inner">' +
-        '<a class="cc-nav-logo" href="' + (config.homeHref || '#top') + '"><span class="cc-nav-mark" aria-hidden="true">C</span>Corsen Context</a>' +
-        '<span class="cc-nav-stack">' + esc(stack) + '</span>' +
-        '<nav class="cc-nav-links" aria-label="Primary">' +
-          links.map(function (l) {
-            return '<a class="cc-nav-link" href="' + esc(l.href) + '"' +
-              (l.external ? ' target="_blank" rel="noopener noreferrer"' : '') +
-              '>' + esc(l.text) + '</a>';
-          }).join('') +
-          '<a class="cc-nav-cta" href="' + esc(flagshipUrl) + '" target="_blank" rel="noopener noreferrer">Flagship</a>' +
-        '</nav>' +
-        '<button type="button" class="cc-nav-toggle" aria-expanded="false" aria-controls="cc-nav-mobile-' + esc(config.uid || 'm') + '" aria-label="Open menu">' +
-          '<span></span><span></span><span></span>' +
-        '</button>' +
-      '</div>' +
-      '<nav id="cc-nav-mobile-' + esc(config.uid || 'm') + '" class="cc-nav-mobile" aria-label="Primary mobile">' +
-        links.map(function (l) {
-          return '<a class="cc-nav-link" href="' + esc(l.href) + '"' +
-            (l.external ? ' target="_blank" rel="noopener noreferrer"' : '') +
-            '>' + esc(l.text) + '</a>';
-        }).join('') +
-        '<a class="cc-nav-cta" href="' + esc(flagshipUrl) + '" target="_blank" rel="noopener noreferrer">Flagship</a>' +
-      '</nav>' +
-    '</div>';
+  /* id fragments: [A-Za-z0-9_-] only. */
+  function safeId(value) {
+    var s = String(value || '').replace(/[^A-Za-z0-9_-]/g, '');
+    return s || 'm';
+  }
 
-    return html;
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function link(className, href, text, external) {
+    var a = el('a', className, text);
+    a.setAttribute('href', safeHref(href, '#top'));
+    if (external) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+    return a;
+  }
+
+  var LINKS = [
+    { text: 'Live trace', href: '#live' },
+    { text: 'How it works', href: '#how' },
+    { text: 'All integrations', href: FLAGSHIP + '/#integrations', external: true },
+    { text: 'GitHub', href: REPO, external: true },
+  ];
+
+  function appendLinks(container) {
+    LINKS.forEach(function (l) {
+      container.appendChild(link('cc-nav-link', l.href, l.text, l.external));
+    });
+    container.appendChild(link('cc-nav-cta', FLAGSHIP, 'Flagship', true));
+    return container;
   }
 
   function mount(root) {
@@ -907,66 +909,106 @@ ${inner}
     root.__ccNavMounted = true;
     applyAccent(root);
 
-    var config = {
-      stack: root.getAttribute('data-stack') || 'Demo',
-      uid: (root.getAttribute('data-uid') || 'm'),
-      homeHref: root.getAttribute('data-home') || '#top',
-    };
+    var stack = root.getAttribute('data-stack') || 'Demo';
+    var uid = safeId(root.getAttribute('data-uid'));
+    var homeHref = safeHref(root.getAttribute('data-home'), '#top');
 
-    root.innerHTML = buildNav(config);
+    var nav = el('div', 'cc-nav');
+    var inner = el('div', 'cc-nav-inner');
 
-    var toggle = root.querySelector('.cc-nav-toggle');
-    var mobile = root.querySelector('.cc-nav-mobile');
-    if (toggle && mobile) {
-      toggle.addEventListener('click', function () {
-        var open = mobile.classList.toggle('is-open');
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    var logo = el('a', 'cc-nav-logo');
+    logo.setAttribute('href', homeHref);
+    var mark = el('span', 'cc-nav-mark');
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = 'C';
+    logo.appendChild(mark);
+    logo.appendChild(document.createTextNode('Corsen Context'));
+
+    var navEl = el('nav', 'cc-nav-links');
+    navEl.setAttribute('aria-label', 'Primary');
+    appendLinks(navEl);
+
+    var toggle = el('button', 'cc-nav-toggle');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', 'cc-nav-mobile-' + uid);
+    toggle.setAttribute('aria-label', 'Open menu');
+    toggle.appendChild(el('span'));
+    toggle.appendChild(el('span'));
+    toggle.appendChild(el('span'));
+
+    inner.appendChild(logo);
+    inner.appendChild(el('span', 'cc-nav-stack', stack));
+    inner.appendChild(navEl);
+    inner.appendChild(toggle);
+
+    var mobile = el('nav', 'cc-nav-mobile');
+    mobile.id = 'cc-nav-mobile-' + uid;
+    mobile.setAttribute('aria-label', 'Primary mobile');
+    appendLinks(mobile);
+
+    nav.appendChild(inner);
+    nav.appendChild(mobile);
+
+    root.textContent = '';
+    root.appendChild(nav);
+
+    var toggleBtn = root.querySelector('.cc-nav-toggle');
+    var mobileNav = root.querySelector('.cc-nav-mobile');
+    if (toggleBtn && mobileNav) {
+      toggleBtn.addEventListener('click', function () {
+        var open = mobileNav.classList.toggle('is-open');
+        toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
       });
       window.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && mobile.classList.contains('is-open')) {
-          mobile.classList.remove('is-open');
-          toggle.setAttribute('aria-expanded', 'false');
-          toggle.setAttribute('aria-label', 'Open menu');
-          toggle.focus();
+        if (e.key === 'Escape' && mobileNav.classList.contains('is-open')) {
+          mobileNav.classList.remove('is-open');
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          toggleBtn.setAttribute('aria-label', 'Open menu');
+          toggleBtn.focus();
         }
       });
     }
-  }
-
-  function buildFooter(config) {
-    var stack = config.stack || 'Demo';
-    return '<div class="cc-foot-common">' +
-      '<div class="cc-foot-links">' +
-        '<a href="https://webmcp.corsen.ai" target="_blank" rel="noopener noreferrer">Flagship demo</a>' +
-        '<a href="https://github.com/CorsenAI/corsen-context" target="_blank" rel="noopener noreferrer">GitHub repository</a>' +
-      '</div>' +
-      '<div class="cc-foot-stack">Demonstration site &mdash; stack: ' + esc(stack) + '</div>' +
-      '<div class="cc-foot-legal">' +
-        '<span>Open-source demo (MIT), built for The WebMCP Challenge.</span>' +
-        '<span>This page exposes read-only public content; it collects no personal data.</span>' +
-      '</div>' +
-      '<span class="cc-foot-mit">MIT License</span>' +
-    '</div>';
   }
 
   function mountFooter(root) {
     if (!root || root.__ccFootMounted) return;
     root.__ccFootMounted = true;
     applyAccent(root);
-    root.innerHTML = buildFooter({
-      stack: root.getAttribute('data-stack') || 'Demo',
-    });
+
+    var stack = root.getAttribute('data-stack') || 'Demo';
+
+    var wrap = el('div', 'cc-foot-common');
+
+    var linksEl = el('div', 'cc-foot-links');
+    linksEl.appendChild(link('', FLAGSHIP, 'Flagship demo', true));
+    linksEl.appendChild(link('', REPO, 'GitHub repository', true));
+
+    wrap.appendChild(linksEl);
+    wrap.appendChild(el('div', 'cc-foot-stack', 'Demonstration site — stack: ' + stack));
+
+    var legal = el('div', 'cc-foot-legal');
+    legal.appendChild(el('span', '', 'Open-source demo (MIT), built for The WebMCP Challenge.'));
+    legal.appendChild(
+      el('span', '', 'This page exposes read-only public content; it collects no personal data.'),
+    );
+    wrap.appendChild(legal);
+
+    wrap.appendChild(el('span', 'cc-foot-mit', 'MIT License'));
+
+    root.textContent = '';
+    root.appendChild(wrap);
   }
 
   function mountAll() {
-    document.querySelectorAll('[data-cc-nav]').forEach(function (el) {
-      if (el.querySelector('.cc-nav')) return;
-      mount(el);
+    document.querySelectorAll('[data-cc-nav]').forEach(function (node) {
+      if (node.querySelector('.cc-nav')) return;
+      mount(node);
     });
-    document.querySelectorAll('[data-cc-foot]').forEach(function (el) {
-      if (el.querySelector('.cc-foot-common')) return;
-      mountFooter(el);
+    document.querySelectorAll('[data-cc-foot]').forEach(function (node) {
+      if (node.querySelector('.cc-foot-common')) return;
+      mountFooter(node);
     });
   }
 

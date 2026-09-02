@@ -122,4 +122,33 @@ class AbilitiesTest extends WP_UnitTestCase {
 			$this->assertSame( '__return_true', $args['permission_callback'] );
 		}
 	}
+
+	public function test_output_schemas_match_runtime_field_names_and_nullable_values(): void {
+		$method = new ReflectionMethod( Corsen_Context_Abilities::class, 'output_schema' );
+		$method->setAccessible( true );
+
+		$search = $method->invoke( null, 'search_site' );
+		$this->assertArrayHasKey( 'rank', $search['items']['properties'] );
+		$this->assertArrayNotHasKey( 'score', $search['items']['properties'] );
+		$this->assertSame( 'integer', $search['items']['properties']['rank']['type'] );
+
+		$sitemap = $method->invoke( null, 'get_sitemap' );
+		$this->assertArrayNotHasKey( 'price', $sitemap['items']['properties'] );
+		$this->assertArrayNotHasKey( 'inStock', $sitemap['items']['properties'] );
+
+		$product = $method->invoke( null, 'get_product' );
+		$this->assertSame( array( 'number', 'null' ), $product['properties']['price']['type'] );
+		$this->assertSame( array( 'object', 'null' ), $product['properties']['image']['type'] );
+		$this->assertArrayHasKey( 'agentPurchase', $product['properties'] );
+
+		$sections = $method->invoke( null, 'get_sections' );
+		foreach ( array( 'lastModified', 'outlineTruncated', 'section', 'offset', 'bytes', 'nextOffset' ) as $field ) {
+			$this->assertArrayHasKey( $field, $sections['properties'] );
+		}
+
+		$structured = $method->invoke( null, 'get_structured_data' );
+		foreach ( array( 'lastModified', 'from', 'untrusted', 'blocksTruncated' ) as $field ) {
+			$this->assertArrayHasKey( $field, $structured['properties'] );
+		}
+	}
 }

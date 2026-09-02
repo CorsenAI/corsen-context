@@ -1,5 +1,12 @@
 # @corsenai/corsen-context-cli
 
+## 2.0.1
+
+### Patch Changes
+
+- Discover custom MCP endpoints from `llms.txt` or `robots.txt` while accepting only same-origin HTTPS targets. Relative endpoints now work, and unsafe cross-origin, credentialed, fragmented, or private discovery values fall back safely.
+- @corsenai/corsen-context@2.0.1
+
 ## 2.0.0
 
 ### Major Changes

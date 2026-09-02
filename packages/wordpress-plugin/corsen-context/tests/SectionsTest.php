@@ -7,6 +7,26 @@
  */
 
 class SectionsTest extends WP_UnitTestCase {
+	public function test_schema_matches_required_uri_and_offset_bound(): void {
+		$schema = Corsen_Context_Sections::definition()['inputSchema'];
+		$this->assertSame( array( 'uri' ), $schema['required'] );
+		$this->assertSame( 100000000, $schema['properties']['offset']['maximum'] );
+		$this->assertNull( Corsen_Context_Sections::validate( array() ) );
+		$this->assertNull(
+			Corsen_Context_Sections::validate(
+				array(
+					'uri'     => home_url( '/guide/' ),
+					'section' => 'intro',
+					'offset'  => 100000001,
+				)
+			)
+		);
+		$this->assertIsArray(
+			Corsen_Context_Sections::validate(
+				array( 'uri' => 'https://example.com/' . str_repeat( 'é', 1980 ) )
+			)
+		);
+	}
 
 	private function settings( array $override = array() ): void {
 		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array_merge(
@@ -44,6 +64,9 @@ class SectionsTest extends WP_UnitTestCase {
 		$GLOBALS['corsen_test_options']    = array();
 		$GLOBALS['corsen_test_postmeta']   = array();
 		$GLOBALS['corsen_test_abilities']  = array();
+		$GLOBALS['corsen_test_http_calls'] = array();
+		unset( $GLOBALS['corsen_test_filters']['corsen_context_can_expose_post'] );
+		unset( $GLOBALS['corsen_test_http_response'] );
 		$this->settings();
 	}
 
@@ -80,6 +103,26 @@ class SectionsTest extends WP_UnitTestCase {
 		$this->assertTrue( $outcome['ok'] );
 		$ids = array_column( $outcome['result']['sections'], 'id' );
 		$this->assertSame( count( $ids ), count( array_unique( $ids ) ), 'Section ids must be unique.' );
+	}
+
+	public function test_fenced_code_headings_stay_inside_their_section(): void {
+		$method   = new ReflectionMethod( Corsen_Context_Sections::class, 'outline' );
+		$markdown = "# Real\ntext\n```sh\n# Not a heading\necho ok\n```\n## Next\ndone";
+		$sections = $method->invoke( null, $markdown );
+		$this->assertSame( array( 'top', 'real', 'next' ), array_column( $sections, 'id' ) );
+		$this->assertStringContainsString( "```sh\n# Not a heading\necho ok\n```", $sections[1]['markdown'] );
+		$this->assertStringNotContainsString( '## Next', $sections[1]['markdown'] );
+	}
+
+	public function test_literal_top_heading_does_not_collide_with_synthetic_top(): void {
+		$this->post( "<h2>Top</h2>\n<p>Actual heading body.</p>" );
+		$uri     = home_url( '/guide/' );
+		$outline = Corsen_Context_Sections::execute( array( 'uri' => $uri ) );
+		$this->assertTrue( $outline['ok'] );
+		$this->assertSame( array( 'top', 'top-2' ), array_column( $outline['result']['sections'], 'id' ) );
+		$heading = Corsen_Context_Sections::execute( array( 'uri' => $uri, 'section' => 'top-2' ) );
+		$this->assertTrue( $heading['ok'] );
+		$this->assertStringContainsString( 'Actual heading body', $heading['result']['markdown'] );
 	}
 
 	public function test_top_id_is_always_listed_and_resolves(): void {
@@ -145,6 +188,22 @@ class SectionsTest extends WP_UnitTestCase {
 		$GLOBALS['corsen_test_post']->post_password = 'hunter2';
 		$outcome = Corsen_Context_Sections::execute( array( 'uri' => home_url( '/guide/' ) ) );
 		$this->assertFalse( $outcome['ok'] );
+	}
+
+	public function test_extension_readers_honor_membership_visibility_veto(): void {
+		$this->post( '<script type="application/ld+json">{"@type":"Article"}</script><h2>Members</h2>' );
+		$GLOBALS['corsen_test_filters']['corsen_context_can_expose_post'] = static function (): bool {
+			return false;
+		};
+
+		$uri        = home_url( '/guide/' );
+		$sections   = Corsen_Context_Sections::execute( array( 'uri' => $uri ) );
+		$structured = Corsen_Context_Structured_Data::execute( array( 'uri' => $uri ) );
+
+		$this->assertFalse( $sections['ok'] );
+		$this->assertSame( 'not_found', $sections['code'] );
+		$this->assertFalse( $structured['ok'] );
+		$this->assertSame( 'not_found', $structured['code'] );
 	}
 
 	public function test_sections_reject_woo_transactional_pages(): void {
@@ -214,6 +273,57 @@ class SectionsTest extends WP_UnitTestCase {
 		$outcome = Corsen_Context_Structured_Data::execute( array( 'uri' => home_url( '/guide/' ) ) );
 		$this->assertTrue( $outcome['ok'] );
 		$this->assertSame( 1, $outcome['result']['blockCount'] );
+	}
+
+	public function test_structured_data_loopback_is_safe_redirect_free_and_bounded(): void {
+		$this->post( '<p>No stored schema.</p>' );
+		$GLOBALS['corsen_test_http_response'] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array(),
+			'body'     => '<script type="application/ld+json">{"@type":"Article","name":"Rendered"}</script>',
+		);
+
+		$outcome = Corsen_Context_Structured_Data::execute( array( 'uri' => home_url( '/guide/' ) ) );
+
+		$this->assertTrue( $outcome['ok'] );
+		$this->assertSame( 1, $outcome['result']['blockCount'] );
+		$this->assertCount( 1, $GLOBALS['corsen_test_http_calls'] );
+		$args = $GLOBALS['corsen_test_http_calls'][0][2];
+		$this->assertTrue( $args['reject_unsafe_urls'] );
+		$this->assertSame( 0, $args['redirection'] );
+		$this->assertSame( Corsen_Context_Structured_Data::PAGE_BUDGET + 1, $args['limit_response_size'] );
+	}
+
+	public function test_structured_data_blocks_are_valid_utf8_and_strictly_budgeted(): void {
+		$rating = array();
+		foreach ( range( 1, 12 ) as $index ) {
+			$rating[ 'field' . $index ] = str_repeat( 'é', 240 );
+		}
+		$ld = '<script type="application/ld+json">'
+			. wp_json_encode(
+				array(
+					'@type'            => array( 'Product', 'Service' ),
+					'name'             => str_repeat( '€', 180 ),
+					'identifier'       => str_repeat( 'é', 240 ),
+					'url'              => home_url( '/guide/' ) . str_repeat( 'x', 500 ),
+					'aggregateRating'  => $rating,
+					'description'      => str_repeat( '€', 300 ),
+				)
+			)
+			. '</script>';
+		$this->post( $ld );
+
+		$outcome = Corsen_Context_Structured_Data::execute( array( 'uri' => home_url( '/guide/' ) ) );
+		$block   = $outcome['result']['blocks'][0];
+		$json    = (string) wp_json_encode( $block );
+
+		$this->assertTrue( $outcome['ok'] );
+		$this->assertTrue( $block['truncated'] );
+		$this->assertLessThanOrEqual( Corsen_Context_Structured_Data::BLOCK_BUDGET, strlen( $json ) );
+		$this->assertTrue( mb_check_encoding( $json, 'UTF-8' ) );
+		$this->assertSame( array( 'Product', 'Service' ), $block['@type'] );
+		$this->assertSame( 1, $outcome['result']['types']['Product'] );
+		$this->assertSame( 1, $outcome['result']['types']['Service'] );
 	}
 
 	public function test_new_tools_are_annotated_read_only(): void {

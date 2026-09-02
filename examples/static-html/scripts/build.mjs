@@ -10,7 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public');
 // Shared observatory assets -> public/corsen (single source: shared/webmcp-observatory)
 // Shared assets: honour an explicit dir, else a sibling repo clone (reproducible).
-const corsenSrc = process.env.CORSEN_SHARED_DIR || join(root, '..', '..', 'shared', 'webmcp-observatory');
+const corsenSrc =
+  process.env.CORSEN_SHARED_DIR || join(root, '..', '..', 'shared', 'webmcp-observatory');
 mkdirSync(join(outDir, 'corsen'), { recursive: true });
 for (const f of ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observatory.js']) {
   copyFileSync(join(corsenSrc, f), join(outDir, 'corsen', f));

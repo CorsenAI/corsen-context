@@ -59,7 +59,6 @@ the CMS.
 
 ## Step 4 - verify
 
-
 ```bash
 pnpm verify:live        # expects 10/10 with manifest 3786c5d0d401cb98
 ```

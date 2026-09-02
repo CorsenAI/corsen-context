@@ -129,6 +129,14 @@ function checked( $checked, $current = true, bool $display = true ): string {
 	return $result;
 }
 
+function selected( $selected, $current = true, bool $display = true ): string {
+	$result = $selected == $current ? ' selected="selected"' : ''; // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- Mirrors WordPress selected().
+	if ( $display ) {
+		echo $result;
+	}
+	return $result;
+}
+
 function add_action( ...$args ): bool { return true; }
 
 function add_filter( ...$args ): bool { return true; }
@@ -139,18 +147,19 @@ function add_settings_section( ...$args ): void {}
 
 function add_settings_field( ...$args ): void {}
 
-function sanitize_text_field( $s ): string { return trim( (string) $s ); }
+function sanitize_text_field( $s ): string { return trim( strip_tags( (string) $s ) ); }
 
-function sanitize_textarea_field( $s ): string { return trim( (string) $s ); }
+function sanitize_textarea_field( $s ): string { return trim( strip_tags( (string) $s ) ); }
 
 function esc_url( $url ): string { return (string) $url; }
 
 function admin_url( string $path = '' ): string { return 'https://example.com/wp-admin/' . $path; }
 
 function get_post_types( $args = array(), $output = 'names' ) {
+	$available = $GLOBALS['corsen_test_public_post_types'] ?? array( 'post' => 'Posts', 'page' => 'Pages', 'product' => 'Products' );
 	if ( 'objects' === $output ) {
 		$out = array();
-		foreach ( array( 'post' => 'Posts', 'page' => 'Pages', 'product' => 'Products' ) as $name => $label ) {
+		foreach ( $available as $name => $label ) {
 			$pt                 = new stdClass();
 			$pt->name           = $name;
 			$pt->labels         = new stdClass();
@@ -159,7 +168,7 @@ function get_post_types( $args = array(), $output = 'names' ) {
 		}
 		return $out;
 	}
-	return array( 'post' => 'post', 'page' => 'page', 'product' => 'product' );
+	return array_combine( array_keys( $available ), array_keys( $available ) );
 }
 
 function delete_transient( $k ): bool { return true; }
@@ -212,6 +221,25 @@ if ( ! function_exists( 'current_user_can' ) ) {
 if ( ! function_exists( 'add_submenu_page' ) ) {
 	function add_submenu_page( ...$args ): string { return 'corsen-context-control'; }
 }
+if ( ! function_exists( 'add_meta_box' ) ) {
+	function add_meta_box( ...$args ): void { $GLOBALS['corsen_test_meta_boxes'][] = $args; }
+}
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $action = -1, $name = '_wpnonce' ): void {
+		echo '<input type="hidden" name="' . esc_attr( (string) $name ) . '" value="testnonce" />';
+	}
+}
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $nonce, $action = -1 ): bool {
+		return 'testnonce' === $nonce && 'corsen_context_product_policy' === $action;
+	}
+}
+if ( ! function_exists( 'wp_is_post_autosave' ) ) {
+	function wp_is_post_autosave( $post_id ) { return false; }
+}
+if ( ! function_exists( 'wp_is_post_revision' ) ) {
+	function wp_is_post_revision( $post_id ) { return false; }
+}
 if ( ! function_exists( 'settings_fields' ) ) {
 	function settings_fields( string $group ): void { echo '<input type="hidden" name="option" value="' . esc_attr( $group ) . '" />'; }
 }
@@ -252,13 +280,21 @@ if ( ! function_exists( 'wp_register_ability_category' ) ) {
 if ( ! function_exists( 'wp_remote_get' ) ) {
 	function wp_remote_get( $url, $args = array() ) {
 		$GLOBALS['corsen_test_http_calls'][] = array( 'GET', $url, $args );
-		return $GLOBALS['corsen_test_http_response'] ?? array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '' );
+		$response = $GLOBALS['corsen_test_http_response'] ?? array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '' );
+		return is_callable( $response ) ? $response( 'GET', $url, $args ) : $response;
+	}
+}
+if ( ! function_exists( 'wp_safe_remote_get' ) ) {
+	function wp_safe_remote_get( $url, $args = array() ) {
+		$args['reject_unsafe_urls'] = true;
+		return wp_remote_get( $url, $args );
 	}
 }
 if ( ! function_exists( 'wp_remote_post' ) ) {
 	function wp_remote_post( $url, $args = array() ) {
 		$GLOBALS['corsen_test_http_calls'][] = array( 'POST', $url, $args );
-		return $GLOBALS['corsen_test_http_response'] ?? array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '' );
+		$response = $GLOBALS['corsen_test_http_response'] ?? array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => '' );
+		return is_callable( $response ) ? $response( 'POST', $url, $args ) : $response;
 	}
 }
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
@@ -322,7 +358,15 @@ if ( ! function_exists( 'get_posts' ) ) {
 	function get_posts( array $args = array() ): array { return $GLOBALS['corsen_test_posts'] ?? array(); }
 }
 if ( ! function_exists( 'get_permalink' ) ) {
-	function get_permalink( $post = null ): string { return 'https://example.com/?p=1'; }
+	function get_permalink( $post = null ): string {
+		if ( isset( $GLOBALS['corsen_test_permalink'] ) && is_callable( $GLOBALS['corsen_test_permalink'] ) ) {
+			return (string) $GLOBALS['corsen_test_permalink']( $post );
+		}
+		return 'https://example.com/?p=1';
+	}
+}
+if ( ! function_exists( 'get_queried_object_id' ) ) {
+	function get_queried_object_id(): int { return (int) ( $GLOBALS['corsen_test_queried_object_id'] ?? 0 ); }
 }
 if ( ! function_exists( 'get_the_title' ) ) {
 	function get_the_title( $post = 0 ): string { return 'Test post'; }
@@ -331,7 +375,12 @@ if ( ! function_exists( 'url_to_postid' ) ) {
 	function url_to_postid( $url ): int { return $GLOBALS['corsen_test_url_to_postid'] ?? 0; }
 }
 if ( ! function_exists( 'get_post' ) ) {
-	function get_post( $id = null ) { return $GLOBALS['corsen_test_post'] ?? null; }
+	function get_post( $id = null ) {
+		if ( null !== $id && isset( $GLOBALS['corsen_test_posts_by_id'][ (int) $id ] ) ) {
+			return $GLOBALS['corsen_test_posts_by_id'][ (int) $id ];
+		}
+		return $GLOBALS['corsen_test_post'] ?? null;
+	}
 }
 
 // --- Extension-tool stubs (products, expert, audit, control center v2). ---

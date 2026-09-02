@@ -103,6 +103,18 @@ An HTTP request that finds the bridge script is not sufficient evidence. The
 final demo receipt must record the exact browser/client version, page URL,
 registered tools, calls, result, and date.
 
+**Purchase-policy demo (product governance, provable on the transport).** The
+planned final recording can show the agent reading the
+catalogue through `list_content` / `get_product`: the flagship `corsen-context`
+returns `agentPurchase: forbidden` while `corsen-context-express` and
+`corsen-context-wordpress` return `allowed`. That flag is a binding contract
+instruction for agents — the plugin exposes no purchase tool at all and never
+intercepts the ordinary human checkout. The store's separate coupon rules can
+also reject the flagged product, but that HTTP 400 is store policy, not proof
+that `agentPurchase` is server enforcement. Private operator receipts recorded
+two 0.00 EUR test orders for allowed editions; they are not anonymous public
+evidence and the submission does not ask judges to trust or reproduce them.
+
 ## Integration forms
 
 The repository covers ten deployment targets, with deliberately different
@@ -110,9 +122,9 @@ levels of native integration:
 
 | Stack              | What a site owner receives                                     |
 | ------------------ | -------------------------------------------------------------- |
-| WordPress          | native PHP plugin; repository candidate is 1.5.13               |
-| Next.js App Router | npm 2.0.0 candidate plus reference app                         |
-| Astro              | npm 2.0.0 candidate plus SSR reference app                     |
+| WordPress          | native PHP plugin; source candidate 1.5.14                     |
+| Next.js App Router | npm 2.0.1 candidate plus reference app                         |
+| Astro              | npm 2.0.1 candidate plus SSR reference app                     |
 | Express            | framework-agnostic core plus reference server                  |
 | Static HTML        | generated static assets plus one same-origin Node endpoint     |
 | Ghost              | reference Node bridge over the Content API                     |
@@ -240,10 +252,11 @@ manifest-backed WebMCP registration path, Next.js and Astro bridge handlers,
 WordPress controls, browser diagnostics, parity tests, examples, CMS bridges,
 deployment guidance, and public verification tooling.
 
-A declarative write-form prototype was also built during the challenge and
-then removed from the 1.4.1 candidate. The distributed scope is intentionally
-limited to the four read-only tools above. Legacy form shortcodes render no
-output and the removed prototype is not part of the submission claim.
+The shared cross-runtime scope remains the four read-only core tools above.
+The WordPress flagship additionally demonstrates five opt-in extensions: four
+read tools and one explicitly non-read-only expert-intake tool that refuses
+agent submissions server-side with `human_only`. A separate declarative form
+prototype was removed and is not part of the submission claim.
 
 The commit boundary can be inspected directly:
 

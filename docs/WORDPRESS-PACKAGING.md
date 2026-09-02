@@ -28,7 +28,7 @@ file timestamps and host compression libraries do not affect the result.
 Inspect the archive before publishing:
 
 ```sh
-tar -tf dist/corsen-context-1.4.1.zip
+unzip -l dist/corsen-context-VERSION.zip
 ```
 
 Every entry must be under one top-level `corsen-context/` directory. The

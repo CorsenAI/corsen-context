@@ -1,4 +1,4 @@
-import { isPrivateUrl, MCP_PROTOCOL_VERSION } from '@corsenai/corsen-context';
+import { isPrivateUrl, MCP_PROTOCOL_VERSION, safeFetch } from '@corsenai/corsen-context';
 
 function parseArgs(args: string[]): { url?: string } {
   const result: { url?: string } = {};
@@ -14,6 +14,31 @@ interface CheckResult {
   name: string;
   status: 'pass' | 'fail' | 'warn';
   message: string;
+}
+
+/**
+ * Resolve a discovery value without letting an arbitrary site make the CLI
+ * contact another origin or a local service. Doctor only supports public
+ * HTTPS sites, and a discovered transport must stay on that exact origin.
+ */
+export function resolveDiscoveredMcpEndpoint(base: string, candidate: string): string | null {
+  try {
+    const site = new URL(base);
+    const endpoint = new URL(candidate.trim(), `${site.origin}/`);
+    if (
+      site.protocol !== 'https:' ||
+      endpoint.protocol !== 'https:' ||
+      endpoint.origin !== site.origin ||
+      endpoint.username !== '' ||
+      endpoint.password !== '' ||
+      endpoint.hash !== ''
+    ) {
+      return null;
+    }
+    return endpoint.href;
+  } catch {
+    return null;
+  }
 }
 
 export async function doctor(args: string[]) {
@@ -45,19 +70,34 @@ export async function doctor(args: string[]) {
     message: !isPrivate ? 'URL is publicly accessible' : 'URL points to private network',
   });
 
-  const base = url.replace(/\/$/, '');
+  let base = url.replace(/\/$/, '');
+  try {
+    base = new URL(url).origin;
+  } catch {
+    // isPrivateUrl() already treats an invalid URL as blocked. Keep a
+    // printable fallback while safeFetch() refuses every attempted request.
+  }
+
+  // Discovered MCP endpoint (from llms.txt / robots.txt), used by Check 6.
+  let discoveredMcpEndpoint = '';
 
   // Check 3: llms.txt
   try {
-    const res = await fetch(`${base}/llms.txt`, {
+    const res = await safeFetch(`${base}/llms.txt`, {
       signal: AbortSignal.timeout(10000),
-      redirect: 'follow',
     });
     results.push({
       name: 'llms.txt',
       status: res.ok ? 'pass' : 'warn',
       message: res.ok ? `Found /llms.txt (${res.status})` : `No /llms.txt found (${res.status})`,
     });
+    if (res.ok) {
+      const body = await res.text();
+      const m = body.match(/^MCP endpoint:\s*(\S+)/im);
+      if (m && m[1]) {
+        discoveredMcpEndpoint = resolveDiscoveredMcpEndpoint(base, m[1]) || '';
+      }
+    }
   } catch {
     results.push({
       name: 'llms.txt',
@@ -68,9 +108,8 @@ export async function doctor(args: string[]) {
 
   // Check 4: Sitemap
   try {
-    const res = await fetch(`${base}/sitemap.xml`, {
+    const res = await safeFetch(`${base}/sitemap.xml`, {
       signal: AbortSignal.timeout(10000),
-      redirect: 'follow',
     });
     results.push({
       name: 'Sitemap',
@@ -89,19 +128,22 @@ export async function doctor(args: string[]) {
 
   // Check 5: robots.txt with MCP reference
   try {
-    const res = await fetch(`${base}/robots.txt`, {
+    const res = await safeFetch(`${base}/robots.txt`, {
       signal: AbortSignal.timeout(10000),
-      redirect: 'follow',
     });
     if (res.ok) {
       const text = await res.text();
-      const hasMcp = text.toLowerCase().includes('mcp:');
+      const match = text.match(/^MCP:\s*(\S+)/im);
+      const robotsEndpoint = match?.[1] ? resolveDiscoveredMcpEndpoint(base, match[1]) : null;
+      if (!discoveredMcpEndpoint && robotsEndpoint) {
+        discoveredMcpEndpoint = robotsEndpoint;
+      }
       results.push({
         name: 'robots.txt MCP',
-        status: hasMcp ? 'pass' : 'warn',
-        message: hasMcp
+        status: robotsEndpoint ? 'pass' : 'warn',
+        message: robotsEndpoint
           ? 'robots.txt contains MCP endpoint reference'
-          : 'robots.txt exists but no MCP reference found',
+          : 'robots.txt exists but has no valid same-origin HTTPS MCP reference',
       });
     } else {
       results.push({
@@ -119,8 +161,9 @@ export async function doctor(args: string[]) {
   }
 
   // Check 6: MCP endpoint
+  const mcpEndpoint = discoveredMcpEndpoint || `${base}/v1/mcp`;
   try {
-    const res = await fetch(`${base}/v1/mcp`, {
+    const res = await safeFetch(mcpEndpoint, {
       method: 'POST',
       headers: {
         Accept: 'application/json, text/event-stream',
@@ -151,7 +194,7 @@ export async function doctor(args: string[]) {
         typeof serverVersion === 'string' &&
         serverVersion.length > 0
       ) {
-        const acknowledged = await fetch(`${base}/v1/mcp`, {
+        const acknowledged = await safeFetch(mcpEndpoint, {
           method: 'POST',
           headers: {
             Accept: 'application/json, text/event-stream',
@@ -178,20 +221,20 @@ export async function doctor(args: string[]) {
       results.push({
         name: 'MCP Endpoint',
         status: 'fail',
-        message: `MCP endpoint at /v1/mcp returned ${res.status}`,
+        message: `MCP endpoint at ${mcpEndpoint} returned ${res.status}`,
       });
     }
   } catch {
     results.push({
       name: 'MCP Endpoint',
       status: 'fail',
-      message: 'No MCP endpoint found at /v1/mcp',
+      message: `No MCP endpoint found at ${mcpEndpoint}`,
     });
   }
 
   // Check 7: WebMCP bridge on the homepage
   try {
-    const res = await fetch(base, { signal: AbortSignal.timeout(10000) });
+    const res = await safeFetch(base, { signal: AbortSignal.timeout(10000) });
     const html = res.ok ? await res.text() : '';
     const hasBridge = html.includes('modelContext') || html.includes('/webmcp.js');
     results.push({

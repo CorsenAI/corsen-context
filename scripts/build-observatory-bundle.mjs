@@ -20,7 +20,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'shared', 'webmcp-observatory');
 const OUT = join(ROOT, '.challenge', 'observatory', 'dist');
 
-const FILES = ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observatory.js', 'wp-home.html'];
+const FILES = [
+  'cc-nav.css',
+  'cc-nav.js',
+  'cc-observatory.css',
+  'cc-observatory.js',
+  'wp-home.html',
+];
 
 mkdirSync(OUT, { recursive: true });
 
@@ -30,13 +36,12 @@ mkdirSync(OUT, { recursive: true });
  *  .replace(/</g, '&lt;'). The bootstrap below therefore encodes the whole
  *  payload as base64 (single-line, no <, no newlines) and decodes at runtime. */
 function wpBootstrap(payloadCss, payloadJs) {
-  const blob = Buffer.from(
-    payloadCss + '\n@@@JS@@@\n' + payloadJs,
-    'utf8',
-  ).toString('base64');
+  const blob = Buffer.from(payloadCss + '\n@@@JS@@@\n' + payloadJs, 'utf8').toString('base64');
   return (
     '<script>\n' +
-    '(function(){var b=atob(' + JSON.stringify(blob) + ');' +
+    '(function(){var b=atob(' +
+    JSON.stringify(blob) +
+    ');' +
     'var u=Uint8Array.from(b,function(c){return c.charCodeAt(0);});' +
     'var s=new TextDecoder("utf-8").decode(u).split("@@@JS@@@");' +
     'var d=document.createElement("style");d.textContent=s[0];document.head.appendChild(d);' +
@@ -62,11 +67,13 @@ for (const name of ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observa
 // wpautop must not see blank lines inside <style>/<script>: collapse them.
 const wpSanitizedHtml = wpHtml
   .replace(/\r\n/g, '\n')
-  .replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (m, open, body, close) =>
-    open + body.replace(/\n[ \t]*\n/g, '\n') + close,
+  .replace(
+    /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
+    (m, open, body, close) => open + body.replace(/\n[ \t]*\n/g, '\n') + close,
   )
-  .replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, body, close) =>
-    open + body.replace(/\n[ \t]*\n/g, '\n') + close,
+  .replace(
+    /(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi,
+    (m, open, body, close) => open + body.replace(/\n[ \t]*\n/g, '\n') + close,
   );
 const bootstrap = wpBootstrap(navCss + '\n' + obsCss, obsJs + '\n' + navJs);
 const idx = wpSanitizedHtml.lastIndexOf('</div>');
@@ -75,7 +82,13 @@ writeFileSync(join(OUT, 'wp-home.html'), wpFinal, 'utf8');
 
 // --- Manifest ---
 const manifest = {};
-for (const name of ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observatory.js', 'wp-home.html']) {
+for (const name of [
+  'cc-nav.css',
+  'cc-nav.js',
+  'cc-observatory.css',
+  'cc-observatory.js',
+  'wp-home.html',
+]) {
   const data = readFileSync(join(OUT, name));
   manifest[name] = { bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') };
 }

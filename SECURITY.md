@@ -16,23 +16,17 @@ The core contract of callable tools is `search_site`, `get_page_content`,
 additionally expose owner-toggled extension tools (for example `get_product`,
 `get_sections`, `check_agent_access`, and `request_expert_call`); these are off
 by default, and `request_expert_call` is explicitly annotated
-`readOnlyHint: false` because it files a private owner-side submission. Since
-1.5.12 it is also **human-only**: the tool stays advertised so an
-agent can read the rule, but the server refuses every agent call with error
-code `human_only` and a handoff URL, before any throttle or storage side
-effect — this is a real server-side refusal, executed on every MCP and
-WebMCP call. Products additionally carry `agentPurchase`
-(`allowed`|`forbidden`, owner-set). Its enforcement is stated precisely:
-it is a **binding instruction in the agent's contract** (tool description,
-per-product payload, `llms.txt`, generated form notice), and the store backs
-it mechanically where the store can: the demo checkout lane is a 100% coupon
-whose products are owner-managed, so a forbidden product cannot be obtained
-through it (WooCommerce rejects the coupon with a 400 on that cart). The
-plugin does not — and cannot honestly claim to — intercept WooCommerce
-checkout for agents browsing with payment methods no plugin can attribute;
-that boundary is the operator's (no card is issued to demo agents), and the
-contract is what governs agent behaviour. Extension tools are intended to
-return only the public
+`readOnlyHint: false` because the requested real-world action would have side
+effects. Since 1.5.12 it is **human-only**: the tool stays advertised so an
+agent can read the rule, but every schema-valid invocation returns error code
+`human_only` and a handoff URL before throttling, storage, or email. Malformed
+arguments are rejected by normal schema validation before the tool executes.
+Products additionally carry `agentPurchase` (`allowed`|`forbidden`, owner-set).
+This is a binding instruction in the agent contract (tool description,
+per-product payload, `llms.txt`, generated form notice), not an attribution or
+payment control. Corsen Context exposes no purchase tool and does not intercept
+ordinary WooCommerce checkout. Any additional store-side enforcement is
+deployment-specific and must be documented separately. Extension tools return only the public
 corpus selected by the site owner. They do not create, update, delete, or
 purchase site data on an agent's own authority.
 
@@ -58,7 +52,7 @@ The core cannot recover permission information that the provider omits.
 ### Tool and JSON-RPC validation
 
 The TypeScript and WordPress runtimes validate the JSON-RPC envelope and tool
-arguments before execution. The npm 2.0.0 and WordPress 1.4.1 candidates reject
+arguments before execution. The npm 2.0.1 and WordPress 1.5.14 source candidates reject
 unknown tool properties, wrong scalar types, fractional integers, and values
 outside the manifest's bounds. Input-schema and business failures return an MCP
 tool result with `isError: true`; JSON-RPC `-32602` is reserved for a malformed

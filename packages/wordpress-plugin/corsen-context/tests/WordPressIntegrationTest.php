@@ -539,8 +539,9 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		);
 		// request_expert_call is only exposed when owner-configured (Expert
 		// class gate); enabling the tool name alone is correctly not enough.
-		$settings['expert_enabled'] = true;
-		$settings['expert_email']   = 'expert@example.test';
+		$settings['expert_enabled']     = true;
+		$settings['expert_handoff_url'] = home_url( '/contact/' );
+		$settings['expert_email']       = 'expert@example.test';
 		update_option( 'corsen_context_settings', $settings );
 
 		$response = $this->mcp_request(
@@ -565,7 +566,7 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		}
 		$this->assertTrue( $by_name['search_site']['annotations']['readOnlyHint'] );
 		$this->assertArrayHasKey( 'request_expert_call', $by_name );
-		$this->assertFalse( $by_name['request_expert_call']['annotations']['readOnlyHint'], 'A write tool must never be advertised as read.' );
+		$this->assertFalse( $by_name['request_expert_call']['annotations']['readOnlyHint'], 'A requested side-effecting action must never be advertised as read-only, even when its implementation refuses execution.' );
 	}
 
 	public function test_hide_user_enumeration_closes_the_author_doors_too(): void {

@@ -48,34 +48,43 @@
 
     var html =
       '<div class="cc-obs-head">' +
-        '<span class="cc-obs-stack"><span class="cc-obs-stack-dot" aria-hidden="true"></span>' +
-        esc(stack) + '</span>' +
-        '<span class="cc-obs-route">' + esc(endpoint) + '</span>' +
+      '<span class="cc-obs-stack"><span class="cc-obs-stack-dot" aria-hidden="true"></span>' +
+      esc(stack) +
+      '</span>' +
+      '<span class="cc-obs-route">' +
+      esc(endpoint) +
+      '</span>' +
       '</div>' +
       '<div class="cc-obs-tools" aria-label="Observed tools">' +
-        TOOLS.map(function (t) {
-          return '<span class="cc-obs-tool">' + esc(t.name) + '</span>';
-        }).join('') +
+      TOOLS.map(function (t) {
+        return '<span class="cc-obs-tool">' + esc(t.name) + '</span>';
+      }).join('') +
       '</div>' +
       '<div class="cc-obs-actions">' +
-        '<button type="button" class="cc-obs-run" data-cc-obs-run><span class="cc-obs-run-icon" aria-hidden="true">&#9654;</span> Run live trace</button>' +
+      '<button type="button" class="cc-obs-run" data-cc-obs-run><span class="cc-obs-run-icon" aria-hidden="true">&#9654;</span> Run live trace</button>' +
       '</div>' +
       '<div class="cc-obs-status" data-state="idle" role="status" aria-live="polite">' +
-        '<span class="cc-obs-status-text">Idle - press "Run live trace" to call the real MCP endpoint.</span>' +
+      '<span class="cc-obs-status-text">Idle - press "Run live trace" to call the real MCP endpoint.</span>' +
       '</div>' +
       '<ol class="cc-obs-steps">' +
-        TOOLS.map(function (t) {
-          return '<li class="cc-obs-step" data-state="idle" data-step-tool="' + esc(t.name) + '">' +
-            '<span class="cc-obs-step-mark" aria-hidden="true">.</span>' +
-            '<span class="cc-obs-step-name">' + esc(t.label) + '</span>' +
-            '<span class="cc-obs-step-note"></span>' +
-          '</li>';
-        }).join('') +
+      TOOLS.map(function (t) {
+        return (
+          '<li class="cc-obs-step" data-state="idle" data-step-tool="' +
+          esc(t.name) +
+          '">' +
+          '<span class="cc-obs-step-mark" aria-hidden="true">.</span>' +
+          '<span class="cc-obs-step-name">' +
+          esc(t.label) +
+          '</span>' +
+          '<span class="cc-obs-step-note"></span>' +
+          '</li>'
+        );
+      }).join('') +
       '</ol>' +
       '<div class="cc-obs-result" hidden>' +
-        '<div class="cc-obs-result-label">Live result &mdash; sourced from this site</div>' +
-        '<div class="cc-obs-result-url"></div>' +
-        '<div class="cc-obs-result-excerpt"></div>' +
+      '<div class="cc-obs-result-label">Live result &mdash; sourced from this site</div>' +
+      '<div class="cc-obs-result-url"></div>' +
+      '<div class="cc-obs-result-excerpt"></div>' +
       '</div>';
 
     root.innerHTML = html;
@@ -110,20 +119,27 @@
     }
 
     function resetSteps() {
-      TOOLS.forEach(function (t) { setStep(t.name, 'idle', ''); });
+      TOOLS.forEach(function (t) {
+        setStep(t.name, 'idle', '');
+      });
     }
 
     async function rpc(method, params, headers) {
       var headersOut = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json, text/event-stream',
+        Accept: 'application/json, text/event-stream',
         'MCP-Protocol-Version': PROTOCOL,
         ...headers,
       };
       var res = await fetch(endpoint, {
         method: 'POST',
         headers: headersOut,
-        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now() % 1000000, method: method, params: params || {} }),
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now() % 1000000,
+          method: method,
+          params: params || {},
+        }),
         credentials: 'omit',
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
@@ -132,13 +148,17 @@
         throw new Error('HTTP ' + res.status);
       }
       var data = await res.json();
-      if (data && data.error) throw new Error(data.error.message || ('RPC error ' + data.error.code));
+      if (data && data.error) throw new Error(data.error.message || 'RPC error ' + data.error.code);
       return data.result || null;
     }
 
     function parseResult(raw) {
       var text = raw && raw.content && raw.content[0] ? raw.content[0].text : '';
-      try { return JSON.parse(text); } catch (e) { return null; }
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return null;
+      }
     }
 
     function runTrace() {
@@ -159,19 +179,28 @@
             clientInfo: { name: 'cc-observatory', version: '1.0.0' },
           });
           var listed = await rpc('tools/list');
-          var names = (listed && listed.tools ? listed.tools : []).map(function (t) { return t.name; });
+          var names = (listed && listed.tools ? listed.tools : []).map(function (t) {
+            return t.name;
+          });
           for (var i = 0; i < TOOLS.length; i++) {
             if (names.indexOf(TOOLS[i].name) === -1) {
-              throw new Error('tools/list did not expose ' + TOOLS[i].name + ' (got: ' + names.join(', ') + ')');
+              throw new Error(
+                'tools/list did not expose ' + TOOLS[i].name + ' (got: ' + names.join(', ') + ')',
+              );
             }
           }
 
           // 1. search_site
           setStep('search_site', 'running', 'search_site("' + query + '")');
-          var searchRaw = await rpc('tools/call', { name: 'search_site', arguments: { query: query, limit: 3 } });
+          var searchRaw = await rpc('tools/call', {
+            name: 'search_site',
+            arguments: { query: query, limit: 3 },
+          });
           var searchResults = parseResult(searchRaw) || [];
           var first = searchResults[0];
-          var foundNote = first ? first.title || first.url : '0 results (empty result is a success)';
+          var foundNote = first
+            ? first.title || first.url
+            : '0 results (empty result is a success)';
           setStep('search_site', 'success', foundNote);
 
           // 2. get_page_content
@@ -180,14 +209,23 @@
           } else {
             setStep('get_page_content', 'running', 'no result from search_site to read');
           }
-          var readRaw = first && first.url
-            ? await rpc('tools/call', { name: 'get_page_content', arguments: { uri: first.url } })
-            : null;
+          var readRaw =
+            first && first.url
+              ? await rpc('tools/call', { name: 'get_page_content', arguments: { uri: first.url } })
+              : null;
           var page = readRaw ? parseResult(readRaw) : null;
-          var excerpt = page && page.markdown ? page.markdown : (page && page.title ? page.title : '');
-          var readNote = excerpt ? truncate(excerpt.replace(/\s+/g, ' ').trim(), 90) : 'answered (read-only)';
+          var excerpt =
+            page && page.markdown ? page.markdown : page && page.title ? page.title : '';
+          var readNote = excerpt
+            ? truncate(excerpt.replace(/\s+/g, ' ').trim(), 90)
+            : 'answered (read-only)';
           if (first && first.url) {
-            resultUrl.innerHTML = 'Found: <a href="' + esc(first.url) + '" target="_blank" rel="noopener">' + esc(first.title || first.url) + '</a>';
+            resultUrl.innerHTML =
+              'Found: <a href="' +
+              esc(first.url) +
+              '" target="_blank" rel="noopener">' +
+              esc(first.title || first.url) +
+              '</a>';
           }
           setStep('get_page_content', 'success', readNote);
 
@@ -197,36 +235,59 @@
           var sitemapData = parseResult(sitemapRaw);
           var sitemapEntries = Array.isArray(sitemapData)
             ? sitemapData
-            : (sitemapData && Array.isArray(sitemapData.entries)
-                ? sitemapData.entries
-                : (sitemapData && Array.isArray(sitemapData.pages) ? sitemapData.pages : null));
+            : sitemapData && Array.isArray(sitemapData.entries)
+              ? sitemapData.entries
+              : sitemapData && Array.isArray(sitemapData.pages)
+                ? sitemapData.pages
+                : null;
           var sitemapType = null;
           if (sitemapEntries && sitemapEntries.length) {
             for (var i2 = 0; i2 < sitemapEntries.length; i2++) {
-              if (sitemapEntries[i2] && sitemapEntries[i2].type) { sitemapType = sitemapEntries[i2].type; break; }
+              if (sitemapEntries[i2] && sitemapEntries[i2].type) {
+                sitemapType = sitemapEntries[i2].type;
+                break;
+              }
             }
           }
-          var sitemapNote = sitemapEntries ? sitemapEntries.length + ' entries' + (sitemapType ? ' (type: ' + sitemapType + ')' : '') : 'answered';
+          var sitemapNote = sitemapEntries
+            ? sitemapEntries.length +
+              ' entries' +
+              (sitemapType ? ' (type: ' + sitemapType + ')' : '')
+            : 'answered';
           setStep('get_sitemap', 'success', sitemapNote);
 
           // 4. list_content (type from sitemap when available)
           var listArgs = {};
           if (sitemapType) listArgs.type = sitemapType;
-          setStep('list_content', 'running', sitemapType ? 'list_content(type: ' + sitemapType + ')' : 'list_content()');
+          setStep(
+            'list_content',
+            'running',
+            sitemapType ? 'list_content(type: ' + sitemapType + ')' : 'list_content()',
+          );
           var listRaw = await rpc('tools/call', { name: 'list_content', arguments: listArgs });
           var listData = parseResult(listRaw);
-          var items = listData && listData.items ? listData.items : (Array.isArray(listData) ? listData : null);
+          var items =
+            listData && listData.items ? listData.items : Array.isArray(listData) ? listData : null;
           var listNote = items ? items.length + ' items' : 'answered (empty result is a success)';
           setStep('list_content', 'success', listNote);
 
           if (excerpt) {
-            resultExcerpt.textContent = '"...' + truncate(excerpt.replace(/\s+/g, ' ').trim(), 240) + '"';
+            resultExcerpt.textContent =
+              '"...' + truncate(excerpt.replace(/\s+/g, ' ').trim(), 240) + '"';
           }
-          setStatus('success', 'Live trace complete - all four read-only tools executed successfully.');
+          setStatus(
+            'success',
+            'Live trace complete - all four read-only tools executed successfully.',
+          );
           runBtn.disabled = false;
           runBtn.querySelector('.cc-obs-run-icon').textContent = '>';
         } catch (err) {
-          setStatus('error', 'Trace failed: ' + truncate(err && err.message ? err.message : String(err), 180) + ' - this is a real error state, no simulated result.');
+          setStatus(
+            'error',
+            'Trace failed: ' +
+              truncate(err && err.message ? err.message : String(err), 180) +
+              ' - this is a real error state, no simulated result.',
+          );
           var failedStep = currentRunningStep();
           if (failedStep) setStep(failedStep, 'error', 'failed');
           runBtn.disabled = false;

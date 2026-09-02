@@ -56,9 +56,11 @@ class Corsen_Context_Sections {
 					'offset'  => array(
 						'type'        => 'integer',
 						'minimum'     => 0,
+						'maximum'     => 100000000,
 						'description' => 'Byte offset into the section body, taken from the previous response, to page through a section larger than the budget. Only valid with "section".',
 					),
 				),
+				'required'             => array( 'uri' ),
 				'additionalProperties' => false,
 			),
 		);
@@ -79,16 +81,20 @@ class Corsen_Context_Sections {
 		if ( ! isset( $arguments['uri'] ) || ! is_string( $arguments['uri'] ) ) {
 			return null;
 		}
-		$uri = trim( $arguments['uri'] );
-		if ( '' === $uri || strlen( $uri ) > 2000 ) {
+		$uri        = trim( $arguments['uri'] );
+		$uri_length = Corsen_Context_Content_Converter::utf8_length( $uri );
+		if ( '' === $uri || 0 === $uri_length || $uri_length > 2000 ) {
 			return null;
 		}
 		$normalized = array( 'uri' => $uri );
 		if ( isset( $arguments['section'] ) ) {
-			if ( ! is_string( $arguments['section'] ) || strlen( $arguments['section'] ) > 130 ) {
+			if ( ! is_string( $arguments['section'] ) ) {
 				return null;
 			}
 			$slug = strtolower( trim( $arguments['section'] ) );
+			if ( Corsen_Context_Content_Converter::utf8_length( $slug ) > 130 ) {
+				return null;
+			}
 			if ( 'top' !== $slug && ! preg_match( '/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug ) ) {
 				return null;
 			}
@@ -220,7 +226,42 @@ class Corsen_Context_Sections {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private static function outline( string $markdown ): array {
-		if ( ! preg_match_all( '/^(#{1,6}) (.*)$/m', $markdown, $matches, PREG_OFFSET_CAPTURE ) ) {
+		$starts       = array();
+		$offset       = 0;
+		$fence_char   = '';
+		$fence_length = 0;
+		$lines        = preg_split( '/(?<=\n)/', $markdown );
+		$lines        = is_array( $lines ) ? $lines : array( $markdown );
+		foreach ( $lines as $line ) {
+			$content = rtrim( $line, "\r\n" );
+			if ( '' !== $fence_char ) {
+				$closing = '/^ {0,3}' . preg_quote( $fence_char, '/' ) . '{' . $fence_length . ',}[ \t]*$/';
+				if ( preg_match( $closing, $content ) ) {
+					$fence_char   = '';
+					$fence_length = 0;
+				}
+				$offset += strlen( $line );
+				continue;
+			}
+
+			if ( preg_match( '/^ {0,3}(`{3,}|~{3,})(?:[^\r\n]*)$/', $content, $fence ) ) {
+				$fence_char   = $fence[1][0];
+				$fence_length = strlen( $fence[1] );
+				$offset      += strlen( $line );
+				continue;
+			}
+
+			if ( preg_match( '/^ {0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$/', $content, $heading ) ) {
+				$starts[] = array(
+					'pos'     => $offset,
+					'level'   => strlen( $heading[1] ),
+					'heading' => trim( wp_strip_all_tags( $heading[2] ) ),
+				);
+			}
+			$offset += strlen( $line );
+		}
+
+		if ( ! $starts ) {
 			$body = trim( $markdown );
 			if ( '' === $body ) {
 				return array();
@@ -236,16 +277,11 @@ class Corsen_Context_Sections {
 			);
 		}
 
-		$used   = array();
-		$out    = array();
-		$starts = array();
-		foreach ( $matches[0] as $index => $match ) {
-			$starts[] = array(
-				'pos'     => $match[1],
-				'level'   => strlen( $matches[1][ $index ][0] ),
-				'heading' => trim( wp_strip_all_tags( $matches[2][ $index ][0] ) ),
-			);
-		}
+		// Reserve the documented synthetic id before deriving heading ids. A
+		// literal "Top" heading must become "top-2", otherwise two outline
+		// entries share "top" and the real heading can never be selected.
+		$used = array( 'top' => true );
+		$out  = array();
 
 		// "top" is always listed, even as a zero-byte entry when the page
 		// opens straight on its H1: the inputSchema documents the id, and an

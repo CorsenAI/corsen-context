@@ -2,14 +2,11 @@
 /**
  * Owner-side agent access self-test.
  *
- * Answers one question owners always get wrong from memory: can AI agents
- * actually REACH this site right now? A CDN bot layer (Cloudflare "Block AI
- * bots", Bot Fight Mode, a WAF rule) can 403 every agent while the site looks
- * perfectly online to humans. This class re-fetches the site's own public
- * agent surfaces (llms.txt and the MCP endpoint) from inside WordPress using
- * real agent user agents, so the request travels the same edge path external
- * agents take (through the CDN, if any). No tokens, no credentials, nothing
- * leaves the site, nothing is stored except the codes seen.
+ * Runs same-site loopback requests through the public URL with representative
+ * bot User-Agent strings. This can reveal User-Agent-based CDN/WAF rules and
+ * verifies the expected llms.txt/MCP response shapes. It does not reproduce an
+ * external agent's source IP, TLS fingerprint, complete headers, or behavior.
+ * No token or credential is sent; only bounded status metadata is stored.
  *
  * Fail-closed: the check never runs automatically; it executes only when the
  * owner clicks the button in the Control Center, at most once per 5 minutes.
@@ -38,8 +35,8 @@ class Corsen_Context_Agent_Access {
 	/** Per-request HTTP timeout in seconds. */
 	private const TIMEOUT = 6;
 
-	/** Response bodies are inspected for a marker then dropped, never stored. */
-	private const BODY_CAP = 2048;
+	/** Response bodies are inspected then dropped, never stored. */
+	private const BODY_CAP = 65536;
 
 	/**
 	 * User agents probed: the three that matter plus a plain-HTTP control.
@@ -77,7 +74,7 @@ class Corsen_Context_Agent_Access {
 	public static function definition(): array {
 		return array(
 			'name'        => 'check_agent_access',
-			'description' => 'Report the site owner\'s latest agent-access self-test: whether real ClaudeBot, ChatGPT-User and GPTBot clients could reach this site\'s public surfaces through the CDN, with the HTTP code and answering edge seen per probe. Read-only snapshot, no arguments, never triggers a live probe itself.',
+			'description' => 'Report the owner\'s latest same-site loopback test using representative ClaudeBot, ChatGPT-User and GPTBot User-Agent strings. A success means the public URL returned the expected llms.txt marker or a valid MCP tools/list result to that loopback request. It tests User-Agent-based edge rules, not full reachability from a real external agent. Read-only snapshot; no arguments; never triggers a live probe itself.',
 			'inputSchema' => array(
 				'type'                 => 'object',
 				'properties'           => new \stdClass(),
@@ -183,7 +180,7 @@ class Corsen_Context_Agent_Access {
 	}
 
 	/**
-	 * One loopback fetch: same URL an outside agent would use. Only absolute
+	 * One same-site loopback fetch through the public URL. Only absolute
 	 * URLs whose host equals this site's host are ever requested (the target
 	 * list is built from home_url()/endpoint_url(), this is a belt check).
 	 *
@@ -244,12 +241,14 @@ class Corsen_Context_Agent_Access {
 		}
 
 		$code          = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		$body          = is_wp_error( $response ) ? '' : (string) wp_remote_retrieve_body( $response );
 		$server_header = is_wp_error( $response ) ? '' : strtolower( (string) wp_remote_retrieve_header( $response, 'server' ) );
 		$cf_ray        = is_wp_error( $response ) ? '' : (string) wp_remote_retrieve_header( $response, 'cf-ray' );
 
-		// 405 on the MCP endpoint is fine: an edge that forwards to WordPress
-		// answered. Only edge-generated refusals count as blocked.
-		$answered = $code >= 200 && $code < 500 && 0 !== $code;
+		// A status code alone is not success: a challenge page, login page, 404,
+		// or JSON-RPC error proves only that some server answered. Validate the
+		// expected bounded surface before marking it reachable.
+		$answered = 200 === $code && self::valid_surface_body( $target, $body );
 		$blocked  = in_array( $code, array( 401, 403, 406, 429, 503 ), true );
 		if ( $blocked && false === strpos( $server_header, 'cloudflare' ) && '' === $cf_ray && 0 !== $code ) {
 			// Origin refused, not the edge: still "agents cannot get through",
@@ -265,6 +264,25 @@ class Corsen_Context_Agent_Access {
 			'edge'      => ( false !== strpos( $server_header, 'cloudflare' ) || '' !== $cf_ray ) ? 'cloudflare' : 'direct',
 			'blocked'   => $blocked,
 		);
+	}
+
+	/**
+	 * Confirm that a 200 response is the requested agent surface, not an
+	 * intermediary challenge or arbitrary HTML page.
+	 */
+	private static function valid_surface_body( string $target, string $body ): bool {
+		if ( 'llms' === $target ) {
+			return str_contains( $body, '> START HERE for AI agents:' )
+				&& str_contains( $body, '## Agent conduct policy' );
+		}
+		if ( 'mcp' !== $target ) {
+			return false;
+		}
+		$decoded = json_decode( $body, true );
+		return is_array( $decoded )
+			&& '2.0' === ( $decoded['jsonrpc'] ?? null )
+			&& isset( $decoded['result']['tools'] )
+			&& is_array( $decoded['result']['tools'] );
 	}
 
 	/**

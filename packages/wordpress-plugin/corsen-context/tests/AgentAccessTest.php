@@ -7,6 +7,18 @@
  */
 
 class AgentAccessTest extends WP_UnitTestCase {
+	private function valid_probe_response(): callable {
+		return static function ( string $method ): array {
+			$body = 'POST' === $method
+				? wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 1, 'result' => array( 'tools' => array() ) ) )
+				: "# Test\n\n> START HERE for AI agents: read this first.\n\n## Agent conduct policy\n";
+			return array(
+				'response' => array( 'code' => 200 ),
+				'headers'  => array( 'server' => 'cloudflare', 'cf-ray' => 'deadbeef' ),
+				'body'     => $body,
+			);
+		};
+	}
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -22,11 +34,7 @@ class AgentAccessTest extends WP_UnitTestCase {
 	}
 
 	public function test_run_probes_self_urls_with_protocol_headers_on_mcp(): void {
-		$GLOBALS['corsen_test_http_response'] = array(
-			'response' => array( 'code' => 200 ),
-			'headers'  => array( 'server' => 'cloudflare', 'cf-ray' => 'deadbeef' ),
-			'body'     => 'ok',
-		);
+		$GLOBALS['corsen_test_http_response'] = $this->valid_probe_response();
 		Corsen_Context_Agent_Access::run();
 		$mcp_seen = 0;
 		foreach ( $GLOBALS['corsen_test_http_calls'] as $call ) {
@@ -68,11 +76,7 @@ class AgentAccessTest extends WP_UnitTestCase {
 	}
 
 	public function test_run_probes_only_self_urls_with_the_four_user_agents(): void {
-		$GLOBALS['corsen_test_http_response'] = array(
-			'response' => array( 'code' => 200 ),
-			'headers'  => array( 'server' => 'cloudflare', 'cf-ray' => 'deadbeef' ),
-			'body'     => 'ok',
-		);
+		$GLOBALS['corsen_test_http_response'] = $this->valid_probe_response();
 		$run  = Corsen_Context_Agent_Access::run();
 		$this->assertCount( 8, $run['checks'] );
 		$uas  = array();
@@ -83,6 +87,24 @@ class AgentAccessTest extends WP_UnitTestCase {
 		$this->assertCount( 4, array_unique( $uas ) );
 		$reached = array_filter( $run['checks'], static fn( $c ) => $c['reachable'] );
 		$this->assertCount( 8, $reached );
+	}
+
+	public function test_run_does_not_treat_status_only_or_html_challenge_as_success(): void {
+		$GLOBALS['corsen_test_http_response'] = array(
+			'response' => array( 'code' => 200 ),
+			'headers'  => array( 'server' => 'cloudflare' ),
+			'body'     => '<html><title>Checking your browser</title></html>',
+		);
+		$challenge = Corsen_Context_Agent_Access::run();
+		$this->assertSame( 0, Corsen_Context_Agent_Access::tally( $challenge )['reachable'] );
+
+		$GLOBALS['corsen_test_http_response'] = array(
+			'response' => array( 'code' => 404 ),
+			'headers'  => array(),
+			'body'     => 'Not found',
+		);
+		$missing = Corsen_Context_Agent_Access::run();
+		$this->assertSame( 0, Corsen_Context_Agent_Access::tally( $missing )['reachable'] );
 	}
 
 	public function test_run_flags_edge_blocks_for_every_ua(): void {

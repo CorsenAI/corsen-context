@@ -8,24 +8,24 @@ only real responses (idle / running / success / error states, no simulated data)
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `cc-nav.css` | Shared sticky navigation + common footer styles (WCAG AA contrast) |
-| `cc-nav.js` | Injects nav + footer from `[data-cc-nav]` / `[data-cc-foot]`; mobile menu with `aria-expanded` + Escape |
-| `cc-observatory.css` | Observatory widget styles, isolated with `cc-obs-*` prefixes |
-| `cc-observatory.js` | Runs `initialize → tools/list → search_site → get_page_content` against a same-origin MCP endpoint; renders real results |
-| `wp-home.html` | WordPress flagship homepage (hero + observatory + 10-stack grid + owner section), **ASCII-only for wpautop safety** |
+| File                 | Purpose                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `cc-nav.css`         | Shared sticky navigation + common footer styles (WCAG AA contrast)                                                       |
+| `cc-nav.js`          | Injects nav + footer from `[data-cc-nav]` / `[data-cc-foot]`; mobile menu with `aria-expanded` + Escape                  |
+| `cc-observatory.css` | Observatory widget styles, isolated with `cc-obs-*` prefixes                                                             |
+| `cc-observatory.js`  | Runs `initialize → tools/list → search_site → get_page_content` against a same-origin MCP endpoint; renders real results |
+| `wp-home.html`       | WordPress flagship homepage (hero + observatory + 10-stack grid + owner section), **ASCII-only for wpautop safety**      |
 
 All files are ASCII-only (safe through WordPress `wpautop` and any charset
 mangling). Widgets never reference third-party CDNs.
 
 ## How each stack consumes it
 
-| Stack | Serving mode |
-|-------|--------------|
-| WordPress | `wp-home.html` inlined as the page content; CSS/JS injected via base64 bootstrap (see `scripts/build-observatory-bundle.mjs`) |
+| Stack                         | Serving mode                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WordPress                     | `wp-home.html` inlined as the page content; CSS/JS injected via base64 bootstrap (see `scripts/build-observatory-bundle.mjs`)                     |
 | Astro / Next.js / Static-HTML | Assets copied into `public/` (`/corsen/*` on Next+Static, `/cc-*` on Astro); page HTML has `data-cc-nav` / `data-cc-observatory` / `data-cc-foot` |
-| Express + 5 CMS bridges | Shell (`pageShell`) inlines the CSS/JS and emits the same `data-*` markers; landing page includes the observatory section |
+| Express + 5 CMS bridges       | Shell (`pageShell`) inlines the CSS/JS and emits the same `data-*` markers; landing page includes the observatory section                         |
 
 ## Rebuilding the ten demos from a clean clone
 

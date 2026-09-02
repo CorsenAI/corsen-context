@@ -173,7 +173,17 @@ class Corsen_Context_Tool_Registry {
 		if ( ! self::allows_type( (string) $post->post_type ) ) {
 			return null;
 		}
-		return $post;
+		$canonical = (string) get_permalink( $post );
+		if (
+			'' === $canonical ||
+			! self::public_url_ok( $canonical ) ||
+			(int) url_to_postid( $canonical ) !== (int) $post->ID
+		) {
+			return null;
+		}
+
+		/** Allow membership and visibility plugins to veto every extension tool. */
+		return (bool) apply_filters( 'corsen_context_can_expose_post', true, $post ) ? $post : null;
 	}
 
 	/**
@@ -185,7 +195,9 @@ class Corsen_Context_Tool_Registry {
 	public static function allows_type( string $post_type ): bool {
 		$settings = get_option( 'corsen_context_settings', array() );
 		$selected = array_map( 'sanitize_key', (array) ( $settings['post_types'] ?? array( 'post', 'page' ) ) );
-		$public   = array_keys( get_post_types( array( 'public' => true ) ) );
+		// Attachments are deliberately absent from the core/list/sitemap corpus.
+		// Extension readers must not create a second, more permissive corpus.
+		$public = array_values( array_diff( array_keys( get_post_types( array( 'public' => true ) ) ), array( 'attachment' ) ) );
 		return in_array( $post_type, array_values( array_intersect( $selected, $public ) ), true );
 	}
 
@@ -196,30 +208,53 @@ class Corsen_Context_Tool_Registry {
 	 * @return bool True when the URL may be served to agents.
 	 */
 	public static function public_url_ok( string $uri ): bool {
-		$parts = wp_parse_url( $uri );
-		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+		$parts = wp_parse_url( trim( $uri ) );
+		$site  = wp_parse_url( home_url() );
+		if (
+			! is_array( $parts ) ||
+			! is_array( $site ) ||
+			empty( $parts['scheme'] ) ||
+			empty( $parts['host'] ) ||
+			empty( $site['scheme'] ) ||
+			empty( $site['host'] ) ||
+			isset( $parts['user'] ) ||
+			isset( $parts['pass'] ) ||
+			isset( $parts['fragment'] )
+		) {
 			return false;
 		}
-		$site = wp_parse_url( home_url() );
-		if ( empty( $site['host'] ) || strcasecmp( $parts['host'], $site['host'] ) !== 0 ) {
+		$scheme      = strtolower( (string) $parts['scheme'] );
+		$site_scheme = strtolower( (string) $site['scheme'] );
+		if (
+			! in_array( $scheme, array( 'http', 'https' ), true ) ||
+			$scheme !== $site_scheme ||
+			0 !== strcasecmp( (string) $parts['host'], (string) $site['host'] )
+		) {
 			return false;
 		}
-		$path = isset( $parts['path'] ) ? rawurldecode( $parts['path'] ) : '/';
-		$path = '/' === $path[0] ? $path : '/' . $path;
+		$default_port = 'https' === $scheme ? 443 : 80;
+		$port         = isset( $parts['port'] ) ? (int) $parts['port'] : $default_port;
+		$site_port    = isset( $site['port'] ) ? (int) $site['port'] : $default_port;
+		if ( $port !== $site_port ) {
+			return false;
+		}
+
+		$path = Corsen_Context_Security::normalize_path( isset( $parts['path'] ) ? (string) $parts['path'] : '/' );
+		if ( null === $path ) {
+			return false;
+		}
 
 		$settings     = get_option( 'corsen_context_settings', array() );
 		$exclude_rows = preg_split( '/[\r\n]+/', (string) ( $settings['exclude_paths'] ?? '' ) );
-		$norm         = rtrim( $path, '/' );
-		$norm         = '' === $norm ? '/' : $norm;
 		foreach ( $exclude_rows as $row ) {
 			$raw = trim( $row );
 			if ( '' === $raw || 0 === strpos( $raw, '#' ) ) {
 				continue;
 			}
-			$needle = '/' . ltrim( str_replace( '\\', '/', $raw ), '/' );
-			$needle = rtrim( $needle, '/' );
-			$needle = '' === $needle ? '/' : $needle;
-			if ( '' !== $needle && ( 0 === strpos( $path, $needle . '/' ) || $norm === $needle ) ) {
+			$needle = Corsen_Context_Security::normalize_path( $raw );
+			// A normalized root entry is ignored, matching the core content policy:
+			// an accidental "/" must not silently disable every public URL.
+			if ( null !== $needle && '/' !== $needle && ( $path === $needle || str_starts_with( $path, trailingslashit( $needle ) ) ) ) {
 				return false;
 			}
 		}

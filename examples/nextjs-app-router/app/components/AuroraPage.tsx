@@ -24,12 +24,24 @@ const navigation = [
 export function AuroraPage({ page }: { page: DemoPage }) {
   return (
     <>
-      <div data-cc-nav data-stack="Next.js" data-uid="nextjs" data-home="/" data-accent="#b6167b"></div>
+      <div
+        data-cc-nav
+        data-stack="Next.js"
+        data-uid="nextjs"
+        data-home="/"
+        data-accent="#b6167b"
+      ></div>
       <main>
         {page.view === 'home' && <Home />}
         <section id="live" style={{ margin: '40px 0 20px' }}>
           <h2>Live contract observatory</h2>
-          <div data-cc-observatory data-stack="Next.js" data-endpoint="/v1/mcp" data-query="AK-E17" data-accent="#b6167b"></div>
+          <div
+            data-cc-observatory
+            data-stack="Next.js"
+            data-endpoint="/v1/mcp"
+            data-query="AK-E17"
+            data-accent="#b6167b"
+          ></div>
         </section>
         {page.view === 'products' && <ProductComparison />}
         {page.view === 'diagnostic' && <Diagnostic />}

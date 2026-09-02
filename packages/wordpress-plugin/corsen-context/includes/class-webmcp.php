@@ -24,9 +24,9 @@ class Corsen_Context_WebMCP {
 	/**
 	 * Read tools return untrusted data: post bodies come from authors,
 	 * comments and imports, and a consuming agent must treat that output as
-	 * data rather than as instructions. The one write tool
-	 * (request_expert_call) is marked non-readonly explicitly so clients
-	 * never mistake it for a safe read.
+	 * data rather than as instructions. The human-only handoff tool
+	 * (request_expert_call) is marked non-readonly because its requested
+	 * real-world action would have side effects; execution always refuses it.
 	 *
 	 * The four core tools are kept in sync with tools.manifest.json by
 	 * ToolManifestParityTest; the extension entries below are WP-runtime only

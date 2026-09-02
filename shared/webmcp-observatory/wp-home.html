@@ -1,86 +1,219 @@
 <style id="corsen-obs-page">
-/* Hide the generic Hello Elementor header/footer on this page only */
-body.page-id-13 #site-header,
-body.page-id-13 #site-footer,
-body.page-id-13 .entry-title { display: none !important; }
+  /* Hide the generic Hello Elementor header/footer on this page only */
+  body.page-id-13 #site-header,
+  body.page-id-13 #site-footer,
+  body.page-id-13 .entry-title {
+    display: none !important;
+  }
 
-:root { color-scheme: light; }
-html { scroll-behavior: smooth; }
-body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+  :root {
+    color-scheme: light;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  }
 
-/* Page layout */
-.ccp-wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 72px; }
+  /* Page layout */
+  .ccp-wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 72px;
+  }
 
-/* Hero: split */
-.ccp-hero {
-  display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; align-items: center;
-  padding: 72px 0 56px;
-}
-.ccp-hero-copy h1 {
-  font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.08; font-weight: 800;
-  letter-spacing: -0.02em; color: #12202e; margin: 0 0 20px;
-}
-.ccp-hero-copy h1 .accent { color: #b6167b; }
-.ccp-hero-copy .lead {
-  font-size: clamp(1.05rem, 2vw, 1.25rem); color: #45525e; max-width: 540px; margin: 0 0 16px;
-}
-.ccp-hero-copy .impl {
-  display: inline-block; margin: 4px 0 24px; font-size: 14px; font-weight: 600;
-  color: #12202e; background: #f0e9fb; border: 1px solid #e2d2f5; border-radius: 10px; padding: 8px 14px;
-}
-.ccp-hero-copy .impl code { background: transparent; font-size: 13px; }
-.ccp-cta { display: flex; gap: 12px; flex-wrap: wrap; }
-.ccp-btn {
-  display: inline-flex; align-items: center; gap: 8px; text-decoration: none !important;
-  font-weight: 700; font-size: 15px; border-radius: 11px; padding: 13px 24px;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.ccp-btn-primary { background: #b6167b; color: #fff !important; box-shadow: 0 8px 22px rgba(182,22,123,.28); }
-.ccp-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(182,22,123,.38); color:#fff !important; }
-.ccp-btn-ghost { border: 1px solid #c9d3dd; color: #12202e !important; background: #fff; }
-.ccp-btn-ghost:hover { border-color: #b6167b; color: #b6167b !important; transform: translateY(-2px); }
+  /* Hero: split */
+  .ccp-hero {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 36px;
+    align-items: center;
+    padding: 72px 0 56px;
+  }
+  .ccp-hero-copy h1 {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #12202e;
+    margin: 0 0 20px;
+  }
+  .ccp-hero-copy h1 .accent {
+    color: #b6167b;
+  }
+  .ccp-hero-copy .lead {
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    color: #45525e;
+    max-width: 540px;
+    margin: 0 0 16px;
+  }
+  .ccp-hero-copy .impl {
+    display: inline-block;
+    margin: 4px 0 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #12202e;
+    background: #f0e9fb;
+    border: 1px solid #e2d2f5;
+    border-radius: 10px;
+    padding: 8px 14px;
+  }
+  .ccp-hero-copy .impl code {
+    background: transparent;
+    font-size: 13px;
+  }
+  .ccp-cta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ccp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none !important;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 11px;
+    padding: 13px 24px;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .ccp-btn-primary {
+    background: #b6167b;
+    color: #fff !important;
+    box-shadow: 0 8px 22px rgba(182, 22, 123, 0.28);
+  }
+  .ccp-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(182, 22, 123, 0.38);
+    color: #fff !important;
+  }
+  .ccp-btn-ghost {
+    border: 1px solid #c9d3dd;
+    color: #12202e !important;
+    background: #fff;
+  }
+  .ccp-btn-ghost:hover {
+    border-color: #b6167b;
+    color: #b6167b !important;
+    transform: translateY(-2px);
+  }
 
-/* Section headings */
-.ccp-section { padding: 64px 0 40px; scroll-margin-top: 74px; }
-.ccp-eyebrow {
-  display: block; text-transform: uppercase; letter-spacing: .13em;
-  font-size: 12px; font-weight: 800; color: #b6167b; margin-bottom: 10px;
-}
-.ccp-section h2 {
-  font-size: clamp(1.6rem, 3.2vw, 2.3rem); font-weight: 800; letter-spacing: -0.01em;
-  margin: 0 0 14px; color: #12202e;
-}
-.ccp-section > p.sub { color: #45525e; max-width: 760px; margin: 0 0 40px; font-size: 1.05rem; }
+  /* Section headings */
+  .ccp-section {
+    padding: 64px 0 40px;
+    scroll-margin-top: 74px;
+  }
+  .ccp-eyebrow {
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    font-size: 12px;
+    font-weight: 800;
+    color: #b6167b;
+    margin-bottom: 10px;
+  }
+  .ccp-section h2 {
+    font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+    color: #12202e;
+  }
+  .ccp-section > p.sub {
+    color: #45525e;
+    max-width: 760px;
+    margin: 0 0 40px;
+    font-size: 1.05rem;
+  }
 
-/* Split sections */
-.ccp-split { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  /* Split sections */
+  .ccp-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
 
-/* Integration grid 5x2 */
-.ccp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.ccp-stack {
-  display: flex; flex-direction: column; gap: 3px; text-decoration: none !important;
-  background: #fff; border: 1px solid #dbe2e9; border-radius: 12px; padding: 16px 14px;
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
-.ccp-stack:hover { border-color: #b6167b; box-shadow: 0 8px 22px rgba(182,22,123,.14); }
-.ccp-stack b { font-size: 14px; color: #12202e; font-weight: 700; }
-.ccp-stack span { font-size: 11.5px; color: #5d6b78; }
-.ccp-stack .ok { width: 6px; height: 6px; border-radius: 99px; background: #0a7a3d; display: inline-block; margin-right: 5px; }
-.ccp-stack.more {
-  align-items: center; justify-content: center; border-style: dashed; color: #5d6b78;
-  font-weight: 600; background: #f8fafc;
-}
-.ccp-grid-note { margin-top: 16px; font-size: 13px; color: #5d6b78; }
+  /* Integration grid 5x2 */
+  .ccp-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .ccp-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-decoration: none !important;
+    background: #fff;
+    border: 1px solid #dbe2e9;
+    border-radius: 12px;
+    padding: 16px 14px;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .ccp-stack:hover {
+    border-color: #b6167b;
+    box-shadow: 0 8px 22px rgba(182, 22, 123, 0.14);
+  }
+  .ccp-stack b {
+    font-size: 14px;
+    color: #12202e;
+    font-weight: 700;
+  }
+  .ccp-stack span {
+    font-size: 11.5px;
+    color: #5d6b78;
+  }
+  .ccp-stack .ok {
+    width: 6px;
+    height: 6px;
+    border-radius: 99px;
+    background: #0a7a3d;
+    display: inline-block;
+    margin-right: 5px;
+  }
+  .ccp-stack.more {
+    align-items: center;
+    justify-content: center;
+    border-style: dashed;
+    color: #5d6b78;
+    font-weight: 600;
+    background: #f8fafc;
+  }
+  .ccp-grid-note {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #5d6b78;
+  }
 
-@media (max-width: 1100px) { .ccp-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 1023px) {
-  .ccp-hero { grid-template-columns: 1fr; padding: 48px 0 40px; }
-  .ccp-split { grid-template-columns: 1fr; }
-  .ccp-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 560px) {
-  .ccp-grid { grid-template-columns: repeat(2, 1fr); }
-}
+  @media (max-width: 1100px) {
+    .ccp-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  @media (max-width: 1023px) {
+    .ccp-hero {
+      grid-template-columns: 1fr;
+      padding: 48px 0 40px;
+    }
+    .ccp-split {
+      grid-template-columns: 1fr;
+    }
+    .ccp-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  @media (max-width: 560px) {
+    .ccp-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
 </style>
 
 <div class="ccp-wrap">
@@ -90,20 +223,35 @@ body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-se
   <header class="ccp-hero" id="top">
     <div class="ccp-hero-copy">
       <span class="ccp-eyebrow">Live Contract Observatory &mdash; WordPress</span>
-      <h1>One tested four-tool contract <span class="accent">across ten demonstrated integrations.</span></h1>
+      <h1>
+        One tested four-tool core <span class="accent">across ten demonstrated integrations.</span>
+      </h1>
       <p class="lead">
-        Corsen Context gives a site owner a bounded read path for AI agents: four
-        read-only tools exposed over WebMCP inside the page, MCP over HTTP, and
-        llms.txt for discovery. One contract, ten stacks, no scraping.
+        Corsen Context gives site owners a bounded read path for agents: the same four read-only
+        core tools across ten stacks, exposed through WebMCP, MCP over HTTP, and llms.txt. This
+        WordPress flagship also demonstrates five optional, owner-controlled extensions.
       </p>
-      <div class="impl">Two independent implementations: <code>TypeScript/JavaScript</code> and <code>PHP</code>.</div>
+      <div class="impl">
+        Two independent implementations: <code>TypeScript/JavaScript</code> and <code>PHP</code>.
+      </div>
       <div class="ccp-cta">
-        <a class="ccp-btn ccp-btn-primary" href="https://github.com/CorsenAI/corsen-context" target="_blank" rel="noopener noreferrer">Get the source &rarr;</a>
+        <a
+          class="ccp-btn ccp-btn-primary"
+          href="https://github.com/CorsenAI/corsen-context"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Get the source &rarr;</a
+        >
         <a class="ccp-btn ccp-btn-ghost" href="#how">How it works</a>
       </div>
     </div>
     <div class="ccp-obs">
-      <div data-cc-observatory data-stack="WordPress" data-endpoint="/wp-json/corsen-context/v1/mcp" data-query="support"></div>
+      <div
+        data-cc-observatory
+        data-stack="WordPress"
+        data-endpoint="/wp-json/corsen-context/v1/mcp"
+        data-query="support"
+      ></div>
     </div>
   </header>
 
@@ -112,19 +260,28 @@ body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-se
     <span class="ccp-eyebrow">Live proof</span>
     <h2>Watch a real trace against this WordPress site</h2>
     <p class="sub">
-      Same origin, no credentials. The sequence initialize &rarr; tools/list &rarr; search_site &rarr; get_page_content
-      runs against <code>/wp-json/corsen-context/v1/mcp</code> &mdash; nothing simulated. Press &ldquo;Run live trace&rdquo;
-      above, or open the site in a WebMCP-capable browser and ask:
+      Same origin, no credentials. The sequence initialize &rarr; tools/list &rarr; search_site
+      &rarr; get_page_content runs against <code>/wp-json/corsen-context/v1/mcp</code> &mdash;
+      nothing simulated. Press &ldquo;Run live trace&rdquo; above, or open the site in a
+      WebMCP-capable browser and ask:
       <em>&ldquo;Search this site for support, read the top result, summarise it.&rdquo;</em>
     </p>
     <div class="ccp-split">
       <div>
-        <h3 style="margin:0 0 10px">Human page &rarr; WebMCP tools &rarr; site content</h3>
-        <p style="color:#45525e">The bridge registers the four tools with <code>document.modelContext</code>; every call returns to the same MCP endpoint that serves agents outside the browser.</p>
+        <h3 style="margin: 0 0 10px">Human page &rarr; WebMCP tools &rarr; site content</h3>
+        <p style="color: #45525e">
+          The bridge registers every enabled tool with <code>document.modelContext</code>; every
+          call returns to the same MCP endpoint that serves agents outside the browser. All ten
+          integrations share the same four-tool core.
+        </p>
       </div>
       <div>
-        <h3 style="margin:0 0 10px">Three surfaces, one contract</h3>
-        <p style="color:#45525e"><a href="/llms.txt">/llms.txt</a> for discovery &middot; <code>/wp-json/corsen-context/v1/mcp</code> for MCP &middot; <code>document.modelContext</code> for WebMCP.</p>
+        <h3 style="margin: 0 0 10px">Three surfaces, one contract</h3>
+        <p style="color: #45525e">
+          <a href="/llms.txt">/llms.txt</a> for discovery &middot;
+          <code>/wp-json/corsen-context/v1/mcp</code> for MCP &middot;
+          <code>document.modelContext</code> for WebMCP.
+        </p>
       </div>
     </div>
   </section>
@@ -132,39 +289,108 @@ body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-se
   <!-- 10 INTEGRATIONS -->
   <section class="ccp-section" id="integrations">
     <span class="ccp-eyebrow">Portability, demonstrated</span>
-    <h2>The same contract, live on ten stacks</h2>
+    <h2>The same four-tool core, live on ten stacks</h2>
     <p class="sub">
-      One verifier detects the identical contract hash 3786c5d0 on every stack below &mdash; from a native
-      WordPress PHP plugin to a plain HTML folder with a same-origin function.
+      One verifier detects the identical contract hash 3786c5d0 on every stack below &mdash; from a
+      native WordPress PHP plugin to a plain HTML folder with a same-origin function.
     </p>
     <div class="ccp-grid">
-      <a class="ccp-stack" href="https://webmcp.corsen.ai" rel="noopener"><b><span class="ok"></span>WordPress</b><span>native PHP plugin</span></a>
-      <a class="ccp-stack" href="https://express-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Express</b><span>core + reference server</span></a>
-      <a class="ccp-stack" href="https://nextjs-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Next.js</b><span>App Router adapter</span></a>
-      <a class="ccp-stack" href="https://astro-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Astro</b><span>SSR adapter</span></a>
-      <a class="ccp-stack" href="https://ghost-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Ghost</b><span>Node bridge, Content API</span></a>
-      <a class="ccp-stack" href="https://strapi-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Strapi</b><span>Node bridge, REST API</span></a>
-      <a class="ccp-stack" href="https://directus-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Directus</b><span>Node bridge, REST API</span></a>
-      <a class="ccp-stack" href="https://wagtail-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Wagtail</b><span>Node bridge, Wagtail API</span></a>
-      <a class="ccp-stack" href="https://mediawiki-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>MediaWiki</b><span>Node bridge, Action API</span></a>
-      <a class="ccp-stack" href="https://html-webmcp.corsen.ai" target="_blank" rel="noopener noreferrer"><b><span class="ok"></span>Static HTML</b><span>generated assets + endpoint</span></a>
+      <a class="ccp-stack" href="https://webmcp.corsen.ai" rel="noopener"
+        ><b><span class="ok"></span>WordPress</b><span>native PHP plugin</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://express-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Express</b><span>core + reference server</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://nextjs-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Next.js</b><span>App Router adapter</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://astro-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Astro</b><span>SSR adapter</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://ghost-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Ghost</b><span>Node bridge, Content API</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://strapi-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Strapi</b><span>Node bridge, REST API</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://directus-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Directus</b><span>Node bridge, REST API</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://wagtail-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Wagtail</b><span>Node bridge, Wagtail API</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://mediawiki-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>MediaWiki</b><span>Node bridge, Action API</span></a
+      >
+      <a
+        class="ccp-stack"
+        href="https://html-webmcp.corsen.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><b><span class="ok"></span>Static HTML</b><span>generated assets + endpoint</span></a
+      >
     </div>
-    <p class="ccp-grid-note">All ten verified live with the same manifest hash. Wagtail is a Node bridge over the Wagtail API, not a Python implementation; the static site is plain HTML with generated assets and a same-origin endpoint.</p>
+    <p class="ccp-grid-note">
+      All ten verified live with the same manifest hash. Wagtail is a Node bridge over the Wagtail
+      API, not a Python implementation; the static site is plain HTML with generated assets and a
+      same-origin endpoint.
+    </p>
   </section>
 
   <!-- HOW -->
   <section class="ccp-section" id="how">
     <span class="ccp-eyebrow">How it works</span>
     <h2>One contract, three surfaces</h2>
-    <p class="sub">The browser never reimplements a tool: the bridge registers the definitions and forwards every execute() to the site's own MCP endpoint.</p>
+    <p class="sub">
+      The browser never reimplements a tool: the bridge registers the definitions and forwards every
+      execute() to the site's own MCP endpoint.
+    </p>
     <div class="ccp-split">
       <div>
-        <h3 style="margin:0 0 10px">WebMCP inside the page</h3>
-        <p style="color:#45525e">An agent in the page discovers the four tools via <code>document.modelContext</code> and calls them same-origin, credentials omitted.</p>
+        <h3 style="margin: 0 0 10px">WebMCP inside the page</h3>
+        <p style="color: #45525e">
+          An agent in the page discovers the currently enabled tools via
+          <code>document.modelContext</code> and calls them same-origin, credentials omitted.
+        </p>
       </div>
       <div>
-        <h3 style="margin:0 0 10px">MCP + llms.txt</h3>
-        <p style="color:#45525e">Configured clients reach the same tools over JSON-RPC; crawlers that support llms.txt get the structured overview and the endpoint URL.</p>
+        <h3 style="margin: 0 0 10px">MCP + llms.txt</h3>
+        <p style="color: #45525e">
+          Configured clients reach the same tools over JSON-RPC; crawlers that support llms.txt get
+          the structured overview and the endpoint URL.
+        </p>
       </div>
     </div>
   </section>
@@ -173,23 +399,45 @@ body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-se
   <section class="ccp-section" id="owner">
     <span class="ccp-eyebrow">Owner-controlled by default</span>
     <h2>Trust the site, not the agent</h2>
-    <p class="sub">Every tool is read-only and marked with WebMCP's <code>readOnlyHint</code> and <code>untrustedContentHint</code>. Tool results are content, never instructions.</p>
+    <p class="sub">
+      The shared four-tool core and four WordPress read extensions are read-only. The optional
+      expert-intake tool is explicitly non-read-only and refuses agent submissions server-side with
+      <code>human_only</code>. Every result is untrusted site content, never an instruction.
+    </p>
     <div class="ccp-split">
-      <ul style="list-style:none;margin:0;padding:0;display:grid;gap:12px">
-        <li style="display:flex;gap:10px"><span style="color:#0a7a3d;font-weight:800">&#10003;</span> Same-origin bridge only &mdash; refuses to register inside a frame</li>
-        <li style="display:flex;gap:10px"><span style="color:#0a7a3d;font-weight:800">&#10003;</span> Browser calls omit credentials entirely</li>
-        <li style="display:flex;gap:10px"><span style="color:#0a7a3d;font-weight:800">&#10003;</span> Owner filters post types, excludes paths, caps exposure per tool</li>
-        <li style="display:flex;gap:10px"><span style="color:#0a7a3d;font-weight:800">&#10003;</span> Revocation changes every machine surface while the human page stays</li>
-        <li style="display:flex;gap:10px"><span style="color:#0a7a3d;font-weight:800">&#10003;</span> Strict JSON schemas reject unknown fields and out-of-range values</li>
-        <li style="display:flex;gap:10px"><span style="color:#0a7a3d;font-weight:800">&#10003;</span> Rate limiting applied before authentication</li>
+      <ul style="list-style: none; margin: 0; padding: 0; display: grid; gap: 12px">
+        <li style="display: flex; gap: 10px">
+          <span style="color: #0a7a3d; font-weight: 800">&#10003;</span> Same-origin bridge only
+          &mdash; refuses to register inside a frame
+        </li>
+        <li style="display: flex; gap: 10px">
+          <span style="color: #0a7a3d; font-weight: 800">&#10003;</span> Browser calls omit
+          credentials entirely
+        </li>
+        <li style="display: flex; gap: 10px">
+          <span style="color: #0a7a3d; font-weight: 800">&#10003;</span> Owner filters post types,
+          excludes paths, caps exposure per tool
+        </li>
+        <li style="display: flex; gap: 10px">
+          <span style="color: #0a7a3d; font-weight: 800">&#10003;</span> Revocation changes every
+          machine surface while the human page stays
+        </li>
+        <li style="display: flex; gap: 10px">
+          <span style="color: #0a7a3d; font-weight: 800">&#10003;</span> Strict JSON schemas reject
+          unknown fields and out-of-range values
+        </li>
+        <li style="display: flex; gap: 10px">
+          <span style="color: #0a7a3d; font-weight: 800">&#10003;</span> Rate limiting applied
+          before authentication
+        </li>
       </ul>
       <div>
-        <p style="color:#45525e">
-          The owner decides what agents can read &mdash; per post type, per path, per tool.
-          This site's read-only boundary is documented for agents on the
+        <p style="color: #45525e">
+          The owner decides what agents can read &mdash; per post type, per path, per tool. This
+          site's agent boundary is documented on the
           <a href="/about/" rel="noopener">access policy</a> page.
         </p>
-        <p style="color:#45525e">Configuration: Settings &rarr; Corsen Context.</p>
+        <p style="color: #45525e">Configuration: Settings &rarr; Corsen Context.</p>
       </div>
     </div>
   </section>

@@ -52,6 +52,7 @@ class ControlCenterTest extends WP_UnitTestCase {
 		// and never as exposed until configured (expert) — see dedicated test.
 		$this->assertStringContainsString( 'get_product', $html );
 		$this->assertStringContainsString( 'request_expert_call', $html );
+		$this->assertStringContainsString( 'corsen_context_settings[expert_handoff_url]', $html );
 		$this->assertMatchesRegularExpression( '/value="get_product"(?![^>]*checked)/', $html );
 		$this->assertMatchesRegularExpression( '/value="request_expert_call"(?![^>]*checked)/', $html );
 		$this->assertStringNotContainsString( 'coming', $html );
@@ -67,6 +68,15 @@ class ControlCenterTest extends WP_UnitTestCase {
 		$html = $this->render();
 		$this->assertStringContainsString( 'Corsen Context is OFF', $html );
 		$this->assertStringNotContainsString( 'search_site, get_page_content', $html );
+	}
+
+	public function test_expert_purge_remains_available_when_audit_is_off(): void {
+		$GLOBALS['corsen_test_can_manage']  = true;
+		$GLOBALS['corsen_test_expert_count'] = 3;
+		$this->settings( array( 'audit_enabled' => false ) );
+		$html = $this->render();
+		$this->assertStringContainsString( 'Purge expert requests (3)', $html );
+		unset( $GLOBALS['corsen_test_expert_count'] );
 	}
 
 	/**

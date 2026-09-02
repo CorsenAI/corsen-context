@@ -43,6 +43,7 @@ class Corsen_Context_Products {
 						'type'        => 'string',
 						'minLength'   => 1,
 						'maxLength'   => 200,
+						'pattern'     => '^(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+$',
 						'description' => 'The product slug: the last path segment of its /product/ URL. Provide this or uri, never both.',
 					),
 					'uri'  => array(
@@ -50,6 +51,16 @@ class Corsen_Context_Products {
 						'minLength'   => 1,
 						'maxLength'   => 2000,
 						'description' => 'The product page absolute URL on this site, exactly as returned by list_content or search_site. Provide this or slug, never both.',
+					),
+				),
+				'oneOf'                => array(
+					array(
+						'type'     => 'object',
+						'required' => array( 'slug' ),
+					),
+					array(
+						'type'     => 'object',
+						'required' => array( 'uri' ),
 					),
 				),
 				'additionalProperties' => false,
@@ -75,10 +86,11 @@ class Corsen_Context_Products {
 			// Neither or both: exactly one selector is required.
 			return null;
 		}
-		if ( '' !== $slug && ( strlen( $slug ) > 200 || ! preg_match( '/^[A-Za-z0-9_\-]+$/', $slug ) ) ) {
+		if ( '' !== $slug && ( strlen( $slug ) > 200 || ! preg_match( '/^(?:[A-Za-z0-9_\-]|%[0-9A-Fa-f]{2})+$/', $slug ) ) ) {
 			return null;
 		}
-		if ( '' !== $uri && strlen( $uri ) > 2000 ) {
+		$uri_length = Corsen_Context_Content_Converter::utf8_length( $uri );
+		if ( '' !== $uri && ( 0 === $uri_length || $uri_length > 2000 ) ) {
 			return null;
 		}
 		return '' !== $slug
@@ -184,14 +196,16 @@ class Corsen_Context_Products {
 			// branch: a guessed slug may not read a product whose URL the
 			// owner excluded (audited 2026-09-01: it bypassed exclusions).
 			$permalink = $product_id > 0 ? (string) get_permalink( $product_id ) : '';
-			if ( '' === $permalink || null === Corsen_Context_Tool_Registry::exposable_post( $permalink ) ) {
+			$exposable = '' !== $permalink ? Corsen_Context_Tool_Registry::exposable_post( $permalink ) : null;
+			if ( null === $exposable || (int) $exposable->ID !== $product_id ) {
 				return self::fail( 'Product not found or not exposed to agents. Use a slug returned by list_content(type=product).' );
 			}
 		} elseif ( '' !== $args['uri'] ) {
-			if ( null === Corsen_Context_Tool_Registry::exposable_post( $args['uri'] ) ) {
+			$exposable = Corsen_Context_Tool_Registry::exposable_post( $args['uri'] );
+			if ( null === $exposable ) {
 				return self::fail( 'URL rejected: not a public same-site URL, or the path is excluded by the site owner.' );
 			}
-			$product_id = (int) url_to_postid( $args['uri'] );
+			$product_id = (int) $exposable->ID;
 		}
 		if ( $product_id <= 0 ) {
 			return self::fail( 'Product not found. Use a slug or URL returned by list_content(type=product) or search_site.' );
@@ -243,7 +257,7 @@ class Corsen_Context_Products {
 			'title'               => wp_strip_all_tags( (string) get_the_title( $id ), true ),
 			'type'                => (string) $product->get_type(),
 			'sku'                 => (string) $product->get_sku(),
-			'description'         => '' !== $short ? substr( $short, 0, self::MAX_DESCRIPTION ) : '',
+			'description'         => '' !== $short ? self::clip_utf8_bytes( $short, self::MAX_DESCRIPTION ) : '',
 			'price'               => is_numeric( $price ) ? (float) $price : null,
 			'regularPrice'        => is_numeric( $regular ) ? (float) $regular : null,
 			'salePrice'           => is_numeric( $sale ) ? (float) $sale : null,
@@ -279,12 +293,22 @@ class Corsen_Context_Products {
 		}
 
 		if ( 'variable' === $product->get_type() && is_callable( array( $product, 'get_children' ) ) ) {
-			$children = array_slice( (array) $product->get_children(), 0, self::MAX_VARIANTS );
-			$variants = array();
-			foreach ( $children as $child_id ) {
+			$variants  = array();
+			$truncated = false;
+			foreach ( (array) $product->get_children() as $child_id ) {
 				$child = wc_get_product( (int) $child_id );
-				if ( ! $child instanceof WC_Product ) {
+				if (
+					! $child instanceof WC_Product ||
+					! is_callable( array( $child, 'get_status' ) ) ||
+					'publish' !== $child->get_status() ||
+					( is_callable( array( $child, 'variation_is_visible' ) ) && ! $child->variation_is_visible() ) ||
+					( is_callable( array( $child, 'get_parent_id' ) ) && (int) $child->get_parent_id() !== $id )
+				) {
 					continue;
+				}
+				if ( count( $variants ) >= self::MAX_VARIANTS ) {
+					$truncated = true;
+					break;
 				}
 				$cprice     = $child->get_price();
 				$variants[] = array(
@@ -297,10 +321,27 @@ class Corsen_Context_Products {
 				);
 			}
 			$data['variants']  = $variants;
-			$data['truncated'] = count( (array) $product->get_children() ) > self::MAX_VARIANTS;
+			$data['truncated'] = $truncated;
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Clip a string to a byte budget without leaving invalid UTF-8.
+	 *
+	 * @param string $value Source text.
+	 * @param int    $limit Maximum bytes.
+	 */
+	private static function clip_utf8_bytes( string $value, int $limit ): string {
+		if ( strlen( $value ) <= $limit ) {
+			return $value;
+		}
+		$clipped = substr( $value, 0, $limit );
+		while ( '' !== $clipped && 1 !== preg_match( '//u', $clipped ) ) {
+			$clipped = substr( $clipped, 0, -1 );
+		}
+		return $clipped;
 	}
 
 	/**

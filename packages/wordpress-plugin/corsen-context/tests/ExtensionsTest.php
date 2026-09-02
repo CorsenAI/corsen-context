@@ -38,6 +38,8 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$GLOBALS['corsen_test_postmeta']    = array();
 		$GLOBALS['corsen_test_found_posts'] = 0;
 		$GLOBALS['corsen_test_options']     = array();
+		unset( $GLOBALS['corsen_test_filters']['corsen_context_can_expose_post'] );
+		unset( $GLOBALS['corsen_fix_product'], $GLOBALS['corsen_fix_products'], $GLOBALS['corsen_test_posts_by_id'], $GLOBALS['corsen_test_permalink'], $GLOBALS['corsen_test_public_post_types'] );
 	}
 
 	public function test_registry_split(): void {
@@ -64,7 +66,7 @@ class ExtensionsTest extends WP_UnitTestCase {
 
 	public function test_expert_hidden_until_configured(): void {
 		$all = $this->enable_all_core_plus( 'request_expert_call' );
-		// Checked but no destination: never exposed, never callable.
+		// Checked but the separate owner feature gate is off: never exposed.
 		$this->settings( array( 'enabled_tools' => $all ) );
 		$this->assertNotContains( 'request_expert_call', $this->exposed() );
 		$server  = new Corsen_Context_MCP_Server();
@@ -74,15 +76,24 @@ class ExtensionsTest extends WP_UnitTestCase {
 		);
 		$this->assertFalse( $outcome['ok'] );
 		$this->assertTrue( $outcome['protocol_error'] );
-		// Configured: exposed on the same surface.
+		// Explicitly enabled: exposed on the same surface; no email is required
+		// because tool execution never stores or sends a submission.
 		$this->settings(
 			array(
-				'enabled_tools'  => $all,
-				'expert_enabled' => true,
-				'expert_email'   => 'owner@corsen.ai',
+				'enabled_tools'       => $all,
+				'expert_enabled'      => true,
+				'expert_handoff_url'  => home_url( '/contact/' ),
 			)
 		);
 		$this->assertContains( 'request_expert_call', $this->exposed() );
+		$this->settings(
+			array(
+				'enabled_tools'       => $all,
+				'expert_enabled'      => true,
+				'expert_handoff_url'  => 'https://foreign.example/contact/',
+			)
+		);
+		$this->assertNotContains( 'request_expert_call', $this->exposed(), 'A foreign handoff destination must fail closed.' );
 	}
 
 	public function test_expert_validate_rules(): void {
@@ -99,19 +110,25 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'email' => 'not-an-email' ) ) ) );
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'mon api_key: sk-abcdefghijkl1234' ) ) ) );
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'Mon mot de passe wordpress est: S3cr3tPass!' ) ) ) );
-		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'ma clé API sk-proj-abcdef1234567890 pour avancer' ) ) ) );
-		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'voici mon jeton github_pat_11ABCDEFGH0123456789abcdefghij' ) ) ) );
+		$openai_shaped = 'sk-' . 'proj-' . str_repeat( 'a', 20 );
+		$github_shaped = 'github_' . 'pat_' . str_repeat( 'b', 24 );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'ma clé API ' . $openai_shaped . ' pour avancer' ) ) ) );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'message' => 'voici mon jeton ' . $github_shaped ) ) ) );
 		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'website' => 'javascript:alert(1)' ) ) ) );
 		$this->assertIsArray( Corsen_Context_Expert::validate( array_merge( $good, array( 'website' => 'https://corp.fr' ) ) ) );
+		$this->assertIsArray( Corsen_Context_Expert::validate( array( 'name' => str_repeat( 'é', 120 ), 'email' => 'marie@corp.fr', 'message' => str_repeat( '🙂', 2000 ) ) ) );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'website' => array( 'https://corp.fr' ) ) ) ) );
+		$this->assertNull( Corsen_Context_Expert::validate( array_merge( $good, array( 'stack' => str_repeat( 'é', 81 ) ) ) ) );
 	}
 
-	public function test_expert_mcp_call_is_human_only_and_owner_store_path_still_works(): void {
+	public function test_expert_mcp_call_is_human_only_and_legacy_owner_helper_is_not_on_the_tool_path(): void {
 		$this->settings(
 			array(
-				'enabled_tools'  => $this->enable_all_core_plus( 'request_expert_call' ),
-				'expert_enabled' => true,
-				'expert_email'   => 'owner@corsen.ai',
-				'expert_notify'  => true,
+				'enabled_tools'      => $this->enable_all_core_plus( 'request_expert_call' ),
+				'expert_enabled'     => true,
+				'expert_handoff_url' => home_url( '/contact/#expert-form' ),
+				'expert_email'       => 'owner@corsen.ai',
+				'expert_notify'      => true,
 			)
 		);
 		$good = array(
@@ -128,10 +145,10 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertFalse( $outcome['ok'] );
 		$this->assertSame( 'human_only', $outcome['code'] );
 		$this->assertStringContainsString( 'humans only', $outcome['error'] );
-		$this->assertStringContainsString( home_url( '/' ), $outcome['error'] );
+		$this->assertStringContainsString( home_url( '/contact/#expert-form' ), $outcome['error'] );
 		$this->assertSame( array(), $GLOBALS['corsen_test_inserts'] );
-		// The owner-side storage keeps working unchanged (human form path,
-		// future owner-approved delegation).
+		// The pre-1.5.12 owner-side compatibility helper remains callable only
+		// from trusted PHP code; it is not connected to MCP/WebMCP execution.
 		$stored = Corsen_Context_Expert::store_submission( Corsen_Context_Expert::validate( $good ) );
 		$this->assertTrue( $stored['ok'] );
 		$this->assertTrue( $stored['result']['queued'] );
@@ -146,9 +163,10 @@ class ExtensionsTest extends WP_UnitTestCase {
 	public function test_expert_throttle_rejects_sixth_request(): void {
 		$this->settings(
 			array(
-				'enabled_tools'  => $this->enable_all_core_plus( 'request_expert_call' ),
-				'expert_enabled' => true,
-				'expert_email'   => 'owner@corsen.ai',
+				'enabled_tools'      => $this->enable_all_core_plus( 'request_expert_call' ),
+				'expert_enabled'     => true,
+				'expert_handoff_url' => home_url( '/contact/' ),
+				'expert_email'       => 'owner@corsen.ai',
 			)
 		);
 		$key = 'corsen_expt_' . substr( hash_hmac( 'sha256', Corsen_Context_Security::get_client_ip(), wp_salt( 'auth' ) ), 0, 32 );
@@ -214,10 +232,29 @@ class ExtensionsTest extends WP_UnitTestCase {
 		if ( ! function_exists( 'wc_get_product' ) ) {
 			eval(
 				'class WC_Product { public $data; public function __construct( $data = array() ) { $this->data = $data; } ' .
+				'public function get_id() { return (int) ($this->data["id"] ?? 0); } ' .
 				'public function get_price() { return $this->data["price"] ?? null; } ' .
+				'public function get_regular_price() { return $this->data["regular"] ?? null; } ' .
+				'public function get_sale_price() { return $this->data["sale"] ?? null; } ' .
+				'public function get_short_description() { return $this->data["description"] ?? ""; } ' .
+				'public function get_slug() { return $this->data["slug"] ?? "product"; } ' .
+				'public function get_type() { return $this->data["type"] ?? "simple"; } ' .
+				'public function get_sku() { return $this->data["sku"] ?? ""; } ' .
+				'public function get_price_html() { return $this->data["price_html"] ?? ""; } ' .
+				'public function is_on_sale() { return ! empty($this->data["on_sale"]); } ' .
+				'public function is_purchasable() { return $this->data["purchasable"] ?? true; } ' .
 				'public function is_in_stock() { return ! empty( $this->data["instock"] ); } ' .
-				'public function get_image_id() { return (int) ( $this->data["image_id"] ?? 0 ); } } ' .
-				'function wc_get_product( $id ) { return isset( $GLOBALS["corsen_fix_product"] ) && $GLOBALS["corsen_fix_product"] instanceof WC_Product ? $GLOBALS["corsen_fix_product"] : null; }'
+				'public function get_stock_status() { return $this->data["stock_status"] ?? "instock"; } ' .
+				'public function get_image_id() { return (int) ( $this->data["image_id"] ?? 0 ); } ' .
+				'public function get_gallery_image_ids() { return $this->data["gallery"] ?? array(); } ' .
+				'public function managing_stock() { return ! empty($this->data["managing_stock"]); } ' .
+				'public function get_stock_quantity() { return $this->data["stock_quantity"] ?? null; } ' .
+				'public function get_children() { return $this->data["children"] ?? array(); } ' .
+				'public function get_status() { return $this->data["status"] ?? "publish"; } ' .
+				'public function variation_is_visible() { return $this->data["visible"] ?? true; } ' .
+				'public function get_parent_id() { return (int) ($this->data["parent_id"] ?? 0); } ' .
+				'public function get_attributes() { return $this->data["attributes"] ?? array(); } } ' .
+				'function wc_get_product( $id ) { if ( isset($GLOBALS["corsen_fix_products"][(int) $id]) ) { return $GLOBALS["corsen_fix_products"][(int) $id]; } return isset( $GLOBALS["corsen_fix_product"] ) && $GLOBALS["corsen_fix_product"] instanceof WC_Product ? $GLOBALS["corsen_fix_product"] : null; }'
 			); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Global stubs: modern Woo runtime we are simulating.
 		}
 	}
@@ -295,6 +332,119 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$this->assertFalse( $outcome['ok'], 'Slug lookups must pass the same exposure gate as URIs.' );
 		$this->assertStringContainsString( 'not exposed', $outcome['error'] );
 		unset( $GLOBALS['corsen_test_page_by_path'], $GLOBALS['corsen_fix_product'], $GLOBALS['corsen_test_url_to_postid'] );
+	}
+
+	public function test_get_product_uri_honors_membership_visibility_veto(): void {
+		$this->ensure_modern_woo_runtime();
+		$this->settings(
+			array(
+				'enabled_tools' => $this->enable_all_core_plus( 'get_product' ),
+				'post_types'    => array( 'post', 'page', 'product' ),
+			)
+		);
+		$product                = new \WP_Post();
+		$product->ID            = 4242;
+		$product->post_type     = 'product';
+		$product->post_status   = 'publish';
+		$product->post_name     = 'members-only';
+		$GLOBALS['corsen_test_post']          = $product;
+		$GLOBALS['corsen_test_url_to_postid'] = 4242;
+		$GLOBALS['corsen_test_filters']['corsen_context_can_expose_post'] = static function (): bool {
+			return false;
+		};
+
+		$outcome = Corsen_Context_Products::execute( array( 'slug' => '', 'uri' => home_url( '/product/members-only/' ) ) );
+		$this->assertFalse( $outcome['ok'] );
+		$this->assertStringContainsString( 'not a public same-site URL', $outcome['error'] );
+	}
+
+	public function test_extension_policy_ignores_root_exclusion_and_never_allows_attachments(): void {
+		$this->settings(
+			array(
+				'exclude_paths' => '/',
+				'post_types'    => array( 'post', 'page', 'attachment' ),
+			)
+		);
+		$GLOBALS['corsen_test_public_post_types'] = array(
+			'post'       => 'Posts',
+			'page'       => 'Pages',
+			'attachment' => 'Media',
+		);
+		$this->assertTrue( Corsen_Context_Tool_Registry::public_url_ok( home_url( '/public-page/' ) ) );
+		$this->assertFalse( Corsen_Context_Tool_Registry::allows_type( 'attachment' ) );
+	}
+
+	public function test_forbidden_product_policy_page_honors_visibility_veto(): void {
+		$this->ensure_modern_woo_runtime();
+		$this->settings( array( 'post_types' => array( 'post', 'page', 'product' ) ) );
+		$product              = new \WP_Post();
+		$product->ID          = 4242;
+		$product->post_type   = 'product';
+		$product->post_status = 'publish';
+		$GLOBALS['corsen_test_posts']          = array( 4242 );
+		$GLOBALS['corsen_test_post']           = $product;
+		$GLOBALS['corsen_test_url_to_postid']  = 4242;
+		$GLOBALS['corsen_fix_product']         = new \WC_Product( array( 'id' => 4242, 'name' => 'Private product' ) );
+		$GLOBALS['corsen_test_postmeta'][4242][ Corsen_Context_Agent_Policy::META_KEY ] = Corsen_Context_Agent_Policy::FORBIDDEN;
+		$GLOBALS['corsen_test_filters']['corsen_context_can_expose_post'] = static function (): bool {
+			return false;
+		};
+
+		$this->assertSame( array(), Corsen_Context_Agent_Policy::forbidden_products() );
+	}
+
+	public function test_get_product_slug_requires_exposure_of_the_same_product_id(): void {
+		$this->ensure_modern_woo_runtime();
+		if ( ! function_exists( 'get_page_by_path' ) ) {
+			eval( 'if ( ! defined( \'OBJECT\' ) ) { define( \'OBJECT\', \'OBJECT\' ); } function get_page_by_path( $path, $output = OBJECT, $type = \'post\' ) { return $GLOBALS[\'corsen_test_page_by_path\'] ?? null; }' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- Simulating WP core function for the unit run.
+		}
+		$this->settings(
+			array(
+				'enabled_tools' => $this->enable_all_core_plus( 'get_product' ),
+				'post_types'    => array( 'post', 'page', 'product' ),
+			)
+		);
+		$product              = new \WP_Post();
+		$product->ID          = 4242;
+		$product->post_type   = 'product';
+		$product->post_status = 'publish';
+		$product->post_name   = 'expected';
+		$other                = clone $product;
+		$other->ID            = 999;
+		$other->post_name     = 'other';
+		$GLOBALS['corsen_test_page_by_path'] = $product;
+		$GLOBALS['corsen_test_posts_by_id']   = array( 4242 => $product, 999 => $other );
+		$GLOBALS['corsen_test_url_to_postid'] = 999;
+		$GLOBALS['corsen_fix_product']        = new \WC_Product( array( 'id' => 4242 ) );
+
+		$outcome = Corsen_Context_Products::execute( array( 'slug' => 'expected', 'uri' => '' ) );
+		$this->assertFalse( $outcome['ok'] );
+		$this->assertStringContainsString( 'not exposed', $outcome['error'] );
+	}
+
+	public function test_product_payload_keeps_utf8_and_excludes_private_or_hidden_variants(): void {
+		$this->ensure_modern_woo_runtime();
+		$parent = new \WC_Product(
+			array(
+				'id'          => 500,
+				'type'        => 'variable',
+				'description' => str_repeat( '€', 600 ),
+				'children'    => array( 501, 502, 503 ),
+			)
+		);
+		$GLOBALS['corsen_fix_products'] = array(
+			501 => new \WC_Product( array( 'id' => 501, 'parent_id' => 500, 'status' => 'private', 'visible' => true, 'sku' => 'private' ) ),
+			502 => new \WC_Product( array( 'id' => 502, 'parent_id' => 500, 'status' => 'publish', 'visible' => false, 'sku' => 'hidden' ) ),
+			503 => new \WC_Product( array( 'id' => 503, 'parent_id' => 500, 'status' => 'publish', 'visible' => true, 'sku' => 'public', 'price' => '9.00', 'instock' => true ) ),
+		);
+		$method = new ReflectionMethod( Corsen_Context_Products::class, 'serialize_product' );
+		$method->setAccessible( true );
+		$data = $method->invoke( null, $parent );
+
+		$this->assertLessThanOrEqual( 1500, strlen( $data['description'] ) );
+		$this->assertTrue( mb_check_encoding( $data['description'], 'UTF-8' ) );
+		$this->assertSame( array( 'public' ), array_column( $data['variants'], 'sku' ) );
+		$this->assertFalse( $data['truncated'] );
 	}
 
 	/**
@@ -407,12 +557,34 @@ class ExtensionsTest extends WP_UnitTestCase {
 	}
 
 	public function test_get_product_validate(): void {
+		$product_schema = Corsen_Context_Products::definition()['inputSchema'];
+		$this->assertCount( 2, $product_schema['oneOf'] );
+		$this->assertSame( array( 'slug' ), $product_schema['oneOf'][0]['required'] );
+		$this->assertSame( array( 'uri' ), $product_schema['oneOf'][1]['required'] );
 		$this->assertNull( Corsen_Context_Products::validate( array() ) );
 		$this->assertNull( Corsen_Context_Products::validate( array( 'slug' => 'bad slug!' ) ) );
+		$this->assertNull( Corsen_Context_Products::validate( array( 'slug' => 'bad%ZZslug' ) ) );
+		$this->assertNull( Corsen_Context_Products::validate( array( 'slug' => 'folder/product' ) ) );
 		$this->assertNull( Corsen_Context_Products::validate( array( 'slug' => 'ok', 'extra' => 1 ) ) );
 		$this->assertSame(
 			array( 'slug' => 'bonnet', 'uri' => '' ),
 			Corsen_Context_Products::validate( array( 'slug' => 'bonnet' ) )
+		);
+		$this->assertSame(
+			'%d7%9e%d7%95%d7%a6%d7%a8',
+			Corsen_Context_Products::validate( array( 'slug' => '%d7%9e%d7%95%d7%a6%d7%a8' ) )['slug']
+		);
+		$this->assertIsArray( Corsen_Context_Products::validate( array( 'uri' => 'https://example.com/' . str_repeat( 'é', 1980 ) ) ) );
+	}
+
+	public function test_structured_data_schema_matches_unicode_aware_validator(): void {
+		$schema = Corsen_Context_Structured_Data::definition()['inputSchema'];
+		$this->assertSame( array( 'uri' ), $schema['required'] );
+		$this->assertNull( Corsen_Context_Structured_Data::validate( array() ) );
+		$this->assertIsArray(
+			Corsen_Context_Structured_Data::validate(
+				array( 'uri' => 'https://example.com/' . str_repeat( 'é', 1980 ) )
+			)
 		);
 	}
 
@@ -436,8 +608,9 @@ class ExtensionsTest extends WP_UnitTestCase {
 					Corsen_Context_Tool_Registry::CORE_TOOLS,
 					array( 'get_product', 'request_expert_call' )
 				),
-				'expert_enabled' => true,
-				'expert_email'   => 'owner@corsen.ai',
+				'expert_enabled'     => true,
+				'expert_handoff_url' => home_url( '/contact/' ),
+				'expert_email'       => 'owner@corsen.ai',
 			)
 		);
 		Corsen_Context_Abilities::register_abilities();
@@ -456,16 +629,20 @@ class ExtensionsTest extends WP_UnitTestCase {
 		$admin = Corsen_Context_Admin::instance();
 		$clean = $admin->sanitize_settings(
 			array(
-				'enabled'        => '1',
-				'enabled_tools'  => array( 'search_site', 'get_product', 'request_expert_call', 'evil' ),
-				'expert_enabled' => '1',
-				'expert_email'   => 'Owner@Corsen.ai',
-				'audit_enabled'  => '1',
+				'enabled'             => '1',
+				'enabled_tools'       => array( 'search_site', 'get_product', 'request_expert_call', 'evil' ),
+				'expert_enabled'      => '1',
+				'expert_handoff_url'  => home_url( '/contact/#form' ),
+				'expert_email'        => 'Owner@Corsen.ai',
+				'audit_enabled'       => '1',
 			)
 		);
 		$this->assertSame( array( 'search_site', 'get_product', 'request_expert_call' ), $clean['enabled_tools'] );
 		$this->assertTrue( $clean['expert_enabled'] );
+		$this->assertSame( home_url( '/contact/#form' ), $clean['expert_handoff_url'] );
 		$this->assertSame( 'owner@corsen.ai', $clean['expert_email'] );
 		$this->assertTrue( $clean['audit_enabled'] );
+		$foreign = $admin->sanitize_settings( array( 'expert_enabled' => '1', 'expert_handoff_url' => 'https://foreign.example/contact/' ) );
+		$this->assertSame( '', $foreign['expert_handoff_url'] );
 	}
 }

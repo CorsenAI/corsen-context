@@ -1,6 +1,6 @@
 {
   "name": "@corsenai/corsen-context-cli",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "CLI to initialize, generate, and validate Corsen Context public-content surfaces",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",

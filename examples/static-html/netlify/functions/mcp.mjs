@@ -109,11 +109,15 @@ export default async (req) => {
 
   const rateLimit = await server.checkRateLimit(clientIp, apiKey);
   if (!rateLimit.allowed) {
-    return json(429, {
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Rate limit exceeded' },
-      id: null,
-    }, Object.fromEntries(Object.entries(rateLimit.headers)));
+    return json(
+      429,
+      {
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Rate limit exceeded' },
+        id: null,
+      },
+      Object.fromEntries(Object.entries(rateLimit.headers)),
+    );
   }
   if (!server.checkAuth(apiKey)) {
     return json(401, {
@@ -135,8 +139,11 @@ export default async (req) => {
   }
 
   const isResponse =
-    !!body && typeof body === 'object' && !Array.isArray(body) &&
-    !('method' in body) && ('result' in body || 'error' in body);
+    !!body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    !('method' in body) &&
+    ('result' in body || 'error' in body);
   if (isResponse) {
     return json(400, {
       jsonrpc: '2.0',
@@ -145,7 +152,8 @@ export default async (req) => {
     });
   }
 
-  const methodName = body && typeof body === 'object' && !Array.isArray(body) ? body.method : undefined;
+  const methodName =
+    body && typeof body === 'object' && !Array.isArray(body) ? body.method : undefined;
   if (typeof methodName === 'string' && methodName !== 'initialize') {
     const requestedVersion = req.headers.get('MCP-Protocol-Version') || '2025-03-26';
     if (requestedVersion !== MCP_PROTOCOL_VERSION) {

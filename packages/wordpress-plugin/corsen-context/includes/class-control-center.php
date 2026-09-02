@@ -36,7 +36,7 @@ class Corsen_Context_Control_Center {
 	}
 
 	/**
-	 * Owner action: probe this site with real agent user agents (nonce link).
+	 * Owner action: same-site loopback with representative bot UAs (nonce link).
 	 */
 	public function handle_agent_check(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -76,13 +76,15 @@ class Corsen_Context_Control_Center {
 			array(
 				'post_type'      => 'cc_expert_request',
 				'post_status'    => 'private',
-				'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- Admin bulk purge, capped batch, ids only.
+				'posts_per_page' => -1, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- Explicit owner purge must remove the entire private inbox.
 				'fields'         => 'ids',
+				'no_found_rows'  => true,
 			)
 		);
 		foreach ( $expert_posts as $expert_post_id ) {
 			wp_delete_post( (int) $expert_post_id, true );
 		}
+		delete_transient( 'corsen_expert_count' );
 		wp_safe_redirect( admin_url( 'options-general.php?page=corsen-context-control&ccx_msg=expert_purged' ) );
 		exit;
 	}
@@ -141,13 +143,13 @@ class Corsen_Context_Control_Center {
 				'state' => 'live',
 			),
 			'check_agent_access'  => array(
-				'title' => __( 'Agent access self-test report', 'corsen-context' ),
-				'desc'  => __( 'Agents read the result of YOUR latest probe: could ClaudeBot, ChatGPT and GPTBot actually reach this site through the CDN? Triggered only by you, from the card below.', 'corsen-context' ),
+				'title' => __( 'Bot User-Agent edge self-test', 'corsen-context' ),
+				'desc'  => __( 'Agents read your latest same-site loopback result. It validates llms.txt/MCP responses under representative bot User-Agent strings; it does not impersonate a complete external agent connection.', 'corsen-context' ),
 				'state' => 'live',
 			),
 			'request_expert_call' => array(
-				'title' => __( 'Request expert call (write tool)', 'corsen-context' ),
-				'desc'  => __( 'Agents submit the expert-request form as a structured tool call. Off by default, owner-controlled.', 'corsen-context' ),
+				'title' => __( 'Human-only expert handoff', 'corsen-context' ),
+				'desc'  => __( 'Agents receive a hard refusal and the page URL so a human can continue. No MCP/WebMCP call stores or emails form data.', 'corsen-context' ),
 				'state' => 'live',
 			),
 		);
@@ -249,7 +251,7 @@ class Corsen_Context_Control_Center {
 				</div>
 
 				<h2><?php esc_html_e( 'Tools agents can call', 'corsen-context' ); ?></h2>
-				<p class="ccx-desc"><?php esc_html_e( 'Same set for MCP, WebMCP and the abilities layer. Core tools are read-only; request_expert_call only files private submissions. Uncheck all to expose no callable tools.', 'corsen-context' ); ?></p>
+				<p class="ccx-desc"><?php esc_html_e( 'Same set for MCP, WebMCP and the abilities layer. Content tools are read-only; request_expert_call is a non-read-only semantic boundary that always refuses agent use before side effects. Uncheck all to expose no callable tools.', 'corsen-context' ); ?></p>
 				<input type="hidden" name="corsen_context_settings[enabled_tools][]" value="" />
 				<div class="ccx-grid">
 					<?php
@@ -283,13 +285,13 @@ class Corsen_Context_Control_Center {
 								?>
 									</p>
 							<?php elseif ( 'request_expert_call' === $tool ) : ?>
-								<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[expert_enabled]" value="1" <?php checked( ! empty( $settings['expert_enabled'] ) ); ?> /><?php esc_html_e( 'Enable the expert-request feature', 'corsen-context' ); ?></label>
-								<label class="ccx-sec"><?php esc_html_e( 'Destination email (required to expose)', 'corsen-context' ); ?>
-									<input type="text" name="corsen_context_settings[expert_email]" value="<?php echo esc_attr( $settings['expert_email'] ?? '' ); ?>" /></label>
-								<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[expert_notify]" value="1" <?php checked( ! empty( $settings['expert_notify'] ) ); ?> /><?php esc_html_e( 'Email me on every submission', 'corsen-context' ); ?></label>
-								<p class="ccx-sec"><?php esc_html_e( 'Write tool: creates a private submission only, rate limited per IP, secrets rejected, nothing is ever published. Stays hidden until the feature is enabled and a destination email is saved.', 'corsen-context' ); ?></p>
+								<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[expert_enabled]" value="1" <?php checked( ! empty( $settings['expert_enabled'] ) ); ?> /><?php esc_html_e( 'Expose the human-only handoff boundary', 'corsen-context' ); ?></label>
+								<label class="ccx-sec"><?php esc_html_e( 'Human form page URL', 'corsen-context' ); ?>
+									<input type="url" name="corsen_context_settings[expert_handoff_url]" class="large-text" value="<?php echo esc_attr( $settings['expert_handoff_url'] ?? '' ); ?>" placeholder="<?php echo esc_attr( home_url( '/contact/' ) ); ?>" />
+								</label>
+								<p class="ccx-sec"><?php esc_html_e( 'Required and restricted to this site. Every schema-valid call returns human_only plus this URL before storage, email or throttling. A human uses the visible form directly.', 'corsen-context' ); ?></p>
 								<?php if ( $needs_cfg ) : ?>
-									<p class="ccx-sec"><strong><?php esc_html_e( 'Currently hidden:', 'corsen-context' ); ?></strong> <?php esc_html_e( 'enable the feature and save a valid destination email above.', 'corsen-context' ); ?></p>
+									<p class="ccx-sec"><strong><?php esc_html_e( 'Currently hidden:', 'corsen-context' ); ?></strong> <?php esc_html_e( 'enable the boundary, enter the human form page URL, then save.', 'corsen-context' ); ?></p>
 								<?php endif; ?>
 							<?php endif; ?>
 						</div>
@@ -338,13 +340,13 @@ class Corsen_Context_Control_Center {
 					<div class="ccx-card <?php echo empty( $settings['audit_enabled'] ) ? 'ccx-card--off' : ''; ?>">
 						<div><span class="ccx-badge <?php echo empty( $settings['audit_enabled'] ) ? 'ccx-badge--off' : 'ccx-badge--on'; ?>">audit</span></div>
 						<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[audit_enabled]" value="1" <?php checked( ! empty( $settings['audit_enabled'] ) ); ?> /><?php esc_html_e( 'Bounded audit log of tool calls', 'corsen-context' ); ?></label>
-						<p class="ccx-desc"><?php esc_html_e( 'Tool name, argument fingerprint (never the arguments themselves), hashed IP, outcome, duration. Capped at 500 rows / 30 days, stored in your own database, visible only here.', 'corsen-context' ); ?></p>
+						<p class="ccx-desc"><?php esc_html_e( 'Tool name, argument fingerprint (never the arguments themselves), hashed IP, outcome, duration. The table has a hard 500-row cap; entries older than 30 days are pruned when WP-Cron runs, and you can purge them here at any time.', 'corsen-context' ); ?></p>
 					</div>
 				</div>
 
 				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
 					<h2><?php esc_html_e( 'Agent purchase policy', 'corsen-context' ); ?></h2>
-					<p class="ccx-desc"><?php esc_html_e( 'Per-product rule an agent reads from get_product and from every advertised description. Save this page to store it. These values render live into the MCP contract, llms.txt and the /llms.txt#agent-conduct-policy copy — nothing is duplicated by hand.', 'corsen-context' ); ?></p>
+					<p class="ccx-desc"><?php esc_html_e( 'Per-product rule returned by get_product. This quick editor shows the first 50 published products alphabetically; every WooCommerce product edit screen also has a Corsen Context policy panel, so larger catalogs remain fully manageable. Save this page to store the rows shown here.', 'corsen-context' ); ?></p>
 					<div class="ccx-grid">
 						<?php
 						$policy_products = get_posts(
@@ -382,10 +384,10 @@ class Corsen_Context_Control_Center {
 			<h2><?php esc_html_e( 'What agents see right now', 'corsen-context' ); ?></h2>
 			<div class="ccx-preview"><?php echo esc_html( $this->agent_preview( $on, $exposed ) ); ?></div>
 
-			<h2><?php esc_html_e( 'Agent access — see yourself through a bot&rsquo;s eyes', 'corsen-context' ); ?></h2>
+			<h2><?php esc_html_e( 'Agent surface loopback check', 'corsen-context' ); ?></h2>
 			<div class="ccx-grid">
 				<div class="ccx-card ccx-card--wide">
-					<p class="ccx-desc"><?php esc_html_e( 'Fetches your own llms.txt and MCP endpoint with the real ClaudeBot, ChatGPT-User and GPTBot user agents, plus a control client. The request re-enters through your public URL, so CDN bot filters (Cloudflare and friends) apply exactly as they would for an outside agent. No credentials involved, nothing but status codes is stored, at most one run every five minutes.', 'corsen-context' ); ?></p>
+					<p class="ccx-desc"><?php esc_html_e( 'Fetches your public llms.txt and MCP endpoint from this WordPress server with representative ClaudeBot, ChatGPT-User and GPTBot User-Agent strings, plus a control. Success requires the expected llms.txt marker or a valid MCP tools/list response. This detects many User-Agent-based CDN/WAF rules, but it cannot reproduce an external agent IP, TLS fingerprint or complete headers. No credentials are sent; only bounded result metadata is stored; at most one run every five minutes.', 'corsen-context' ); ?></p>
 					<p>
 						<a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_agent_check' ), 'corsen_ccx_agent_check' ) ); ?>"><?php esc_html_e( 'Run the agent-access check now', 'corsen-context' ); ?></a>
 					</p>
@@ -499,14 +501,14 @@ class Corsen_Context_Control_Center {
 				</table>
 				<p>
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_audit' ), 'corsen_ccx_purge_audit' ) ); ?>"><?php esc_html_e( 'Empty the audit log', 'corsen-context' ); ?></a>
-					<?php
-					$expert_counts  = wp_count_posts( 'cc_expert_request' );
-					$expert_pending = ( $expert_counts instanceof \stdClass && isset( $expert_counts->private ) ) ? (int) $expert_counts->private : 0;
-					?>
-					<?php if ( $expert_pending > 0 ) : ?>
-						<a class="button" style="margin-left:8px;" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_expert' ), 'corsen_ccx_purge_expert' ) ); ?>" onclick="return confirm('<?php echo esc_js( sprintf( 'Permanently delete %d expert request(s)?', $expert_pending ) ); ?>');">Purge expert requests (<?php echo (int) $expert_pending; ?>)</a>
-					<?php endif; ?>
 					</p>
+			<?php endif; ?>
+			<?php
+			$expert_counts  = wp_count_posts( 'cc_expert_request' );
+			$expert_pending = ( $expert_counts instanceof \stdClass && isset( $expert_counts->private ) ) ? (int) $expert_counts->private : 0;
+			?>
+			<?php if ( $expert_pending > 0 ) : ?>
+				<p><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_expert' ), 'corsen_ccx_purge_expert' ) ); ?>" onclick="return confirm('<?php echo esc_js( sprintf( 'Permanently delete %d expert request(s)?', $expert_pending ) ); ?>');">Purge expert requests (<?php echo (int) $expert_pending; ?>)</a></p>
 			<?php endif; ?>
 		</div>
 		<?php

@@ -126,7 +126,11 @@ export const integrationStacks = [
   { name: 'Next.js', detail: 'npm adapter plus App Router route handlers', current: false },
   { name: 'Astro', detail: 'npm adapter plus server endpoints', current: false },
   { name: 'Express', detail: 'Framework-agnostic core plus a reference server', current: false },
-  { name: 'Static HTML', detail: 'Build-time assets plus one same-origin MCP function', current: true },
+  {
+    name: 'Static HTML',
+    detail: 'Build-time assets plus one same-origin MCP function',
+    current: true,
+  },
 ];
 
 export const integrationSteps = [

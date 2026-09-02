@@ -1,6 +1,6 @@
 {
   "name": "@corsenai/corsen-context",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Owner-controlled public content tools for MCP, WebMCP, llms.txt, and sitemaps",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",

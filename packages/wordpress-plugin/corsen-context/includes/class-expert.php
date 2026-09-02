@@ -1,12 +1,11 @@
 <?php
 /**
- * Request_expert_call: the site's contact form as an agent-callable tool.
+ * Request_expert_call: an explicit human-handoff boundary for agents.
  *
- * The deliberate counter-example of "agents can only read": a WRITE tool
- * that is fail-closed three times over — the tool must be checked in
- * enabled_tools, the owner must set a destination email, and every call is
- * rate-limited, size-bounded and stored as a private post that is never
- * public. Nothing is echoed back to the caller.
+ * The tool is deliberately annotated non-read-only because the requested
+ * real-world action would have side effects. Every schema-valid MCP/WebMCP
+ * invocation is nevertheless refused before storage, mail or throttling and
+ * returns a page URL for a human to continue in person.
  *
  * Powered by Corsen Context - Built by Corsen AI - github.com/CorsenAI/corsen-context
  *
@@ -62,11 +61,12 @@ class Corsen_Context_Expert {
 	}
 
 	/**
-	 * Owner configuration gate: feature toggle + valid destination email.
+	 * Owner configuration gate: explicit feature toggle and handoff page.
 	 */
 	public static function configured(): bool {
 		$settings = get_option( 'corsen_context_settings', array() );
-		return ! empty( $settings['expert_enabled'] ) && (bool) sanitize_email( (string) ( $settings['expert_email'] ?? '' ) );
+		return ! empty( $settings['expert_enabled'] )
+			&& '' !== Corsen_Context_Agent_Policy::sanitize_handoff_url( $settings['expert_handoff_url'] ?? '' );
 	}
 
 	/**
@@ -77,7 +77,7 @@ class Corsen_Context_Expert {
 	public static function definition(): array {
 		return array(
 			'name'        => 'request_expert_call',
-			'description' => 'HUMANS ONLY — an AI agent must NOT call this tool. The server refuses every agent submission (error code human_only); if your user wants an expert call, hand them the page URL so they submit the form themselves. Submissions are stored privately for the site owner; nothing on the site is published or changed. Never include passwords, tokens or API keys in any field.',
+			'description' => 'HUMANS ONLY — an AI agent must NOT call this tool. Every schema-valid invocation is refused before any side effect (error code human_only); if your user wants an expert call, hand them the page URL so a human submits the visible form. MCP/WebMCP calls never store or email the supplied fields. Never include passwords, tokens or API keys.',
 			'inputSchema' => array(
 				'type'                 => 'object',
 				'properties'           => array(
@@ -128,12 +128,16 @@ class Corsen_Context_Expert {
 				return null;
 			}
 		}
-		$get   = static function ( string $key, int $max ) use ( $arguments ): ?string {
-			if ( ! isset( $arguments[ $key ] ) || ! is_string( $arguments[ $key ] ) ) {
+		$get   = static function ( string $key, int $max, bool $optional = false ) use ( $arguments ): ?string {
+			if ( ! array_key_exists( $key, $arguments ) ) {
+				return $optional ? '' : null;
+			}
+			if ( ! is_string( $arguments[ $key ] ) ) {
 				return null;
 			}
-			$value = trim( $arguments[ $key ] );
-			return strlen( $value ) > $max ? null : $value;
+			$value  = trim( $arguments[ $key ] );
+			$length = Corsen_Context_Content_Converter::utf8_length( $value );
+			return ( '' !== $value && 0 === $length ) || $length > $max ? null : $value;
 		};
 		$name  = $get( 'name', 120 );
 		$email = $get( 'email', 190 );
@@ -141,8 +145,8 @@ class Corsen_Context_Expert {
 		if ( null === $name || '' === $name || null === $msg || '' === $msg ) {
 			return null;
 		}
-		$site  = $get( 'website', 400 ) ?? '';
-		$stack = $get( 'stack', 80 ) ?? '';
+		$site  = $get( 'website', 400, true );
+		$stack = $get( 'stack', 80, true );
 		if ( null === $site || null === $stack ) {
 			return null;
 		}
@@ -196,10 +200,10 @@ class Corsen_Context_Expert {
 	}
 
 	/**
-	 * Store + notify. Never leaks stored data back to the caller.
+	 * Legacy owner-side storage helper. Never reached by MCP or WebMCP.
 	 *
-	 * Kept for the human HTML form path and future owner-approved delegation;
-	 * no MCP/WebMCP call reaches it (see execute()).
+	 * Kept only for backwards compatibility with owner-side integrations from
+	 * versions before 1.5.12. Corsen Context exposes no public route to it.
 	 *
 	 * @param array<string,string> $args Normalized args.
 	 * @return array<string,mixed> Shape ['ok'=>bool,'result'=>mixed,'error'=>string].

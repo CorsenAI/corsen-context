@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version: 1.5.13
+ * Version: 1.5.14
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.13' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.14' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -124,7 +124,7 @@ final class Corsen_Context {
 		// Agent conduct policy: single source rendered everywhere (1.5.11->12).
 		Corsen_Context_Agent_Policy::init();
 
-		// Private storage for expert requests (registered only when configured).
+		// Legacy private storage registration; no MCP/WebMCP call reaches it.
 		Corsen_Context_Expert::init();
 
 		// Admin settings.
@@ -198,23 +198,24 @@ final class Corsen_Context {
 	public function maybe_upgrade_settings(): void {
 
 		$defaults = array(
-			'enabled'           => true,
-			'mcp_enabled'       => true,
-			'llms_txt_enabled'  => true,
-			'llms_full_enabled' => false,
-			'post_types'        => array( 'post', 'page' ),
-			'exclude_paths'     => '',
-			'rate_limit'        => 100,
-			'credit'            => true,
-			'include_author'    => false,
-			'cache_ttl'         => 3600,
-			'max_pages'         => 500,
-			'max_output_bytes'  => 5242880,
+			'enabled'            => true,
+			'mcp_enabled'        => true,
+			'llms_txt_enabled'   => true,
+			'llms_full_enabled'  => false,
+			'post_types'         => array( 'post', 'page' ),
+			'exclude_paths'      => '',
+			'rate_limit'         => 100,
+			'credit'             => true,
+			'include_author'     => false,
+			'cache_ttl'          => 3600,
+			'max_pages'          => 500,
+			'max_output_bytes'   => 5242880,
 			// v1.5.0 extension tools: fail-closed, owner opt-in.
-			'audit_enabled'     => false,
-			'expert_enabled'    => false,
-			'expert_email'      => '',
-			'expert_notify'     => false,
+			'audit_enabled'      => false,
+			'expert_enabled'     => false,
+			'expert_handoff_url' => '',
+			'expert_email'       => '',
+			'expert_notify'      => false,
 		);
 		$current  = get_option( 'corsen_context_settings', false );
 		$settings = is_array( $current ) ? array_merge( $defaults, $current ) : $defaults;

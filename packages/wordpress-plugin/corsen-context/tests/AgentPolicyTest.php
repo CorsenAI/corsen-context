@@ -15,6 +15,9 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$GLOBALS['corsen_test_inserts']  = array();
 		$GLOBALS['corsen_test_options']  = array();
 		$GLOBALS['corsen_test_transients'] = array();
+		$GLOBALS['corsen_test_can_manage'] = false;
+		$_POST = array();
+		unset( $GLOBALS['corsen_test_queried_object_id'], $GLOBALS['corsen_test_permalink'], $GLOBALS['corsen_test_url_to_postid'] );
 	}
 
 	public function test_product_policy_defaults_to_allowed_with_reason(): void {
@@ -31,6 +34,24 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$this->assertSame( 'License assignment needs a human.', $policy['agentPurchaseReason'] );
 	}
 
+	public function test_policy_meta_sanitizers_are_bounded_and_fail_safe(): void {
+		$this->assertSame( 'allowed', Corsen_Context_Agent_Policy::sanitize_purchase_state( 'allowed' ) );
+		$this->assertSame( 'forbidden', Corsen_Context_Agent_Policy::sanitize_purchase_state( 'unexpected' ) );
+		$reason = Corsen_Context_Agent_Policy::sanitize_purchase_reason( '<b>' . str_repeat( 'é', 500 ) . '</b>' );
+		$this->assertLessThanOrEqual( 400, mb_strlen( $reason ) );
+		$this->assertSame( 1, preg_match( '//u', $reason ) );
+		$this->assertStringNotContainsString( '<b>', $reason );
+	}
+
+	public function test_product_policy_sanitizes_oversized_stored_reason_on_read(): void {
+		$GLOBALS['corsen_test_postmeta'][17][ Corsen_Context_Agent_Policy::META_KEY ]        = 'forbidden';
+		$GLOBALS['corsen_test_postmeta'][17][ Corsen_Context_Agent_Policy::META_REASON_KEY ] = '<script>' . str_repeat( 'é', 500 );
+		$policy = Corsen_Context_Agent_Policy::product_policy( 17 );
+		$this->assertSame( 'forbidden', $policy['agentPurchase'] );
+		$this->assertLessThanOrEqual( 400, mb_strlen( $policy['agentPurchaseReason'] ) );
+		$this->assertStringNotContainsString( '<script>', $policy['agentPurchaseReason'] );
+	}
+
 	public function test_forbidden_without_reason_gets_a_forbidden_reason(): void {
 		$GLOBALS['corsen_test_postmeta'][8][ Corsen_Context_Agent_Policy::META_KEY ] = 'forbidden';
 		$policy = Corsen_Context_Agent_Policy::product_policy( 8 );
@@ -38,18 +59,26 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'forbids AI agents', $policy['agentPurchaseReason'] );
 	}
 
-	public function test_garbage_meta_falls_back_to_allowed_fail_closed_on_labels(): void {
+	public function test_garbage_meta_fails_closed_until_owner_review(): void {
 		$GLOBALS['corsen_test_postmeta'][9][ Corsen_Context_Agent_Policy::META_KEY ] = 'yes-why-not';
 		$policy = Corsen_Context_Agent_Policy::product_policy( 9 );
-		$this->assertSame( 'allowed', $policy['agentPurchase'] );
+		$this->assertSame( 'forbidden', $policy['agentPurchase'] );
+		$this->assertStringContainsString( 'invalid', $policy['agentPurchaseReason'] );
 	}
 
 	public function test_llms_lines_render_the_live_policy(): void {
-		$block = implode( "\n", Corsen_Context_Agent_Policy::llms_lines() );
+		$block = implode( "\n", Corsen_Context_Agent_Policy::llms_lines( array( 'get_product', 'request_expert_call' ) ) );
 		$this->assertStringContainsString( '## Agent conduct policy', $block );
 		$this->assertStringContainsString( 'human_only', $block );
 		$this->assertStringContainsString( 'agentPurchase', $block );
 		$this->assertStringContainsString( (string) home_url( '/' ), $block );
+	}
+
+	public function test_llms_policy_does_not_advertise_disabled_extension_tools(): void {
+		$block = implode( "\n", Corsen_Context_Agent_Policy::llms_lines() );
+		$this->assertStringNotContainsString( 'request_expert_call', $block );
+		$this->assertStringNotContainsString( 'get_product', $block );
+		$this->assertStringContainsString( 'read-only', $block );
 	}
 
 	public function test_expert_definition_says_humans_only(): void {
@@ -81,6 +110,7 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$this->assertTrue( $policy['readOnlyByDefault'] );
 		$this->assertContains( 'request_expert_call', $policy['humanOnlyTools'] );
 		$this->assertStringStartsWith( 'http', $policy['humanHandoffUrl'] );
+		$this->assertStringNotContainsString( 'coupon', strtolower( $policy['enforcement'] ) );
 	}
 
 	public function test_human_only_notice_is_generated_from_the_policy(): void {
@@ -88,6 +118,26 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Human-only form.', $notice );
 		$this->assertStringContainsString( 'human_only', $notice );
 		$this->assertStringContainsString( (string) home_url( '/' ), $notice );
+		$this->assertStringContainsString( 'must not submit this browser form', $notice );
+	}
+
+	public function test_human_handoff_uses_the_page_rendering_the_shortcode(): void {
+		$GLOBALS['corsen_test_queried_object_id'] = 77;
+		$GLOBALS['corsen_test_url_to_postid']     = 77;
+		$GLOBALS['corsen_test_permalink']         = static function (): string {
+			return home_url( '/contact/' );
+		};
+		$this->assertSame( home_url( '/contact/' ), Corsen_Context_Agent_Policy::human_handoff_url() );
+		$this->assertStringContainsString( home_url( '/contact/' ), Corsen_Context_Agent_Policy::render_human_only_notice() );
+	}
+
+	public function test_configured_handoff_wins_outside_a_rendered_page(): void {
+		$GLOBALS['corsen_test_queried_object_id'] = 0;
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'expert_handoff_url' => home_url( '/contact/#expert-form' ),
+		);
+		$this->assertSame( home_url( '/contact/#expert-form' ), Corsen_Context_Agent_Policy::human_handoff_url() );
+		$this->assertSame( '', Corsen_Context_Agent_Policy::sanitize_handoff_url( 'https://foreign.example/contact/' ) );
 	}
 
 	public function test_head_banner_only_when_master_and_mcp_enabled(): void {
@@ -103,7 +153,13 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		$off2 = (string) ob_get_clean();
 		$this->assertSame( '', $off2, 'banner must not advertise when the master switch is off' );
 
-		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array( 'enabled' => true, 'mcp_enabled' => true );
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'enabled'             => true,
+			'mcp_enabled'         => true,
+			'enabled_tools'       => array( 'search_site', 'request_expert_call' ),
+			'expert_enabled'      => true,
+			'expert_handoff_url'  => home_url( '/contact/' ),
+		);
 		ob_start();
 		Corsen_Context_Agent_Policy::render_head_banner();
 		$on = (string) ob_get_clean();
@@ -144,5 +200,29 @@ class AgentPolicyTest extends WP_UnitTestCase {
 		);
 		$this->assertContains( array( 432, Corsen_Context_Agent_Policy::META_KEY ), $deleted );
 		$this->assertContains( array( 432, Corsen_Context_Agent_Policy::META_REASON_KEY ), $deleted );
+	}
+
+	public function test_product_editor_policy_save_is_nonce_and_capability_protected(): void {
+		$post              = new \WP_Post();
+		$post->ID          = 500;
+		$post->post_type   = 'product';
+		$post->post_status = 'publish';
+		$_POST = array(
+			'corsen_context_product_policy_nonce'       => 'testnonce',
+			'corsen_context_agent_purchase_state'       => 'forbidden',
+			'corsen_context_agent_purchase_reason'      => 'License assignment requires a human.',
+		);
+		Corsen_Context_Agent_Policy::save_product_metabox( 500, $post );
+		$this->assertArrayNotHasKey( 500, $GLOBALS['corsen_test_postmeta'], 'unauthorized saves must not change policy' );
+
+		$GLOBALS['corsen_test_can_manage'] = true;
+		Corsen_Context_Agent_Policy::save_product_metabox( 500, $post );
+		$this->assertSame( 'forbidden', $GLOBALS['corsen_test_postmeta'][500][ Corsen_Context_Agent_Policy::META_KEY ] );
+		$this->assertSame( 'License assignment requires a human.', $GLOBALS['corsen_test_postmeta'][500][ Corsen_Context_Agent_Policy::META_REASON_KEY ] );
+
+		$_POST['corsen_context_product_policy_nonce'] = 'wrong';
+		$_POST['corsen_context_agent_purchase_state'] = 'allowed';
+		Corsen_Context_Agent_Policy::save_product_metabox( 500, $post );
+		$this->assertSame( 'forbidden', $GLOBALS['corsen_test_postmeta'][500][ Corsen_Context_Agent_Policy::META_KEY ], 'invalid nonce must preserve prior policy' );
 	}
 }

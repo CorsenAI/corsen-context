@@ -49,7 +49,7 @@ class Corsen_Context_Abilities {
 			self::CATEGORY,
 			array(
 				'label'       => __( 'Corsen Context', 'corsen-context' ),
-				'description' => __( 'Site tools published by the owner for AI agents: read-only content access, plus an opt-in private contact submission.', 'corsen-context' ),
+				'description' => __( 'Owner-published agent tools: read-only public content plus an optional human-only handoff boundary that refuses agent execution before side effects.', 'corsen-context' ),
 			)
 		);
 	}
@@ -87,7 +87,8 @@ class Corsen_Context_Abilities {
 					// unpassworded, owner-selected posts are ever exposed.
 					'permission_callback' => '__return_true',
 					'meta'                => array(
-						// The expert tool writes private submissions; never claim readonly.
+						// The requested action is non-read-only even though execution
+						// always refuses it before side effects.
 						'annotations' => array( 'readonly' => 'request_expert_call' !== $tool ),
 						'public'      => true,
 					),
@@ -143,9 +144,9 @@ class Corsen_Context_Abilities {
 							'title'       => array( 'type' => 'string' ),
 							'description' => array( 'type' => 'string' ),
 							'snippet'     => array( 'type' => 'string' ),
-							'score'       => array( 'type' => 'number' ),
+							'rank'        => array( 'type' => 'integer' ),
 						),
-						'required'   => array( 'url', 'title' ),
+						'required'   => array( 'url', 'title', 'description', 'snippet', 'rank' ),
 					),
 				);
 			case 'get_page_content':
@@ -186,51 +187,100 @@ class Corsen_Context_Abilities {
 							'title'        => array( 'type' => 'string' ),
 							'type'         => array( 'type' => 'string' ),
 							'lastModified' => array( 'type' => 'string' ),
-							'price'        => array( 'type' => 'number' ),
-							'inStock'      => array( 'type' => 'boolean' ),
 						),
-						'required'   => array( 'url' ),
+						'required'   => array( 'url', 'title', 'type', 'lastModified' ),
 					),
 				);
 			case 'get_product':
 				return array(
 					'type'       => 'object',
 					'properties' => array(
-						'url'         => array( 'type' => 'string' ),
-						'title'       => array( 'type' => 'string' ),
-						'price'       => array( 'type' => 'number' ),
-						'currency'    => array( 'type' => 'string' ),
-						'inStock'     => array( 'type' => 'boolean' ),
-						'stockStatus' => array( 'type' => 'string' ),
-						'image'       => array( 'type' => 'object' ),
-						'gallery'     => array( 'type' => 'array' ),
+						'url'                 => array( 'type' => 'string' ),
+						'slug'                => array( 'type' => 'string' ),
+						'title'               => array( 'type' => 'string' ),
+						'type'                => array( 'type' => 'string' ),
+						'sku'                 => array( 'type' => 'string' ),
+						'description'         => array( 'type' => 'string' ),
+						'price'               => array( 'type' => array( 'number', 'null' ) ),
+						'regularPrice'        => array( 'type' => array( 'number', 'null' ) ),
+						'salePrice'           => array( 'type' => array( 'number', 'null' ) ),
+						'currency'            => array( 'type' => 'string' ),
+						'priceHtml'           => array( 'type' => 'string' ),
+						'onSale'              => array( 'type' => 'boolean' ),
+						'purchasable'         => array( 'type' => 'boolean' ),
+						'inStock'             => array( 'type' => 'boolean' ),
+						'stockStatus'         => array( 'type' => 'string' ),
+						'agentPurchase'       => array(
+							'type' => 'string',
+							'enum' => array( 'allowed', 'forbidden' ),
+						),
+						'agentPurchaseReason' => array( 'type' => 'string' ),
+						'image'               => array( 'type' => array( 'object', 'null' ) ),
+						'gallery'             => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'object' ),
+						),
+						'categories'          => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'tags'                => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'lastModified'        => array( 'type' => 'string' ),
+						'stockQuantity'       => array( 'type' => array( 'integer', 'null' ) ),
+						'variants'            => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'object' ),
+						),
+						'truncated'           => array( 'type' => 'boolean' ),
 					),
-					'required'   => array( 'url', 'title' ),
+					'required'   => array( 'url', 'slug', 'title', 'type', 'sku', 'description', 'price', 'regularPrice', 'salePrice', 'currency', 'priceHtml', 'onSale', 'purchasable', 'inStock', 'stockStatus', 'agentPurchase', 'agentPurchaseReason', 'image', 'gallery', 'categories', 'tags', 'lastModified' ),
 				);
 			case 'get_sections':
 				return array(
 					'type'       => 'object',
 					'properties' => array(
-						'url'          => array( 'type' => 'string' ),
-						'title'        => array( 'type' => 'string' ),
-						'totalBytes'   => array( 'type' => 'integer' ),
-						'sectionCount' => array( 'type' => 'integer' ),
-						'sections'     => array( 'type' => 'array' ),
-						'markdown'     => array( 'type' => 'string' ),
+						'url'              => array( 'type' => 'string' ),
+						'title'            => array( 'type' => 'string' ),
+						'totalBytes'       => array( 'type' => 'integer' ),
+						'lastModified'     => array( 'type' => 'string' ),
+						'sectionCount'     => array( 'type' => 'integer' ),
+						'sections'         => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'object' ),
+						),
+						'outlineTruncated' => array( 'type' => 'boolean' ),
+						'section'          => array( 'type' => 'object' ),
+						'offset'           => array( 'type' => 'integer' ),
+						'bytes'            => array( 'type' => 'integer' ),
+						'markdown'         => array( 'type' => 'string' ),
+						'nextOffset'       => array( 'type' => 'integer' ),
 					),
-					'required'   => array( 'url', 'title' ),
+					'required'   => array( 'url', 'title', 'totalBytes' ),
 				);
 			case 'get_structured_data':
 				return array(
 					'type'       => 'object',
 					'properties' => array(
-						'url'        => array( 'type' => 'string' ),
-						'title'      => array( 'type' => 'string' ),
-						'blockCount' => array( 'type' => 'integer' ),
-						'types'      => array( 'type' => 'object' ),
-						'blocks'     => array( 'type' => 'array' ),
+						'url'             => array( 'type' => 'string' ),
+						'title'           => array( 'type' => 'string' ),
+						'lastModified'    => array( 'type' => 'string' ),
+						'blockCount'      => array( 'type' => 'integer' ),
+						'types'           => array( 'type' => 'object' ),
+						'blocks'          => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'object' ),
+						),
+						'from'            => array(
+							'type'  => 'array',
+							'items' => array( 'type' => 'string' ),
+						),
+						'untrusted'       => array( 'type' => 'string' ),
+						'blocksTruncated' => array( 'type' => 'boolean' ),
 					),
-					'required'   => array( 'url', 'blocks' ),
+					'required'   => array( 'url', 'title', 'lastModified', 'blockCount', 'types', 'blocks', 'from', 'untrusted' ),
 				);
 			case 'check_agent_access':
 				return array(

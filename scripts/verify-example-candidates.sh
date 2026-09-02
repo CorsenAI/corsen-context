@@ -142,12 +142,16 @@ verify_candidate_files() {
 }
 
 start_mock() {
-  node scripts/mock-public-cms.mjs "$MOCK_PORT_FILE" >"$MOCK_LOG" 2>&1 &
+  local mock_port_file_native="$MOCK_PORT_FILE"
+  if command -v cygpath >/dev/null 2>&1; then
+    mock_port_file_native="$(cygpath -w "$MOCK_PORT_FILE")"
+  fi
+  node scripts/mock-public-cms.mjs "$mock_port_file_native" >"$MOCK_LOG" 2>&1 &
   MOCK_PID=$!
 
   local mock_port=""
   local attempt
-  for ((attempt = 0; attempt < 200; attempt += 1)); do
+  for ((attempt = 0; attempt < 600; attempt += 1)); do
     if [[ -s "$MOCK_PORT_FILE" ]]; then
       mock_port="$(tr -d '[:space:]' < "$MOCK_PORT_FILE")"
       if [[ "$mock_port" =~ ^[0-9]+$ ]] && (( mock_port >= 1 && mock_port <= 65535 )); then

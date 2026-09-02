@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { detectFramework, init } from '../src/init.js';
 import { parseArgs } from '../src/generate.js';
-import { doctor } from '../src/doctor.js';
+import { doctor, resolveDiscoveredMcpEndpoint } from '../src/doctor.js';
 
 describe('parseArgs (generate)', () => {
   it('parses --url and --output', () => {
@@ -96,6 +96,77 @@ describe('doctor exit status', () => {
     expect(results.some((result) => result.status === 'warn')).toBe(true);
     expect(results.some((result) => result.status === 'fail')).toBe(false);
     expect(process.exitCode).toBe(0);
+  });
+
+  it('uses a same-origin MCP endpoint discovered from llms.txt', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const target = String(input);
+      if (target.endsWith('/llms.txt')) {
+        return new Response('MCP endpoint: /wp-json/corsen-context/v1/mcp\n');
+      }
+      if (target.endsWith('/wp-json/corsen-context/v1/mcp') && init?.method === 'POST') {
+        const request = JSON.parse(String(init.body));
+        if (request.method === 'initialize') {
+          return Response.json({
+            jsonrpc: '2.0',
+            id: 1,
+            result: {
+              protocolVersion: request.params.protocolVersion,
+              serverInfo: { name: 'doctor-test', version: '1.0.0' },
+            },
+          });
+        }
+        return new Response(null, { status: 202 });
+      }
+      return new Response('', { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const results = await doctor(['--url', 'https://8.8.8.8']);
+
+    expect(results.find((result) => result.name === 'MCP Endpoint')?.status).toBe('pass');
+    expect(
+      fetchMock.mock.calls.some(([target]) => String(target) === 'https://8.8.8.8/v1/mcp'),
+    ).toBe(false);
+  });
+
+  it('falls back to a valid same-origin MCP line in robots.txt', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const target = String(input);
+      if (target.endsWith('/robots.txt')) {
+        return new Response('User-agent: *\nMCP: /custom/mcp\n');
+      }
+      if (target.endsWith('/custom/mcp') && init?.method === 'POST') {
+        const request = JSON.parse(String(init.body));
+        if (request.method === 'initialize') {
+          return Response.json({
+            jsonrpc: '2.0',
+            id: 1,
+            result: {
+              protocolVersion: request.params.protocolVersion,
+              serverInfo: { name: 'doctor-test', version: '1.0.0' },
+            },
+          });
+        }
+        return new Response(null, { status: 202 });
+      }
+      return new Response('', { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const results = await doctor(['--url', 'https://8.8.8.8']);
+
+    expect(results.find((result) => result.name === 'robots.txt MCP')?.status).toBe('pass');
+    expect(results.find((result) => result.name === 'MCP Endpoint')?.status).toBe('pass');
+  });
+
+  it('rejects cross-origin, private, credentialed, and fragment discovery values', () => {
+    const base = 'https://example.com';
+    expect(resolveDiscoveredMcpEndpoint(base, '/v1/mcp')).toBe('https://example.com/v1/mcp');
+    expect(resolveDiscoveredMcpEndpoint(base, 'https://evil.example/v1/mcp')).toBeNull();
+    expect(resolveDiscoveredMcpEndpoint(base, 'http://127.0.0.1/private')).toBeNull();
+    expect(resolveDiscoveredMcpEndpoint(base, 'https://user:pass@example.com/v1/mcp')).toBeNull();
+    expect(resolveDiscoveredMcpEndpoint(base, '/v1/mcp#fragment')).toBeNull();
   });
 });
 

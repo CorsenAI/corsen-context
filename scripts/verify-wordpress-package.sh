@@ -9,7 +9,15 @@ for command_name in cmp mariadb mariadb-admin mariadb-install-db mariadbd node p
 done
 
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-ARCHIVE_PATH="${1:-$REPOSITORY_ROOT/dist/corsen-context-1.4.1.zip}"
+PLUGIN_MAIN="$REPOSITORY_ROOT/packages/wordpress-plugin/corsen-context/corsen-context.php"
+PLUGIN_README="$REPOSITORY_ROOT/packages/wordpress-plugin/corsen-context/readme.txt"
+HEADER_VERSION="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([^[:space:]]+).*/\1/p' "$PLUGIN_MAIN" | tr -d '\r' | head -n 1)"
+STABLE_VERSION="$(sed -nE 's/^Stable tag:[[:space:]]*([^[:space:]]+).*/\1/p' "$PLUGIN_README" | tr -d '\r' | head -n 1)"
+if [[ -z "$HEADER_VERSION" || "$HEADER_VERSION" != "$STABLE_VERSION" ]]; then
+  echo "Plugin header and stable-tag versions must match before package verification" >&2
+  exit 2
+fi
+ARCHIVE_PATH="${1:-$REPOSITORY_ROOT/dist/corsen-context-$HEADER_VERSION.zip}"
 AURORA_FIXTURE_PATH="${AURORA_FIXTURE_PATH:-}"
 WORDPRESS_VERSION="${WORDPRESS_VERSION:-7.0.2}"
 TEMP_ROOT="$(realpath -m "${TMPDIR:-/tmp}")"

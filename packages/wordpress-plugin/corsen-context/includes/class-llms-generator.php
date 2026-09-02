@@ -56,18 +56,18 @@ class Corsen_Context_Llms_Generator {
 			$lines[] = '';
 		}
 
-		$lines[] = '## About this AI Context File';
-		$lines[] = 'This file publishes selected public site content for clients and services that support the llms.txt convention.';
+		$lines[]       = '## About this AI Context File';
+		$lines[]       = 'This file publishes selected public site content for clients and services that support the llms.txt convention.';
+		$exposed_tools = array();
 		if ( ! empty( $settings['enabled'] ) && ! empty( $settings['mcp_enabled'] ) ) {
-			$has_write = in_array( 'request_expert_call', (array) ( $settings['enabled_tools'] ?? array() ), true )
-				&& class_exists( 'Corsen_Context_Expert' )
-				&& Corsen_Context_Expert::configured();
-			$lines[]   = $has_write
+			$exposed_tools = array_column( ( new Corsen_Context_MCP_Server() )->get_tool_definitions(), 'name' );
+			$has_write     = in_array( 'request_expert_call', $exposed_tools, true );
+			$lines[]       = $has_write
 				? 'For dynamic access, compatible clients can use the MCP-style JSON-RPC endpoint below: read-only content tools plus a human-only expert request channel that agents must not call.'
 				: 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
-			$lines[]   = 'MCP endpoint: ' . $mcp_url;
+			$lines[]       = 'MCP endpoint: ' . $mcp_url;
 		}
-		foreach ( Corsen_Context_Agent_Policy::llms_lines() as $policy_line ) {
+		foreach ( Corsen_Context_Agent_Policy::llms_lines( $exposed_tools ) as $policy_line ) {
 			$lines[] = $policy_line;
 		}
 		$lines[] = '';

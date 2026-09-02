@@ -16,12 +16,12 @@ for every store.
 - Header: `MCP-Protocol-Version: 2025-11-25`
 - `tools/list` returns 13 commerce tools:
 
-| Domain   | Tools                                                                                             |
-| -------- | ------------------------------------------------------------------------------------------------- |
-| Checkout | `get_checkout`, `create_checkout`, `update_checkout`, `complete_checkout`, `cancel_checkout`      |
-| Cart     | `get_cart`, `create_cart`, `update_cart`, `cancel_cart`                                           |
-| Order    | `get_order`                                                                                        |
-| Catalog  | `search_catalog`, `lookup_catalog`, `get_product`                                                  |
+| Domain   | Tools                                                                                        |
+| -------- | -------------------------------------------------------------------------------------------- |
+| Checkout | `get_checkout`, `create_checkout`, `update_checkout`, `complete_checkout`, `cancel_checkout` |
+| Cart     | `get_cart`, `create_cart`, `update_cart`, `cancel_cart`                                      |
+| Order    | `get_order`                                                                                  |
+| Catalog  | `search_catalog`, `lookup_catalog`, `get_product`                                            |
 
 ## Agent profile
 

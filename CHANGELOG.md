@@ -1,5 +1,25 @@
 # Changelog
 
+## npm packages [2.0.1] - Candidate - 2026-09-02
+
+- The CLI now discovers custom MCP endpoints from `llms.txt` or `robots.txt`,
+  accepts only same-origin HTTPS targets, and falls back safely to `/v1/mcp`.
+- All four public packages carry the same candidate version, and every npm
+  example is pinned to the published 2.x API and passes the local-tarball
+  installation/build/transport receipt.
+
+## WordPress plugin [1.5.14] - Candidate - 2026-09-02
+
+- Hardened product lookup and every optional reader against the same owner
+  visibility policy used by the four core tools.
+- Bounded and secured structured-data loopbacks, corrected Abilities output
+  schemas, Unicode-safe validators/chunks, and ignored fenced-code headings in
+  section outlines.
+- Added an explicit same-origin human handoff URL, complete uninstall cleanup
+  including trashed private requests, per-product WooCommerce policy controls,
+  and strict response validation for the owner-triggered agent-surface check.
+- Unit receipt: 188 tests / 868 assertions; WordPress coding standards clean.
+
 ## npm packages [2.0.0] - Candidate - 2026-08-30
 
 ### Breaking runtime requirement
@@ -114,67 +134,77 @@
   before core's canonical redirect can leak the login in a `Location` header.
   The 1.5.4 fix had only blocked the REST users collection.
 - The MCP route's `OPTIONS` preflight is answered by the plugin (`Allow: POST,
-  OPTIONS`, no credentials, `Vary: Origin`) instead of core advertising every
+OPTIONS`, no credentials, `Vary: Origin`) instead of core advertising every
   verb with `Access-Control-Allow-Credentials` for any echoed origin — the
   same class of transport lie the 1.5.9 `Allow` fix closed for `GET`.
 - Tests: 153 unit (adds the always-resolving `top` regression) and 2 new
   integration cases (annotation emission, author-door blocking).
 
 ## WordPress plugin [1.5.10] - 2026-09-01
-* `get_product(slug)` integrity: the resolver now verifies the candidate's stored
+
+- `get_product(slug)` integrity: the resolver now verifies the candidate's stored
   `post_name` (slugs are exact or nothing) and the slug branch obeys the same
   owner exposure policy as the URL branch. Previously a stale query silently
   returned a DIFFERENT product and bypassed exclusions (external live audit).
-* `get_sections` outline is an index: entries expose only `id`, `level`,
+- `get_sections` outline is an index: entries expose only `id`, `level`,
   `heading`, `bytes`. Embedding each section's markdown had made the "cheap"
   outline (95 KB) bigger than `get_page_content` of the same page (85 KB).
   Section ids are collision-free even against literal `-N` suffixes, and
   byte-budget chunks never split a UTF-8 codepoint.
-* Control Center save integrity: the form posts `hide_user_enumeration` and
+- Control Center save integrity: the form posts `hide_user_enumeration` and
   `credit` explicitly (every CC save silently switched them off), and a
   deliberately empty content-type selection persists as "expose nothing"
   instead of reverting to `post,page`.
 
 ## WordPress plugin [1.5.9] - 2026-09-01
-* MCP route `Allow` header: the 405 GET answer now advertises `POST` only.
+
+- MCP route `Allow` header: the 405 GET answer now advertises `POST` only.
   WordPress Core was overwriting it with the route's registered methods
   (`POST, GET, OPTIONS`), contradicting the MCP transport spec, the plugin's
   own documentation, and the nine other reference stacks. New integration
   test covers the header end to end.
 
 ## WordPress plugin [1.5.8] - 2026-09-01
-* Agent-access MCP probe sends proper JSON-RPC headers (endpoint answers 200, not 415); new test asserts the probe's own headers (the 1.5.5 announced fix had silently failed to apply - caught by live re-verification, never by the suite).
+
+- Agent-access MCP probe sends proper JSON-RPC headers (endpoint answers 200, not 415); new test asserts the probe's own headers (the 1.5.5 announced fix had silently failed to apply - caught by live re-verification, never by the suite).
 
 ## WordPress plugin [1.5.7] - 2026-09-01
-* `check_agent_access` call routing added to the MCP server switch (was advertised but not callable); server-level routing regression test added (tools/list presence alone no longer trusted as proof of callability).
+
+- `check_agent_access` call routing added to the MCP server switch (was advertised but not callable); server-level routing regression test added (tools/list presence alone no longer trusted as proof of callability).
 
 ## WordPress plugin [1.5.6] - 2026-09-01
-* Fix owner-footgun: Control Center catalog now covers every known tool (`get_sections`/`get_structured_data` cards were missing, so a CC form-save silently dropped them); regression test enforces catalog completeness.
+
+- Fix owner-footgun: Control Center catalog now covers every known tool (`get_sections`/`get_structured_data` cards were missing, so a CC form-save silently dropped them); regression test enforces catalog completeness.
 
 ## WordPress plugin [1.5.5] - 2026-09-01
-* Version bump only in practice: the probe-header fix announced here silently failed to apply and is genuinely shipped in 1.5.8 with a test.
+
+- Version bump only in practice: the probe-header fix announced here silently failed to apply and is genuinely shipped in 1.5.8 with a test.
 
 ## WordPress plugin [1.5.4] - 2026-09-01
-* `check_agent_access` (opt-in, fail-closed): read-only report of the owner's latest agent-access self-test — ClaudeBot/ChatGPT-User/GPTBot/control UAs against own llms.txt + MCP endpoint, HTTP code and answering edge per probe.
-* Control Center "Agent access" card: nonce-protected button runs the loopback probe (max one run per 5 min, status codes only, no credentials, self-URL guard), renders the verdict table and Cloudflare fix guidance.
+
+- `check_agent_access` (opt-in, fail-closed): read-only report of the owner's latest agent-access self-test — ClaudeBot/ChatGPT-User/GPTBot/control UAs against own llms.txt + MCP endpoint, HTTP code and answering edge per probe.
+- Control Center "Agent access" card: nonce-protected button runs the loopback probe (max one run per 5 min, status codes only, no credentials, self-URL guard), renders the verdict table and Cloudflare fix guidance.
 
 ## WordPress plugin [1.5.3] - 2026-09-01
-* Extension tools `get_sections` (bounded outline + per-section reads with
+
+- Extension tools `get_sections` (bounded outline + per-section reads with
   byte pagination) and `get_structured_data` (sanitized JSON-LD blocks), both
   owner-toggled, fail-closed, and outside the shared contract hash.
-* Converter: HTML tables become GitHub-flavored pipe tables.
+- Converter: HTML tables become GitHub-flavored pipe tables.
 
 ## WordPress plugin [1.5.2] - 2026-09-01
-* structuredContent on success (bridge returns objects), protocol-version
+
+- structuredContent on success (bridge returns objects), protocol-version
   fallback 2025-03-26 per spec, annotation default fails closed (writable),
   rank replaces fake score, Woo transactional pages auto-excluded,
   opt-in user-enumeration block, HTTP Link rel=mcp, expert inbox purge.
 
 ## WordPress plugin [1.5.1] - 2026-09-01
-* list_content(type=product): compact price/currency/inStock/image/slug when
+
+- list_content(type=product): compact price/currency/inStock/image/slug when
   get_product is exposed (1 call instead of 1+N; measured 182x token saving).
-* get_product image+gallery as {url,width,height,alt} objects.
-* structuredContent error codes on MCP tool errors + retry_after/Retry-After
+- get_product image+gallery as {url,width,height,alt} objects.
+- structuredContent error codes on MCP tool errors + retry_after/Retry-After
   on expert rate limiting.
 
 ## WordPress plugin [1.5.0] - Candidate - 2026-09-01
@@ -185,7 +215,7 @@
   exposed / needs-config / off badges, a what-agents-see preview computed from
   the actually exposed tool list, and a nonce-protected audit purge action.
 - Added the WordPress Abilities API surface: enabled tools register as
- abilities on WordPress 6.9+, sharing the exact MCP input schemas and the
+  abilities on WordPress 6.9+, sharing the exact MCP input schemas and the
   single server-side executor; inert on older versions.
 - Added two opt-in WordPress-only extension tools outside the cross-runtime
   manifest: `get_product` (live WooCommerce price/stock/images/variants) and

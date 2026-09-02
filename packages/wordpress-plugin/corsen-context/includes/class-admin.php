@@ -185,35 +185,24 @@ class Corsen_Context_Admin {
 		);
 		add_settings_field(
 			'expert_enabled',
-			'Expert Requests Feature',
+			'Human-only Expert Handoff',
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_experts',
 			array(
 				'field' => 'expert_enabled',
-				'label' => 'Allow the request_expert_call tool (private submissions only; still requires the tool checkbox above)',
+				'label' => 'Expose request_expert_call as a hard-refusal boundary with a human handoff URL (also requires the tool checkbox above)',
 			)
 		);
 		add_settings_field(
-			'expert_email',
-			'Destination Email',
+			'expert_handoff_url',
+			'Human Handoff Page',
 			array( $this, 'render_text' ),
 			'corsen-context',
 			'corsen_context_experts',
 			array(
-				'field'       => 'expert_email',
-				'description' => 'Where submissions go. The tool stays hidden to agents until a valid destination address is saved here.',
-			)
-		);
-		add_settings_field(
-			'expert_notify',
-			'Email Notifications',
-			array( $this, 'render_checkbox' ),
-			'corsen-context',
-			'corsen_context_experts',
-			array(
-				'field' => 'expert_notify',
-				'label' => 'Send a wp_mail notification for every submission',
+				'field'       => 'expert_handoff_url',
+				'description' => 'Required to expose request_expert_call. Enter a full URL on this site where a human can complete the visible form.',
 			)
 		);
 		add_settings_field(
@@ -224,7 +213,7 @@ class Corsen_Context_Admin {
 			'corsen_context_experts',
 			array(
 				'field' => 'audit_enabled',
-				'label' => 'Record tool calls (tool name, argument fingerprint, hashed IP, outcome) in a bounded local table — max 500 rows / 30 days, no raw arguments or IPs stored',
+				'label' => 'Record tool calls in a local table with a hard 500-row cap; WP-Cron prunes entries older than 30 days, and no raw arguments or IPs are stored',
 			)
 		);
 
@@ -318,6 +307,7 @@ class Corsen_Context_Admin {
 		$sanitized['audit_enabled']             = ! empty( $input['audit_enabled'] );
 		$sanitized['hide_user_enumeration']     = ! empty( $input['hide_user_enumeration'] );
 		$sanitized['expert_enabled']            = ! empty( $input['expert_enabled'] );
+		$sanitized['expert_handoff_url']        = Corsen_Context_Agent_Policy::sanitize_handoff_url( $input['expert_handoff_url'] ?? '' );
 		$sanitized['expert_notify']             = ! empty( $input['expert_notify'] );
 		$sanitized['expert_email']              = sanitize_email( (string) ( $input['expert_email'] ?? '' ) );
 		$sanitized['webmcp_origin_trial_token'] = substr( (string) preg_replace( '/[^A-Za-z0-9+\/=]/', '', (string) ( $input['webmcp_origin_trial_token'] ?? '' ) ), 0, 4096 );
@@ -413,7 +403,7 @@ class Corsen_Context_Admin {
 			)
 		);
 		echo in_array( 'request_expert_call', $exposed_tools, true )
-			? '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read your selected published content and file private expert-request submissions (a contact form the owner reviews; nothing is published or changed).</p>'
+			? '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read selected public content and discover that expert intake is human-only. A schema-valid expert call is refused with <code>human_only</code> and a handoff URL before any side effect.</p>'
 			: '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read only. They look up and read your selected published content. These tools cannot create, edit, delete, purchase, submit, or click &mdash; every exposed tool is marked read-only and untrusted-content.</p>';
 		printf(
 			'<p style="margin:6px 0;"><strong>Tools exposed:</strong> %s</p>',
@@ -436,12 +426,12 @@ class Corsen_Context_Admin {
 
 	/** Intro copy for the Agent Tools section. */
 	public function render_tools_intro(): void {
-		echo '<p>Choose exactly which Corsen Context tools agents may call. The four core tools and <code>get_product</code> are <strong>read-only</strong>. <code>request_expert_call</code> is a <strong>write</strong> tool: it only creates a private owner-side submission (like a contact form), never edits or publishes anything, is rate-limited, and stays hidden until a destination email is configured below.</p>';
+		echo '<p>Choose exactly which Corsen Context tools agents may call. The content tools are <strong>read-only</strong>. <code>request_expert_call</code> represents a non-read-only action but always refuses agent execution with <code>human_only</code> and a page URL, before storage, email or throttling.</p>';
 	}
 
 	/** Intro copy for the Expert Requests & Audit section. */
 	public function render_experts_intro(): void {
-		echo '<p>Owner-controlled extras: an optional write tool that turns agent requests into private submissions, and a bounded local audit log of tool calls. Both are off until you switch them on.</p>';
+		echo '<p>Owner-controlled extras: an optional human-only handoff boundary and a bounded local audit log of tool calls. Both are off until you switch them on.</p>';
 	}
 
 	/** Per-tool checkboxes bound to the enabled_tools setting. */
@@ -455,8 +445,8 @@ class Corsen_Context_Admin {
 			'get_product'         => 'Read one product with live price and stock (requires WooCommerce)',
 			'get_sections'        => 'Read a page as a bounded outline plus one section at a time (token-safe on large pages)',
 			'get_structured_data' => 'Read a page\'s JSON-LD typed data (products, recipes, FAQs) exactly as the site publishes it',
-			'check_agent_access'  => 'Report the owner\'s latest agent-access self-test (did real ClaudeBot/ChatGPT/GPTBot clients get through the CDN?)',
-			'request_expert_call' => 'Submit the expert-request form (WRITE tool; also needs the expert options below and stays hidden until a destination email is saved)',
+			'check_agent_access'  => 'Read the owner\'s latest same-site surface check using representative bot User-Agent strings (not a full external-agent test)',
+			'request_expert_call' => 'Human-only expert handoff (non-read-only semantics; every schema-valid call is refused before side effects)',
 		);
 		$enabled  = $settings['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS;
 		// Preserve an explicit empty selection when every checkbox is cleared.

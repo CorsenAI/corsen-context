@@ -108,8 +108,8 @@ all the same kind of product. A public target is current only when
 | Stack              | Integration delivered to the site owner                            |
 | ------------------ | ------------------------------------------------------------------ |
 | WordPress          | Native PHP plugin                                                  |
-| Next.js App Router | npm 2.0.0 candidate plus complete example                          |
-| Astro              | npm 2.0.0 candidate plus complete SSR example                      |
+| Next.js App Router | npm 2.0.1 candidate plus complete example                          |
+| Astro              | npm 2.0.1 candidate plus complete SSR example                      |
 | Express            | Framework-agnostic core plus reference server                      |
 | Static HTML        | Build-time assets plus one same-origin Node endpoint               |
 | Ghost              | Deployable read-only Node bridge over the Content API              |

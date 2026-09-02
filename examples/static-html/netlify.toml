@@ -1,12 +1,3 @@
 [build]
   publish = "public"
   command = "node scripts/build.mjs"
-
-[functions]
-  directory = "netlify/functions"
-
-# Shopify OAuth callback -> Netlify Function (rewrite, keeps the ?code= query)
-[[redirects]]
-  from = "/oauth/callback"
-  to = "/.netlify/functions/oauth-callback"
-  status = 200

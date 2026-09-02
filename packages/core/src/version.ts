@@ -8,7 +8,7 @@
  */
 
 /** Corsen Context release version. */
-export const CORSEN_CONTEXT_VERSION = '2.0.0';
+export const CORSEN_CONTEXT_VERSION = '2.0.1';
 
 /** MCP protocol version implemented by this server. */
 export const MCP_PROTOCOL_VERSION = '2025-11-25';

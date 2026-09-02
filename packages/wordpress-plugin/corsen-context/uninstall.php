@@ -18,11 +18,13 @@ delete_option( 'corsen_context_cache_version' );
 delete_option( 'corsen_context_db_version' );
 delete_option( 'corsen_context_rewrite_version' );
 delete_option( 'corsen_context_llms_full_generation_lock' );
+delete_option( 'corsen_context_agent_access' );
 // Removed experimental form storage from 1.4.0.
 delete_option( 'corsen_context_form_submissions' );
 // Remove cached llms.txt files.
 delete_transient( 'corsen_context_llms_txt' );
 delete_transient( 'corsen_context_llms_full_txt' );
+delete_transient( 'corsen_context_agent_access_lock' );
 wp_clear_scheduled_hook( 'corsen_context_hourly_cleanup' );
 wp_clear_scheduled_hook( 'corsen_context_regenerate_llms_full' );
 wp_clear_scheduled_hook( 'corsen_context_regenerate_llms_full_once' );
@@ -36,6 +38,7 @@ $transient_patterns = array(
 	'_transient_corsen_expt_%',
 	'_transient_timeout_corsen_expt_%',
 	'_transient_corsen_expert_count',
+	'_transient_timeout_corsen_expert_count',
 );
 foreach ( $transient_patterns as $pattern ) {
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall must remove plugin transients by prefix.
@@ -58,7 +61,9 @@ delete_option( 'corsen_context_audit_db_version' );
 $expert_ids = get_posts(
 	array(
 		'post_type'     => 'cc_expert_request',
-		'post_status'   => 'any',
+		// WP_Query's "any" omits trash and some internal statuses. Enumerating
+		// every registered status prevents private PII from surviving uninstall.
+		'post_status'   => array_keys( get_post_stati() ),
 		'numberposts'   => -1,
 		'fields'        => 'ids',
 		'no_found_rows' => true,
@@ -67,3 +72,7 @@ $expert_ids = get_posts(
 foreach ( $expert_ids as $expert_id ) {
 	wp_delete_post( (int) $expert_id, true );
 }
+
+// Remove owner policy metadata stored on WooCommerce products.
+delete_post_meta_by_key( '_cc_agent_purchase' );
+delete_post_meta_by_key( '_cc_agent_purchase_reason' );

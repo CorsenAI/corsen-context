@@ -53,7 +53,7 @@
     { text: 'Live trace', href: '#live' },
     { text: 'How it works', href: '#how' },
     { text: 'All integrations', href: FLAGSHIP + '/#integrations', external: true },
-    { text: 'GitHub', href: REPO, external: true }
+    { text: 'GitHub', href: REPO, external: true },
   ];
 
   function appendLinks(container) {
@@ -150,7 +150,9 @@
 
     var legal = el('div', 'cc-foot-legal');
     legal.appendChild(el('span', '', 'Open-source demo (MIT), built for The WebMCP Challenge.'));
-    legal.appendChild(el('span', '', 'This page exposes read-only public content; it collects no personal data.'));
+    legal.appendChild(
+      el('span', '', 'This page exposes read-only public content; it collects no personal data.'),
+    );
     wrap.appendChild(legal);
 
     wrap.appendChild(el('span', 'cc-foot-mit', 'MIT License'));
