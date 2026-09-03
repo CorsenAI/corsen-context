@@ -343,10 +343,12 @@ for example in "${EXAMPLES[@]}"; do
     astro-basic) candidate_archives+=("$PACK_DIR/astro.tgz") ;;
   esac
 
+  # Keep the checked-in lockfile active while replacing only the candidate
+  # packages. --no-save prevents lockfile writes without floating unrelated
+  # framework dependencies to newly published versions during this run.
   npm install \
     --prefix "$example_dir" \
     --no-save \
-    --package-lock=false \
     --include=optional \
     --no-audit \
     --no-fund \
