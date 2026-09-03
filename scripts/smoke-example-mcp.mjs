@@ -35,13 +35,14 @@ async function verifyInlineScriptsCompile() {
   assert.ok(scripts.length > 0, `${label}: homepage must contain an inline script`);
   const expectedWhitespaceNormalization = "excerpt.replace(/\\s+/g, ' ')";
   const brokenWhitespaceNormalization = "excerpt.replace(/s+/g, ' ')";
+  const renderedScripts = scripts.join('\n');
   assert.equal(
-    scripts.filter((script) => script.includes(expectedWhitespaceNormalization)).length,
+    renderedScripts.split(expectedWhitespaceNormalization).length - 1,
     2,
     `${label}: rendered observatory must preserve both whitespace regexes`,
   );
   assert.ok(
-    scripts.every((script) => !script.includes(brokenWhitespaceNormalization)),
+    !renderedScripts.includes(brokenWhitespaceNormalization),
     `${label}: rendered observatory must not turn /\\s+/ into /s+/`,
   );
   for (const [index, script] of scripts.entries()) {
