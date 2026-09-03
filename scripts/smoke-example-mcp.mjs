@@ -26,8 +26,8 @@ async function verifyInlineScriptsCompile() {
   assert.equal(response.status, 200, `${label}: homepage must render`);
   const html = await response.text();
   // First-party demo markup only: this extracts inline scripts for a compile
-  // check and is not an HTML sanitizer. The closing tag tolerates whitespace.
-  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]
+  // check and is not an HTML sanitizer. The closing tag tolerates whitespace and attributes.
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)]
     .filter((match) => !/\bsrc\s*=/i.test(match[1]))
     .map((match) => match[2])
     .filter((script) => script.trim());

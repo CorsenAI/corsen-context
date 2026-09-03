@@ -66,15 +66,15 @@ for (const name of FILES.filter((file) => file !== 'wp-home.html')) {
 // --- WordPress homepage: inject CSS+JS via base64 bootstrap ---
 // wpautop must not see blank lines inside <style>/<script>: collapse them.
 // This is a whitespace normalizer over first-party source, not an HTML
-// sanitizer; the closing-tag patterns tolerate whitespace before ">".
+// sanitizer; the closing-tag patterns tolerate whitespace and attributes.
 const wpSanitizedHtml = wpHtml
   .replace(/\r\n/g, '\n')
   .replace(
-    /(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi,
+    /(<style\b[^>]*>)([\s\S]*?)(<\/style\b[^>]*>)/gi,
     (m, open, body, close) => open + body.replace(/\n[ \t]*\n/g, '\n') + close,
   )
   .replace(
-    /(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi,
+    /(<script\b[^>]*>)([\s\S]*?)(<\/script\b[^>]*>)/gi,
     (m, open, body, close) => open + body.replace(/\n[ \t]*\n/g, '\n') + close,
   );
 const bootstrap = wpBootstrap(navCss + '\n' + obsCss, obsJs + '\n' + navJs);
