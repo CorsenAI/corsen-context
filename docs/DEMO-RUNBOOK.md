@@ -1,154 +1,127 @@
 # Reproducible demo runbook
 
-This runbook demonstrates the candidate through observable tool calls. It does
-not rely on a prerecorded response or a simulated agent transcript.
+This runbook demonstrates the live candidate through observable WebMCP tool
+calls. It does not rely on a prerecorded answer, a simulated agent transcript,
+or an HTTP-only claim.
 
-Aurora Kits is a fictional, deterministic demo corpus. Its prices and policies
-are test fixtures, not commercial offers.
+The flagship is the real Corsen Context WordPress site. Aurora Kits is a
+fictional, deterministic corpus used only by the non-WordPress reference
+deployments; its prices and policies are test fixtures, not commercial offers.
 
 ## Preconditions
 
 - Use a WebMCP-capable browser/client configured according to
   [WebMCP browser setup](WEBMCP-BROWSER-SETUP.md).
 - Open `https://webmcp.corsen.ai/` as a top-level page and reload it after the
-  bridge is enabled.
-- Confirm that the page and tool client identify exactly four tools:
-  `search_site`, `get_page_content`, `list_content`, and `get_sitemap`.
-- Do not continue if the candidate content, tool contract, or browser API is
-  missing. Record the failure rather than substituting a mock.
+  browser feature or client is enabled.
+- Confirm that the flagship exposes nine tools. The shared core is
+  `search_site`, `get_page_content`, `list_content`, and `get_sitemap`. The
+  WordPress extensions are `get_product`, `get_sections`,
+  `get_structured_data`, `check_agent_access`, and `request_expert_call`.
+- Confirm that every tool except `request_expert_call` is annotated read-only;
+  `request_expert_call` is explicitly annotated `readOnlyHint: false`.
+- Do not continue if the live page, tool client, or expected tool set is
+  missing. Record the failure instead of substituting a mock.
 
-## Four grounded scenarios
+## Recommended judge path
 
-Run the prompts in a client that shows its real tool activity. Wording may vary
-slightly, but the calls and source facts must remain visible.
+Run the prompts in a client that exposes its real tool activity. The agent may
+choose a slightly different valid call order, but every reported fact must be
+grounded in a visible tool result and canonical source URL.
 
-### 1. Product fit
+### 1. Grounded catalogue answer
 
-> I have EUR 100 for an 11-year-old and need a kit with no soldering. Compare
-> the available kits and recommend one from this site with the price and reason.
-
-Expected evidence:
-
-- `search_site` finds the product comparison;
-- `get_page_content` reads the returned same-origin page;
-- Explorer v2 is grounded as EUR 89, age 10+, 24 projects, no soldering;
-- Maker and Pro facts are sourced from the same public corpus, not invented.
-
-### 2. Support diagnosis
-
-> My Aurora Maker arm shows AK-E17. Find the official guide on this site and
-> give only its three recovery steps and the escalation condition.
+> List the Corsen Context editions, read the flagship product, and find the
+> demo-store promo code. Tell me the flagship price and purchase policy, and
+> include the source URLs.
 
 Expected evidence:
 
-- the search result title or description contains `AK-E17`;
-- the client opens that exact result with `get_page_content`;
-- the answer contains the three published steps in order and the published
-  escalation condition.
+- `list_content({"type":"product"})` returns eleven live products;
+- `get_product({"slug":"corsen-context"})` returns EUR 29 and
+  `agentPurchase: forbidden` with the canonical product URL;
+- `search_site({"query":"WEBMCP100"})` returns the store page; and
+- `get_page_content({"uri":"https://webmcp.corsen.ai/store/"})` returns the
+  published promo code from that same canonical page.
 
-### 3. School order policy
+The purchase flag is an instruction in the agent-facing contract. It does not
+intercept or alter the ordinary human checkout, and the recording must not
+claim otherwise.
 
-> A verified school in Lyon is considering Aurora Maker kits. What discount,
-> delivery time, delivery cost, returns period, and parts warranty does this
-> site publish?
+### 2. Human-only boundary
 
-Expected source facts are 20% for verified schools or clubs, EU delivery in
-2–4 business days at no delivery charge, 30-day returns, and a two-year parts
-warranty.
+Inspect `request_expert_call` before invoking it. Its annotation is deliberately
+non-read-only. A valid deterministic test call is:
 
-### 4. Access boundary
+```json
+{
+  "name": "WebMCP reviewer",
+  "email": "reviewer@example.com",
+  "website": "https://example.com",
+  "stack": "WordPress",
+  "message": "Please explain the integration boundary."
+}
+```
 
-> Can you buy a Pro kit, submit a form, modify this site, or access private
-> content through these tools? Explain the boundary using the site's policy.
+The JSON-RPC response contains `result.isError: true` plus
+`result.structuredContent.ok: false` and `error_code: human_only`; the WebMCP
+inspector surfaces the error message and human handoff. No supplied field value
+is stored or emailed. When optional audit logging is enabled, a metadata-only
+row may record the attempt without those field values. If the client chooses
+not to invoke a non-read-only tool without confirmation, that is valid client
+behavior; the Chrome inspector can execute the deterministic test directly.
 
-A grounded answer must distinguish public search/read/list/sitemap access from
-purchase, submission, modification, deletion, and private-content access. The
-registered tools themselves must remain read-only.
+### 3. Cross-stack portability
+
+On the flagship, scroll to **The same four-tool core, live on ten stacks**. Open
+the Express or Astro deployment from the grid. The target must display its own
+public repository and the same four core tool names. Select **Run live trace**:
+all four rows must finish successfully.
+
+The repository-level receipt is:
+
+```sh
+node scripts/verify-live.mjs
+```
+
+The expected final line is `VERIFIED: 10/10 live integrations match the
+manifest.` The manifest SHA-256 is
+`3786c5d0d401cb9862291c9e3903ff0bd35925326b7dbc9be75f15ded2604ef4`.
+
+## Implementation evidence
+
+The public repository must visibly contain:
+
+- the imperative `document.modelContext.registerTool(...)` path in `README.md`;
+- `tools.manifest.json`, which defines the shared contract;
+- the TypeScript implementation and independent PHP WordPress implementation;
+- parity, transport, browser-bridge, package, and live verification tests; and
+- installation paths for every advertised integration.
 
 ## HTTP contract fallback
 
 HTTP checks prove the server contract when a browser/client is unavailable;
-they do not prove WebMCP execution. From the repository root, run:
+they do not prove WebMCP registration or execution. For a single MCP endpoint,
+the minimum JSON-RPC sequence is `initialize`, `notifications/initialized`,
+`tools/list`, `search_site`, then `get_page_content` with a same-origin URL
+returned by the search.
 
-```sh
-pnpm verify:live
-```
-
-Exit code `0` is required before recording the final demo. The verifier checks
-all public targets against `tools.manifest.json`. See
-[live verification](LIVE-VERIFICATION.md) for the exact boundary.
-
-For a single MCP endpoint, the minimum JSON-RPC sequence is:
-
-Every POST below uses `Content-Type: application/json` and
-`Accept: application/json, text/event-stream`.
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2025-11-25",
-    "capabilities": {},
-    "clientInfo": { "name": "manual-verifier", "version": "1.0.0" }
-  }
-}
-```
-
-then:
-
-```json
-{ "jsonrpc": "2.0", "method": "notifications/initialized", "params": {} }
-```
-
-The notification must return HTTP `202 Accepted` with an empty body. Then:
-
-```json
-{ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }
-```
-
-then a two-tool chain:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "tools/call",
-  "params": { "name": "search_site", "arguments": { "query": "AK-E17", "limit": 3 } }
-}
-```
-
-Copy one same-origin URL returned by that call into:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 4,
-  "method": "tools/call",
-  "params": { "name": "get_page_content", "arguments": { "uri": "RETURNED_URL" } }
-}
-```
-
-Send `MCP-Protocol-Version: 2025-11-25` on the initialized notification and
-every later request. For WordPress, copy the exact absolute MCP URL displayed
-under Settings > Corsen Context or published by an enabled discovery surface;
-do not construct it from the site origin. A typical pretty-permalink URL uses
-`/wp-json/corsen-context/v1/mcp`, Plain permalinks can use
-`?rest_route=/corsen-context/v1/mcp`, and a filtered REST prefix can differ.
-The supplied Node examples use `/v1/mcp` on their own origin.
+Every POST uses `Content-Type: application/json`,
+`Accept: application/json, text/event-stream`, and, after initialization,
+`MCP-Protocol-Version: 2025-11-25`. The initialized notification must return an
+empty HTTP `202 Accepted` response. The Node examples use `/v1/mcp`; WordPress
+publishes its exact REST endpoint through enabled discovery surfaces.
 
 ## Evidence receipt
 
-For each final client, record:
+For the final client, record:
 
 - UTC timestamp, public URL, browser/client name, and exact version;
 - source revision and deployed package/plugin versions;
-- the four registered tool names;
-- prompt, ordered tool calls, arguments, returned source URL, and final answer;
-- console or network errors, including zero when none are observed;
-- one desktop recording and one narrow viewport check;
-- a separate HTTP verifier result.
+- the registered tool names and annotations;
+- prompt, ordered calls, arguments, source URLs, and final answer;
+- console or network errors, including zero when none are observed; and
+- the separate `verify-live` result.
 
 Do not infer support for ChatGPT, Chrome, an extension, or another client from
 success in a different client. Label each receipt independently.
@@ -157,10 +130,11 @@ success in a different client. Label each receipt independently.
 
 Stop the recording and fix the candidate if any of these occurs:
 
-- a tool is missing, duplicated, or has a different schema;
+- a core tool is missing, duplicated, or has a different schema;
+- an unexpected extension appears on the WordPress flagship;
 - search returns an empty or cross-origin result;
-- the second call reads a URL that was not returned by the first call;
+- `get_page_content` reads a URL that was not returned by the site;
 - a product or policy fact differs between the human page and tool output;
-- an action-capable tool appears;
-- the page shows a fabricated response as if an agent produced it;
-- browser registration or endpoint errors are hidden from the receipt.
+- `request_expert_call` produces a business side effect instead of `human_only`;
+- a page displays a fabricated response as if an agent produced it; or
+- registration, hydration, endpoint, console, or network errors are hidden.

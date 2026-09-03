@@ -1,92 +1,99 @@
 # WebMCP browser setup
 
-Verified against official documentation on 2026-08-30.
+Verified against the current Chrome documentation and WebMCP Community Group
+draft on 2026-09-03.
 
-WebMCP is an experimental browser API. The current specification is a
-[Community Group draft](https://webmachinelearning.github.io/webmcp/), not a
-W3C Standard. Chrome's documentation says the origin trial is available from
-Chrome 149 and that browser/client support remains subject to change.
+WebMCP is an experimental browser API, not a W3C Standard. For Corsen Context's
+imperative registrations, loading the generated bridge is necessary but not
+sufficient: the page must run in a browser that exposes a supported
+`modelContext` API, and an agent or inspector must consume the registered
+tools.
 
-Serving `/webmcp.js` is necessary but not sufficient: the browser must expose
-`document.modelContext`, and an agent/client must know how to consume the
-registered tools.
+## ChatGPT in-app browser
 
-## Local development
+The WebMCP Challenge accepts a live URL opened in ChatGPT's in-app browser,
+which provides WebMCP support for judging. Open the live page as the active
+top-level page, reload once if the page was already open, and use a prompt that
+causes visible tool calls. Record the client name and date with the result.
 
-Chrome documents this test path:
+## Chrome 149 or newer
+
+For local testing, Chrome documents this path:
 
 1. open `chrome://flags/#enable-webmcp-testing`;
 2. set **WebMCP for testing** to **Enabled**;
 3. relaunch Chrome;
 4. open the site as a top-level page;
-5. verify `typeof document.modelContext === 'object'` in DevTools;
+5. verify
+   `typeof (document.modelContext || navigator.modelContext) === 'object'` in
+   DevTools; and
 6. reload after changing tool registration.
 
 See the official [Chrome WebMCP guide](https://developer.chrome.com/docs/ai/webmcp).
 
-The Chrome Model Context Tool Inspector can display registered tools and call
-them manually. That inspector is a test client; it is separate from Gemini in
-Chrome and from other browser-agent products.
+To inspect and execute tools from Chrome DevTools, Chrome 149 also documents
+the experimental `chrome://flags/#devtools-webmcp-support` flag. Enable it in
+addition to the WebMCP testing flag, relaunch, then use the WebMCP tooling in
+the Application panel. The inspector is a test client; it is separate from a
+browser agent.
 
 ## Public origin-trial deployment
 
-Register the exact HTTPS origin for the active WebMCP trial, then provide its
-token before the page accesses the API. Chrome supports either:
+For a public Chrome origin-trial deployment, enroll the exact HTTPS origin and
+provide its current token before the page accesses the API. Chrome accepts an
+origin-trial meta tag or response header. Tokens expire and are origin-specific;
+confirm enrollment in DevTools instead of assuming an old token still works.
 
-```html
-<meta http-equiv="origin-trial" content="TOKEN_FOR_THIS_EXACT_ORIGIN" />
-```
+For WordPress, the plugin's optional origin-trial setting emits the first-party
+meta tag. Other integrations can use their framework layout or an HTTP response
+header. An origin-trial token is public browser-delivered metadata, not an MCP
+API credential.
 
-or the response header:
+## Document and bridge requirements
 
-```http
-Origin-Trial: TOKEN_FOR_THIS_EXACT_ORIGIN
-```
+- Use a secure context for public deployment.
+- Keep the page origin-isolated; do not opt out with
+  `Origin-Agent-Cluster: ?0` or `document.domain`.
+- Allow the `tools` Permissions Policy for the current origin.
+- Corsen Context intentionally registers only in the top-level browsing
+  context. Chrome can expose WebMCP to same-origin frames and to cross-origin
+  frames explicitly delegated with `allow="tools"`, but this bridge refuses all
+  framed registration.
+- Scripts that populate framework-owned placeholders must not mutate
+  server-rendered DOM before hydration; this is a framework integration rule,
+  not a general WebMCP registration requirement.
+- Resolve the MCP endpoint against the current page and reject invalid,
+  credential-bearing, non-HTTP(S), cross-origin, or framed registrations.
 
-Tokens expire and are origin-specific. Never copy a token from another site
-or assume an old token remains valid. Confirm enrollment in DevTools under the
-Application panel. See Chrome's
-[origin-trial instructions](https://developer.chrome.com/docs/web-platform/origin-trials)
-and [troubleshooting guide](https://developer.chrome.com/docs/web-platform/origin-trial-troubleshooting/).
+## What a valid receipt looks like
 
-For WordPress, the plugin's optional origin-trial field emits the first-party
-meta tag. Other integrations should use their framework layout or an HTTP
-response header. Do not store the token as an MCP secret: origin-trial tokens
-are intentionally delivered to browsers, but must still match the enrolled
-origin and current trial.
+On the nine non-WordPress targets in the ten-stack parity set, a valid receipt
+shows exactly the four shared tools: `search_site`, `get_page_content`,
+`list_content`, and `get_sitemap`. The additional Netlify deployment exposes
+the same four tools but is outside the `10/10` manifest-hash claim.
 
-## Document requirements
+On the WordPress flagship, a valid receipt shows those four core tools plus
+`get_product`, `get_sections`, `get_structured_data`, `check_agent_access`, and
+`request_expert_call`. Every tool except `request_expert_call` is read-only;
+that tool is explicitly non-read-only and must return `human_only` before any
+business side effect.
 
-Chrome currently requires:
+For either shape, record:
 
-- a secure context for public deployment;
-- an origin-isolated document (do not opt out with
-  `Origin-Agent-Cluster: ?0` or `document.domain`);
-- the `tools` Permissions Policy, which defaults to `self`;
-- a top-level or allowed same-origin context.
+1. the page URL, browser/client, version, and date;
+2. the registered tool names and annotations;
+3. a natural-language request that causes a real tool call;
+4. a same-origin canonical source URL in the result;
+5. the grounded answer; and
+6. zero unhandled registration, hydration, fetch, or execution errors.
 
-Corsen Context additionally refuses to register inside a frame and refuses an
-invalid, credential-bearing, non-HTTP(S), or cross-origin MCP endpoint.
-
-## Client labels and evidence
-
-Record the exact browser, agent/client or extension, date, site URL, tool
-names, and calls executed. Do not infer that one client works because another
-client on the same machine succeeded.
-
-A valid end-to-end receipt shows:
-
-1. exactly `search_site`, `get_page_content`, `list_content`, and
-   `get_sitemap` registered;
-2. a natural-language request causing `search_site`;
-3. one returned public URL passed to `get_page_content`;
-4. a grounded answer linked to that page;
-5. no unhandled registration or fetch error in the console.
+An HTTP probe or the page's own live-trace component is supporting evidence,
+not a substitute for a real WebMCP client receipt.
 
 ## Security note
 
-Chrome's [WebMCP security guidance](https://developer.chrome.com/docs/ai/webmcp/secure-tools)
-states that tool metadata and returned content can be prompt-injection
-surfaces. `readOnlyHint` and `untrustedContentHint` are signals, not enforcement.
-Corsen Context's demonstrated tools remain read-only at the server and expose
-only the public corpus configured by the site owner.
+Tool metadata and site-authored results can carry untrusted instructions.
+`readOnlyHint` and `untrustedContentHint` are signals for clients, not server
+enforcement. Corsen Context enforces each core tool's read and content boundary
+on the server and exposes only the public corpus selected by the site owner.
+WordPress extensions are enabled and gated separately.

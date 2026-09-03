@@ -60,11 +60,11 @@ with an empty `202` response. No SSE stream or resumable session is claimed.
 
 ## Human-and-agent demonstration
 
-The flagship is this site itself: **webmcp.corsen.ai, a production WordPress
-install selling Corsen Context licenses**. Its catalogue facts are
-deterministic and replayable. The fictional Aurora Kits corpus now lives on
-the non-WordPress reference stacks (e.g. express-webmcp.corsen.ai), where the
-same demo prompts remain replayable there.
+The flagship is this site itself: **webmcp.corsen.ai, a live WordPress
+installation presenting Corsen Context editions through a deterministic
+demonstration store**. The fictional Aurora Kits corpus lives on the
+non-WordPress reference stacks (e.g. express-webmcp.corsen.ai), where its demo
+prompts remain replayable.
 
 In a WebMCP-capable client pointed at the flagship, the demonstration prompt
 is:
@@ -92,12 +92,10 @@ endpoint refuses, and the answers are replayable HTTP receipts: `GET` → `405`
 with `Allow: POST`, `OPTIONS` → `POST, OPTIONS` without credentials, and
 anonymous `/wp-json/wp/v2/users` and `/?author=1` → `404`.
 
-The owner side of the final recording changes one WordPress exposure setting
-and repeats the same query to prove that a human can revoke or restore a public
-path without giving the browser a private session. This claim was replayed on
-2026-09-01: saving the Control Center now preserves `hide_user_enumeration`
-(anonymous user enumeration stays `404` afterwards) and a deliberately empty
-content-type selection persists as "expose nothing".
+WordPress owner controls select exposed tools, post types, and paths without
+giving the public browser a private session. The settings persistence and
+revocation paths are covered by plugin tests; the short public recording uses
+only anonymous calls and does not expose the administration interface.
 
 An HTTP request that finds the bridge script is not sufficient evidence. The
 final demo receipt must record the exact browser/client version, page URL,
@@ -194,8 +192,9 @@ prerequisite and must be verified before publication is reported as successful.
 
 ## Security and owner control
 
-- Every distributed tool reads; none creates, edits, deletes, purchases, or
-  submits data.
+- Every shared core tool reads; none creates, edits, deletes, purchases, or
+  submits data. The optional WordPress `request_expert_call` tool is explicitly
+  non-read-only but refuses agent execution before any business side effect.
 - Tool arguments are strictly validated. Unknown properties, wrong scalar
   types, fractional integers, and out-of-range values are rejected.
 - WebMCP execution resolves the MCP endpoint against the current page and
