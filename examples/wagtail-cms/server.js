@@ -350,7 +350,6 @@ app.get('/webmcp.js', (_req, res) => {
 });
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const escAttr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const webmcpScriptTag = cc.getConfig().mcp.enabled
   ? '<script src="/webmcp.js" defer></script>'
   : '';
