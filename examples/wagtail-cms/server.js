@@ -356,9 +356,146 @@ const webmcpScriptTag = cc.getConfig().mcp.enabled
   : '';
 const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
 const bridgeTag = mcpEnabled ? '<script src="/webmcp.js" defer></script>' : '';
-const pageShell = (title, inner) => `<!doctype html>
+// Site copy for this demonstration (design shared by every CMS bridge).
+const CX = {
+  stack: 'Wagtail',
+  accent: '#0d6b57',
+  title: 'Wagtail + Corsen Context',
+  h1: 'A Wagtail site that talks to AI agents',
+  lede: 'Wagtail runs on Python and Django. Corsen Context uses a small Node bridge over the Wagtail API v2 and hands agents four explicit, read-only tools - over MCP, over WebMCP inside this page, and through llms.txt.',
+  noun: 'pages',
+  nounSing: 'page',
+  postsH2: 'Latest pages',
+  postsIntro:
+    'Every card below is a live Wagtail page. The same records answer search_site, list_content and get_page_content.',
+  source: 'The Wagtail API v2',
+  rule: 'live pages of one configured page type, exactly as the public API serves them',
+  envHint: ', WAGTAIL_URL, WAGTAIL_PAGE_TYPE and WAGTAIL_BODY_FIELD',
+  repo: 'https://github.com/CorsenAI/corsen-context-wagtail',
+  description:
+    'A Wagtail site made agent-native with Corsen Context: four read-only tools over MCP, WebMCP and llms.txt.',
+};
+const cxAttr = (value) => esc(value).replace(/"/g, '&quot;');
+const CX_CSS = `body{margin:0;background:#f7f8f3}
+.cx-main{--cx-ink:#15221d;--cx-muted:#57645f;--cx-line:#d8dfd9;--cx-soft:color-mix(in srgb,var(--cx-accent) 10%,#fff);max-width:1160px;margin:0 auto;padding:0 24px 24px;font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;line-height:1.55;color:var(--cx-ink)}
+.cx-main a{color:inherit;text-underline-offset:.18em}.cx-main a:hover{color:var(--cx-accent)}
+.cx-main code{font-family:Consolas,ui-monospace,monospace;font-size:.93em}
+.cx-hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(18rem,.75fr);gap:clamp(2rem,6vw,5rem);align-items:center;padding:clamp(3.5rem,8vw,6.5rem) 0 clamp(2.5rem,6vw,4rem)}
+.cx-eyebrow{margin:0 0 .75rem;color:var(--cx-accent);font-size:.76rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.cx-main h1{margin:0;font-size:clamp(2.4rem,6vw,4.6rem);line-height:1.05;letter-spacing:-.045em;max-width:16ch}
+.cx-main h2{margin:0;font-size:clamp(1.7rem,3.6vw,2.7rem);line-height:1.1;letter-spacing:-.03em;max-width:22ch}
+.cx-lede{max-width:60ch;color:var(--cx-muted);font-size:clamp(1.05rem,1.8vw,1.3rem)}
+.cx-intro{max-width:60ch;color:var(--cx-muted);margin:.75rem 0 0}
+.cx-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.75rem}
+.cx-main .cx-btn{display:inline-flex;min-height:2.85rem;align-items:center;padding:.65rem 1.05rem;border:1px solid var(--cx-ink);border-radius:.65rem;background:var(--cx-ink);color:#fff;font-weight:700;text-decoration:none}
+.cx-main .cx-btn:hover{background:var(--cx-accent);border-color:var(--cx-accent);color:#fff}
+.cx-main .cx-btn-ghost{background:#fff;color:var(--cx-ink)}.cx-main .cx-btn-ghost:hover{background:var(--cx-soft);color:var(--cx-ink)}
+.cx-panel{padding:1.35rem;border:1px solid var(--cx-line);border-radius:1rem;background:#fff;box-shadow:.75rem .75rem 0 var(--cx-soft)}
+.cx-panel dl{margin:0}.cx-panel dl div{padding:.8rem 0;border-top:1px solid var(--cx-line)}.cx-panel dl div:first-child{border-top:0;padding-top:0}
+.cx-panel dt{font-family:Consolas,ui-monospace,monospace;font-weight:800;font-size:.92rem}.cx-panel dd{margin:.15rem 0 0;color:var(--cx-muted);font-size:.95rem}
+.cx-section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-top:1px solid var(--cx-line)}
+.cx-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:2rem}
+.cx-card{display:flex;flex-direction:column;gap:.6rem;min-height:11rem;padding:1.35rem;border:1px solid var(--cx-line);border-radius:1rem;background:#fff}
+.cx-card h3{margin:0;font-size:1.2rem;line-height:1.25}.cx-card h3 a{text-decoration:none}.cx-card h3 a:hover{text-decoration:underline}
+.cx-card p{margin:0;color:var(--cx-muted);font-size:.95rem}
+.cx-main .cx-more{margin-top:auto;color:var(--cx-accent);font-size:.9rem;font-weight:700;text-decoration:none}.cx-main .cx-more:hover{text-decoration:underline}
+.cx-empty{padding:1.25rem;border:1px dashed var(--cx-line);border-radius:1rem;color:var(--cx-muted)}
+.cx-steps{display:grid;gap:.9rem;margin:2rem 0 0;padding:0;list-style:none;counter-reset:cx}
+.cx-steps li{position:relative;padding:1rem 1.1rem 1rem 4rem;border:1px solid var(--cx-line);border-radius:.9rem;background:#fff;counter-increment:cx}
+.cx-steps li::before{content:counter(cx);position:absolute;left:1rem;top:.95rem;display:grid;width:2rem;height:2rem;place-items:center;border-radius:50%;background:var(--cx-soft);color:var(--cx-accent);font-weight:850}
+.cx-band{display:flex;align-items:center;justify-content:space-between;gap:2rem;margin:clamp(2rem,5vw,3.5rem) 0;padding:clamp(1.5rem,4vw,2.75rem);border-radius:1rem;background:var(--cx-soft)}
+.cx-band p{max-width:62ch;margin:.75rem 0 0;color:var(--cx-muted)}.cx-band code{padding:.1rem .35rem;border-radius:.3rem;background:#fff}
+.cx-live [data-cc-observatory]{margin-top:1.5rem}
+.cx-article{max-width:760px;margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) 0}
+.cx-article header{margin-bottom:2rem}.cx-article h1{font-size:clamp(2rem,5vw,3.4rem)}
+.cx-main .cx-back{display:inline-block;margin-bottom:1.5rem;color:var(--cx-muted);font-weight:700;text-decoration:none}.cx-main .cx-back:hover{color:var(--cx-accent)}
+.cx-meta{margin:.5rem 0 0;color:var(--cx-muted);font-family:Consolas,ui-monospace,monospace;font-size:.85rem}
+.cx-article p{font-size:1.08rem}.cx-article h2{margin:2rem 0 .5rem;font-size:1.6rem}.cx-article h3{margin:1.5rem 0 .4rem;font-size:1.25rem}
+@media(max-width:820px){.cx-hero{grid-template-columns:1fr}.cx-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.cx-grid{grid-template-columns:1fr}.cx-band{flex-direction:column;align-items:flex-start}}`;
+
+function cxHome(items) {
+  const cards = items
+    .filter((item) => item.path !== '/')
+    .map(
+      (item) =>
+        `<article class="cx-card"><h3><a href="${cxAttr(item.path)}">${esc(item.title)}</a></h3>` +
+        (item.description ? `<p>${esc(item.description)}</p>` : '') +
+        `<a class="cx-more" href="${cxAttr(item.path)}">Read the ${esc(CX.nounSing)} &rarr;</a></article>`,
+    )
+    .join('\n');
+  return `<section class="cx-hero">
+  <div>
+    <p class="cx-eyebrow">${esc(CX.stack)} + Corsen Context</p>
+    <h1>${esc(CX.h1)}</h1>
+    <p class="cx-lede">${esc(CX.lede)}</p>
+    <div class="cx-actions">
+      <a class="cx-btn" href="#posts">Browse the ${esc(CX.noun)}</a>
+      <a class="cx-btn cx-btn-ghost" href="#live">Run the live trace</a>
+    </div>
+  </div>
+  <aside class="cx-panel" aria-labelledby="cx-panel-title">
+    <p class="cx-eyebrow" id="cx-panel-title">Published interface</p>
+    <dl>
+      <div><dt>search_site</dt><dd>Find the relevant ${esc(CX.nounSing)} by keyword</dd></div>
+      <div><dt>get_page_content</dt><dd>Read one ${esc(CX.nounSing)} as clean Markdown</dd></div>
+      <div><dt>list_content</dt><dd>Browse the public ${esc(CX.noun)} with pagination</dd></div>
+      <div><dt>get_sitemap</dt><dd>Map the whole public corpus</dd></div>
+    </dl>
+  </aside>
+</section>
+<section id="posts" class="cx-section">
+  <p class="cx-eyebrow">Served live from ${esc(CX.stack)}</p>
+  <h2>${esc(CX.postsH2)}</h2>
+  <p class="cx-intro">${esc(CX.postsIntro)}</p>
+  <div class="cx-grid">${cards || `<p class="cx-empty">No published ${esc(CX.noun)} yet. Publish one in ${esc(CX.stack)} and reload.</p>`}</div>
+</section>
+<section id="how" class="cx-section">
+  <p class="cx-eyebrow">How it works</p>
+  <h2>One contract, three surfaces</h2>
+  <ol class="cx-steps">
+    <li><strong>${esc(CX.source)}</strong> stays the source of truth. The bridge reads only what the ${esc(CX.stack)} role allows: ${esc(CX.rule)}.</li>
+    <li><strong>POST /v1/mcp</strong> serves the four read-only tools to agents outside the page, and <a href="/llms.txt">/llms.txt</a> publishes the same corpus for discovery.</li>
+    <li><strong>WebMCP inside this page</strong> registers the same four tools for an agent running in your browser. Every call goes back to this site's own endpoint: same origin, no cookies, no keys.</li>
+  </ol>
+</section>
+<section class="cx-band">
+  <div>
+    <p class="cx-eyebrow">For site owners</p>
+    <h2>Put this bridge in front of your own ${esc(CX.stack)}.</h2>
+    <p>Set <code>SITE_URL</code>${esc(CX.envHint)}, run <code>npm ci &amp;&amp; npm start</code>, then serve <code>/v1/mcp</code>, <code>/webmcp.js</code> and <code>/llms.txt</code> from your site's origin. Everything is read-only, and every surface has an owner switch.</p>
+  </div>
+  <a class="cx-btn" href="${cxAttr(CX.repo)}">Get this integration</a>
+</section>`;
+}
+
+function cxArticle(page) {
+  const body = page.markdown
+    .split('\n')
+    .map((line) => {
+      if (line.startsWith('# ')) return '';
+      if (line.startsWith('## ')) return `<h2>${esc(line.slice(3))}</h2>`;
+      if (line.startsWith('### ')) return `<h3>${esc(line.slice(4))}</h3>`;
+      return line.trim() ? `<p>${esc(line)}</p>` : '';
+    })
+    .join('\n');
+  const modified = page.lastModified ? String(page.lastModified).slice(0, 10) : '';
+  return `<article class="cx-article">
+  <a class="cx-back" href="/#posts">&larr; All ${esc(CX.noun)}</a>
+  <header>
+    <p class="cx-eyebrow">${esc(CX.stack)}</p>
+    <h1>${esc(page.title)}</h1>
+    ${modified ? `<p class="cx-meta">Updated ${esc(modified)}</p>` : ''}
+  </header>
+  ${body}
+</article>`;
+}
+
+const pageShell = (title, inner, description = CX.description) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
+<meta name="description" content="${cxAttr(description)}">
+<style>${CX_CSS}</style>
 <style>/* ============================================================
    Corsen Context shared navigation (v2)
    Isolated: .cc-nav / .cc-nav-*. Sticky, accessible, mobile-ready.
@@ -603,10 +740,12 @@ const pageShell = (title, inner) => `<!doctype html>
 ${bridgeTag}</head>
 <body>
 <div data-cc-nav data-stack="Wagtail" data-uid="wagtail" data-home="#top" data-accent="#0d6b57"></div>
-<main id="top" style="max-width:1080px;margin:0 auto;padding:32px 24px;font-family:system-ui;line-height:1.55;color:#12202e">
+<main id="top" class="cx-main" style="--cx-accent:${CX.accent}">
 ${inner}
-<section id="live" style="margin:36px 0 0">
+<section id="live" class="cx-section cx-live">
+  <p class="cx-eyebrow">Proof</p>
   <h2>Live contract observatory</h2>
+  <p class="cx-intro">Four real calls to this site's own MCP endpoint: same origin, credentials omitted, nothing simulated.</p>
   <div data-cc-observatory data-stack="Wagtail" data-endpoint="/v1/mcp" data-query="Wagtail" data-accent="#0d6b57"></div>
 </section>
 </main>
@@ -1103,35 +1242,14 @@ ${inner}
 </body></html>`;
 app.get('/', async (_req, res) => {
   const posts = await fetchPosts();
-  const items = posts
-    .map((p) => `<li><a href="${escAttr(p.path)}">${esc(p.title)}</a> — ${esc(p.description)}</li>`)
-    .join('\n');
-  res.type('html').send(
-    pageShell(
-      'Wagtail + Corsen Context',
-      `<h1>A Wagtail site that talks to AI agents</h1>
-<p>Wagtail runs on Python/Django. Corsen Context uses a Node bridge over
-<strong>the Wagtail API</strong> — the same four tools over
-<a href="/llms.txt">/llms.txt</a>, <code>POST /v1/mcp</code>, and WebMCP inside
-this page.</p>
-<h2>Posts (served live from Wagtail)</h2>
-<ul>${items}</ul>`,
-    ),
-  );
+  res.type('html').send(pageShell(CX.title, cxHome(posts)));
 });
 
 app.use(async (req, res, next) => {
   if (req.method !== 'GET') return next();
   const page = await provider.getPageContent(`${SITE_URL}${req.path}`);
   if (!page) return next();
-  const paragraphs = page.markdown
-    .split('\n')
-    .map((line) => {
-      if (line.startsWith('# ')) return `<h1>${esc(line.slice(2))}</h1>`;
-      return line.trim() ? `<p>${esc(line)}</p>` : '';
-    })
-    .join('\n');
-  res.type('html').send(pageShell(page.title, paragraphs));
+  res.type('html').send(pageShell(page.title, cxArticle(page), page.description || CX.description));
 });
 
 app.use((error, req, res, next) => {
