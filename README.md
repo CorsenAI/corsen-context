@@ -74,12 +74,14 @@ some clients still require direct endpoint configuration.
 Unknown properties, wrong scalar types, fractions where integers are required,
 and out-of-range values produce an MCP tool result with `isError: true` and an
 actionable message. A malformed `tools/call` envelope, including a non-object
-`arguments` member, remains JSON-RPC error `-32602`. Tool definitions shown by
-MCP do not carry WebMCP-only annotations.
+`arguments` member, remains JSON-RPC error `-32602`.
 
-WebMCP registrations include `readOnlyHint` and `untrustedContentHint`. These
-are advisory metadata for the client, not a security barrier. Read-only
-behavior comes from the server implementation and content provider.
+`readOnlyHint` and `untrustedContentHint` are advisory client metadata, not a
+security barrier. The TypeScript core adds them to WebMCP registrations and
+omits them from its MCP `tools/list`; the WordPress flagship also exposes its
+declared annotations on `tools/list`, including `readOnlyHint: false` for
+`request_expert_call`. Read-only behavior comes from the server implementation
+and content provider.
 
 The generated browser bridge registers each manifest-backed tool through the
 WebMCP API. This is the actual registration path, shortened only to keep the
@@ -123,13 +125,12 @@ extensions. They can act as a frontend or run as a same-origin sidecar. See
 [`docs/CMS-BRIDGE-DEPLOYMENT.md`](docs/CMS-BRIDGE-DEPLOYMENT.md) before using
 one on an existing site.
 
-Shopify provides its own WebMCP tools on Liquid storefronts without a Corsen
-Context installation; Hydrogen support is currently a developer preview.
-Shopify's in-page WebMCP tools are distinct from its Storefront MCP and UCP
-endpoints. The standalone
+Shopify is deliberately outside Corsen Context's ten-stack claim. The standalone
 [`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native)
-verification kit documents and checks those native surfaces without pretending
-to be a Shopify app. See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md).
+verification kit documents and checks Shopify's own in-page WebMCP, Storefront
+MCP, and UCP surfaces without pretending to be a Shopify app or a Corsen
+integration. Confirm supported storefront runtimes against Shopify's current
+documentation. See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md).
 
 ### Standalone integration repositories
 

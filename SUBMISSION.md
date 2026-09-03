@@ -18,8 +18,9 @@ brittle. Replacing the human interface with agent-oriented prose is not a good
 answer either: the site should remain designed for people.
 
 Corsen Context adds a parallel, site-owned read path. The owner chooses the
-public corpus; the human page remains unchanged; the agent receives explicit
-tool names, bounded input schemas, canonical URLs, and clean Markdown.
+public corpus; the human experience does not need to be replaced; the agent
+receives explicit tool names, bounded input schemas, canonical URLs, and clean
+Markdown.
 
 ## What the candidate provides
 
@@ -77,15 +78,16 @@ The expected observable sequence is:
 1. the client calls `tools/list` and sees the tool set with WebMCP
    `readOnlyHint` annotations — the core contract tools true, and the opt-in
    `request_expert_call` submission tool explicitly false;
-2. `list_content` with `{"type":"product"}` returns the whole typed catalogue
-   in one call: every per-stack edition at 9 EUR and the flagship at 29 EUR,
-   with currency, stock state, and images — no 1+N round-trips;
+2. `list_content` with `{"type":"product"}` returns eleven live products in one
+   call, with canonical URL, price, currency, stock state, and an image; the ten
+   per-stack editions are 9 EUR and the flagship is 29 EUR — no 1+N round-trips;
 3. `get_product` with the flagship slug returns live WooCommerce fields
    (price, stock, purchasability) without any checkout page;
 4. no write, click, form submission, cookie, or visitor credential is used.
 
-Two further deterministic paths cover the `WEBMCP100` grant (discovered via
-`search_site`, read with `get_page_content` on `/store/`) and chunked reading
+Two further deterministic paths cover the `WEBMCP100` coupon notice, with
+eligibility enforced separately by the cart (discovered via `search_site`, read
+with `get_page_content` on `/store/`), and chunked reading
 (`get_sections`: outline, then one section within the 8192-byte budget, with
 the documented `"top"` id resolving). A boundary prompt asks what the
 endpoint refuses, and the answers are replayable HTTP receipts: `GET` → `405`
@@ -105,13 +107,11 @@ registered tools, calls, result, and date.
 planned final recording can show the agent reading the
 catalogue through `list_content` / `get_product`: the flagship `corsen-context`
 returns `agentPurchase: forbidden` while `corsen-context-express` and
-`corsen-context-wordpress` return `allowed`. That flag is a binding contract
-instruction for agents — the plugin exposes no purchase tool at all and never
-intercepts the ordinary human checkout. The store's separate coupon rules can
-also reject the flagged product, but that HTTP 400 is store policy, not proof
-that `agentPurchase` is server enforcement. Private operator receipts recorded
-two 0.00 EUR test orders for allowed editions; they are not anonymous public
-evidence and the submission does not ask judges to trust or reproduce them.
+`corsen-context-wordpress` return `allowed`. That flag is an explicit contract
+instruction for agents, not server-side checkout enforcement: the plugin
+exposes no purchase tool and does not intercept ordinary human checkout. The
+recommended judge path is read-only and neither attempts checkout nor asks
+judges to trust private operator receipts.
 
 ## Integration forms
 
@@ -120,7 +120,7 @@ levels of native integration:
 
 | Stack              | What a site owner receives                                      |
 | ------------------ | --------------------------------------------------------------- |
-| WordPress          | public WordPress.org plugin (1.5.x line) plus standalone source |
+| WordPress          | public WordPress.org plugin 1.5.16 plus standalone source        |
 | Next.js App Router | published npm 2.0.1 adapter plus reference app                  |
 | Astro              | published npm 2.0.1 adapter plus SSR reference app              |
 | Express            | framework-agnostic core plus reference server                   |
@@ -308,8 +308,9 @@ HTTP-only bridge check is not reported as an end-to-end success.
 
 ## Known limits
 
-- The supplied tool set is read-only. Site-specific write actions are out of
-  scope.
+- The shared four-tool contract is read-only. The optional WordPress
+  `request_expert_call` extension is explicitly non-read-only but rejects every
+  agent invocation before side effects; other write actions are out of scope.
 - Browser and agent support for experimental WebMCP varies.
 - Annotations do not neutralize prompt injection in site-authored content.
 - A provider cannot infer permissions that its CMS API does not expose; the
