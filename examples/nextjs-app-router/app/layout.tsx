@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Script from 'next/script';
 import './demo.css';
 
 export const metadata = {
@@ -19,10 +20,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {mcpEnabled && <script src="/webmcp.js" defer />}
         <link rel="stylesheet" href="/corsen/cc-nav.css" />
         <link rel="stylesheet" href="/corsen/cc-observatory.css" />
-        <script src="/corsen/cc-observatory.js" defer></script>
-        <script src="/corsen/cc-nav.js" defer></script>
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* These scripts populate React-rendered placeholders, so run them after hydration. */}
+        <Script src="/corsen/cc-observatory.js" strategy="afterInteractive" />
+        <Script src="/corsen/cc-nav.js" strategy="afterInteractive" />
+      </body>
     </html>
   );
 }

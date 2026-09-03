@@ -873,8 +873,9 @@ ${inner}
   /* href allowlist: in-page anchors, root-relative paths, http(s) only. */
   function safeHref(value, fallback) {
     var s = String(value || '').trim();
+    var lower = s.toLowerCase();
     if (s.charAt(0) === '#' || s.charAt(0) === '/') return s;
-    if (/^https?:\/\//i.test(s)) return s;
+    if (lower.indexOf('https://') === 0 || lower.indexOf('http://') === 0) return s;
     return fallback;
   }
 

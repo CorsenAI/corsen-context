@@ -10,6 +10,34 @@ const endpoint = new URL('/v1/mcp', baseUrl);
 const expectedTools = ['get_page_content', 'get_sitemap', 'list_content', 'search_site'];
 const protocolVersion = '2025-11-25';
 const accept = 'application/json, text/event-stream';
+const embeddedNavigationExamples = new Set([
+  'express-basic',
+  'ghost-cms',
+  'strapi-cms',
+  'directus-cms',
+  'wagtail-cms',
+  'mediawiki-cms',
+]);
+
+async function verifyInlineScriptsCompile() {
+  if (!embeddedNavigationExamples.has(label)) return;
+
+  const response = await fetch(baseUrl);
+  assert.equal(response.status, 200, `${label}: homepage must render`);
+  const html = await response.text();
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .filter((match) => !/\bsrc\s*=/i.test(match[1]))
+    .map((match) => match[2])
+    .filter((script) => script.trim());
+
+  assert.ok(scripts.length > 0, `${label}: homepage must contain an inline script`);
+  for (const [index, script] of scripts.entries()) {
+    assert.doesNotThrow(
+      () => new Function(script),
+      `${label}: inline script ${index + 1} must compile`,
+    );
+  }
+}
 
 async function waitUntilReachable() {
   const deadline = Date.now() + 30_000;
@@ -47,6 +75,7 @@ async function post(payload, extraHeaders = {}) {
 const getResponse = await waitUntilReachable();
 assert.equal(getResponse.status, 405, `${label}: GET /v1/mcp must return 405`);
 assert.match(getResponse.headers.get('allow') || '', /\bPOST\b/i, `${label}: missing Allow: POST`);
+await verifyInlineScriptsCompile();
 
 const optionsResponse = await fetch(endpoint, {
   method: 'OPTIONS',
