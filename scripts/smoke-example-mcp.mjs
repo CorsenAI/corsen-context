@@ -33,6 +33,17 @@ async function verifyInlineScriptsCompile() {
     .filter((script) => script.trim());
 
   assert.ok(scripts.length > 0, `${label}: homepage must contain an inline script`);
+  const expectedWhitespaceNormalization = "excerpt.replace(/\\s+/g, ' ')";
+  const brokenWhitespaceNormalization = "excerpt.replace(/s+/g, ' ')";
+  assert.equal(
+    scripts.filter((script) => script.includes(expectedWhitespaceNormalization)).length,
+    2,
+    `${label}: rendered observatory must preserve both whitespace regexes`,
+  );
+  assert.ok(
+    scripts.every((script) => !script.includes(brokenWhitespaceNormalization)),
+    `${label}: rendered observatory must not turn /\\s+/ into /s+/`,
+  );
   for (const [index, script] of scripts.entries()) {
     assert.doesNotThrow(
       () => new Function(script),

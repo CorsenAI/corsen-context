@@ -501,7 +501,7 @@ function shell(page, inner) {
             : null;
           var page = readRaw ? parseResult(readRaw) : null;
           var excerpt = page && page.markdown ? page.markdown : (page && page.title ? page.title : '');
-          var readNote = excerpt ? truncate(excerpt.replace(/\s+/g, ' ').trim(), 90) : 'answered (read-only)';
+          var readNote = excerpt ? truncate(excerpt.replace(/\\s+/g, ' ').trim(), 90) : 'answered (read-only)';
           if (first && first.url) {
             resultUrl.innerHTML = 'Found: <a href="' + esc(first.url) + '" target="_blank" rel="noopener">' + esc(first.title || first.url) + '</a>';
           }
@@ -536,7 +536,7 @@ function shell(page, inner) {
           setStep('list_content', 'success', listNote);
 
           if (excerpt) {
-            resultExcerpt.textContent = '"...' + truncate(excerpt.replace(/\s+/g, ' ').trim(), 240) + '"';
+            resultExcerpt.textContent = '"...' + truncate(excerpt.replace(/\\s+/g, ' ').trim(), 240) + '"';
           }
           setStatus('success', 'Live trace complete - all four read-only tools executed successfully.');
           runBtn.disabled = false;

@@ -19,6 +19,12 @@ NAV_JS = elem("cc-nav.js")
 OBS_CSS = elem("cc-observatory.css")
 OBS_JS = elem("cc-observatory.js")
 
+
+def for_template_literal(source):
+    """Preserve JavaScript escapes when source is embedded in a JS template literal."""
+    return source.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
+
+
 ACCENTS = {
     "ghost": "#9f1d51",
     "strapi": "#4338ca",
@@ -46,8 +52,8 @@ ${{inner}}
 </section>
 </main>
 <footer data-cc-foot data-stack="{stack}" data-accent="{accent}"></footer>
-<script>{OBS_JS}</script>
-<script>{NAV_JS}</script>
+<script>{for_template_literal(OBS_JS)}</script>
+<script>{for_template_literal(NAV_JS)}</script>
 </body></html>`;"""
 
 def patch(path, stack, query):

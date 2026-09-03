@@ -12,6 +12,5 @@
 **/next-env.d.ts
 examples/static-html/public/
 
-# Legacy internal memory and historical audit reports
-CLAUDE.md
+# Historical audit reports
 packages/wordpress-plugin/corsen-context/RAPPORT-*.md
