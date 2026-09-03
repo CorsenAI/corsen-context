@@ -21,6 +21,12 @@ Configure `DIRECTUS_STATUS_FIELD` and `DIRECTUS_PUBLISHED_VALUE` when the
 project uses another publication workflow; the API role must be allowed to
 read that field.
 
+For a dedicated collection in which every row is intentionally public and no
+publication-status field exists, set `DIRECTUS_PUBLIC_COLLECTION=1`. This
+explicitly delegates the publication boundary to the collection and its
+Directus read role. Never use that mode for a collection that can contain
+draft, private, staged, or personalized rows.
+
 ## Run locally
 
 ```bash

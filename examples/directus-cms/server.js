@@ -17,12 +17,16 @@ const DIRECTUS_URL = (process.env.DIRECTUS_URL || 'http://127.0.0.1:8055').repla
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN || '';
 const DIRECTUS_STATUS_FIELD = (process.env.DIRECTUS_STATUS_FIELD || 'status').trim();
 const DIRECTUS_PUBLISHED_VALUE = (process.env.DIRECTUS_PUBLISHED_VALUE || 'published').trim();
+const DIRECTUS_PUBLIC_COLLECTION = process.env.DIRECTUS_PUBLIC_COLLECTION === '1';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
-if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(DIRECTUS_STATUS_FIELD)) {
+if (!DIRECTUS_PUBLIC_COLLECTION && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(DIRECTUS_STATUS_FIELD)) {
   throw new Error('DIRECTUS_STATUS_FIELD must be a single Directus field name');
 }
-if (!DIRECTUS_PUBLISHED_VALUE || DIRECTUS_PUBLISHED_VALUE.length > 100) {
+if (
+  !DIRECTUS_PUBLIC_COLLECTION &&
+  (!DIRECTUS_PUBLISHED_VALUE || DIRECTUS_PUBLISHED_VALUE.length > 100)
+) {
   throw new Error('DIRECTUS_PUBLISHED_VALUE must contain 1 to 100 characters');
 }
 
@@ -30,8 +34,10 @@ async function loadPosts() {
   const params = new URLSearchParams({
     'sort[]': '-id',
     limit: '100',
-    [`filter[${DIRECTUS_STATUS_FIELD}][_eq]`]: DIRECTUS_PUBLISHED_VALUE,
   });
+  if (!DIRECTUS_PUBLIC_COLLECTION) {
+    params.set(`filter[${DIRECTUS_STATUS_FIELD}][_eq]`, DIRECTUS_PUBLISHED_VALUE);
+  }
   const options = {
     ...(DIRECTUS_TOKEN ? { headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` } } : {}),
     signal: AbortSignal.timeout(10_000),
@@ -39,8 +45,13 @@ async function loadPosts() {
   const res = await fetch(`${DIRECTUS_URL}/items/posts?${params}`, options);
   if (!res.ok) throw new Error(`Directus returned ${res.status}`);
   const body = await res.json();
-  return (body.data || [])
-    .filter((p) => String(p[DIRECTUS_STATUS_FIELD]) === DIRECTUS_PUBLISHED_VALUE)
+  const rows = Array.isArray(body.data) ? body.data : [];
+  return rows
+    .filter(
+      (p) =>
+        DIRECTUS_PUBLIC_COLLECTION ||
+        String(p[DIRECTUS_STATUS_FIELD]) === DIRECTUS_PUBLISHED_VALUE,
+    )
     .map((p) => ({
       path: `/posts/${encodeURIComponent(String(p.slug))}`,
       title: p.title,

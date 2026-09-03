@@ -27,6 +27,22 @@ const cases = [
     },
   },
   {
+    name: 'directus-public-collection',
+    directory: 'directus-cms',
+    envName: 'DIRECTUS_URL',
+    extraEnv: { DIRECTUS_PUBLIC_COLLECTION: '1' },
+    payload: {
+      data: [
+        {
+          slug: hostileSlug,
+          title: hostileTitle,
+          excerpt: hostileDescription,
+          body: 'Body',
+        },
+      ],
+    },
+  },
+  {
     name: 'ghost-cms',
     envName: 'GHOST_API_URL',
     payload: {
@@ -90,8 +106,10 @@ async function waitFor(url, child, logs) {
 
 for (const [index, testCase] of cases.entries()) {
   let upstreamRequests = 0;
-  const upstream = createServer((_req, res) => {
+  const upstreamUrls = [];
+  const upstream = createServer((req, res) => {
     upstreamRequests += 1;
+    upstreamUrls.push(req.url || '');
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(testCase.payload));
   });
@@ -100,13 +118,14 @@ for (const [index, testCase] of cases.entries()) {
   const baseUrl = `http://127.0.0.1:${wrapperPort}`;
   const logs = [];
   const child = spawn(process.execPath, ['server.js'], {
-    cwd: join(root, 'examples', testCase.name),
+    cwd: join(root, 'examples', testCase.directory || testCase.name),
     env: {
       ...process.env,
       PORT: String(wrapperPort),
       SITE_URL: baseUrl,
       CORSEN_CONTEXT_MCP_ENABLED: 'false',
       CORSEN_CONTEXT_LLMS_FULL_TXT_ENABLED: 'true',
+      ...(testCase.extraEnv || {}),
       [testCase.envName]: `http://127.0.0.1:${upstreamPort}`,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -162,6 +181,22 @@ for (const [index, testCase] of cases.entries()) {
       1,
       `${testCase.name}: llms-full plus landing caused repeated upstream list fetches`,
     );
+    if (testCase.name === 'directus-cms') {
+      const requestUrl = new URL(upstreamUrls[0], 'http://127.0.0.1');
+      assert.equal(
+        requestUrl.searchParams.get('filter[status][_eq]'),
+        'published',
+        'directus-cms: the default request must enforce the publication filter upstream',
+      );
+    }
+    if (testCase.name === 'directus-public-collection') {
+      const requestUrl = new URL(upstreamUrls[0], 'http://127.0.0.1');
+      assert.equal(
+        requestUrl.searchParams.has('filter[status][_eq]'),
+        false,
+        'directus-public-collection: explicit public collection mode must not query a missing status field',
+      );
+    }
   } finally {
     if (child.exitCode === null) {
       child.kill();
