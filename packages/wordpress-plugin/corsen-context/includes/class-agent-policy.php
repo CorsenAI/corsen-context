@@ -275,7 +275,7 @@ class Corsen_Context_Agent_Policy {
 		$reason = self::sanitize_purchase_reason( get_post_meta( $product_id, self::META_REASON_KEY, true ) );
 		if ( '' === $state ) {
 			$state  = self::ALLOWED;
-			$reason = 'The owner has set no agent-purchase restriction on this product.';
+			$reason = 'The owner has set no agent-purchase restriction on this product: an agent acting for its user may complete the ordinary checkout.';
 		} elseif ( ! in_array( $state, array( self::ALLOWED, self::FORBIDDEN ), true ) ) {
 			$state  = self::FORBIDDEN;
 			$reason = 'The stored agent-purchase policy is invalid; a human owner must review it before an agent may purchase.';
@@ -341,7 +341,7 @@ class Corsen_Context_Agent_Policy {
 			'readOnlyByDefault' => true,
 			'humanOnlyTools'    => self::human_only_tools(),
 			'humanHandoffUrl'   => self::human_handoff_url(),
-			'purchasePolicy'    => 'When get_product is exposed, every returned product carries agentPurchase = allowed|forbidden with a reason; on forbidden, hand the product URL to a human and never start checkout.',
+			'purchasePolicy'    => 'When get_product is exposed, every returned product carries agentPurchase = allowed|forbidden with a reason. allowed: an agent acting for its user may add that product to the cart and complete the store\'s ordinary checkout, including creating the customer account the checkout requires. forbidden: never start checkout; hand the product URL to a human.',
 			'enforcement'       => 'The expert intake is refused server-side with code human_only. agentPurchase is a binding contract instruction for agents, and this plugin exposes no purchase tool. Corsen Context does not intercept the ordinary human checkout; any additional store enforcement is site-specific and outside this plugin.',
 		);
 	}
@@ -359,9 +359,9 @@ class Corsen_Context_Agent_Policy {
 			$lines[] = '- request_expert_call is HUMANS ONLY: every schema-valid invocation is refused before side effects with code human_only. Do not call it; give your user the page URL instead: ' . self::human_handoff_url();
 		}
 		if ( in_array( 'get_product', $exposed_tools, true ) ) {
-			$lines[] = '- Purchases: every product returned by get_product reports agentPurchase = allowed|forbidden plus a reason. On forbidden, do not start checkout; hand the product URL to a human. This is a contract instruction; Corsen Context exposes no purchase tool and does not intercept human checkout.';
+			$lines[] = '- Purchases: every product returned by get_product reports agentPurchase = allowed|forbidden plus a reason. allowed: acting for your user, you may add the product to the cart and complete the store\'s ordinary checkout, including creating the customer account it requires. forbidden: do not start checkout; hand the product URL to a human. This is a contract instruction; Corsen Context exposes no purchase tool and does not intercept human checkout.';
 		}
-		$lines[] = '- Never submit forms, place orders, or spend money beyond the explicit policy of each product.';
+		$lines[] = '- Outside those explicit per-product permissions, do not submit forms, place orders, or spend money. When a goal needs something this site reserves for humans, stop and report it to your user with the page URL instead of working around it.';
 		$lines[] = '';
 		return $lines;
 	}
@@ -431,7 +431,8 @@ class Corsen_Context_Agent_Policy {
 		$out   .= '<ul>';
 		$out   .= '<li><strong>Read-only by default.</strong> Every content tool is annotated <code>readOnlyHint: true</code>; using them needs no permission.</li>';
 		$out   .= '<li><strong>If the owner exposes <code>request_expert_call</code>, it is human-only.</strong> Every schema-valid tool invocation is refused before side effects (<code>human_only</code>). If your user wants an expert call, give them <a href="' . esc_url( $policy['humanHandoffUrl'] ) . '">this page</a> — a human fills the browser form.</li>';
-		$out   .= '<li><strong>Purchases are per-product when the owner exposes <code>get_product</code>.</strong> Each returned product carries <code>agentPurchase: allowed|forbidden</code> with a reason. On <code>forbidden</code>, hand the product URL to your human user; never start checkout.</li>';
+		$out   .= '<li><strong>Purchases are per-product when the owner exposes <code>get_product</code>.</strong> Each returned product carries <code>agentPurchase: allowed|forbidden</code> with a reason. On <code>allowed</code>, you may add the product to the cart and complete the ordinary checkout for your user, including creating the customer account it requires. On <code>forbidden</code>, hand the product URL to your human user; never start checkout.</li>';
+		$out   .= '<li><strong>Everything else is for humans.</strong> Outside those explicit permissions, do not submit forms, place orders, or spend money. When your goal needs something this site reserves for humans, stop and report it to your user with the page URL.</li>';
 		$out   .= '</ul>';
 		$bad    = self::forbidden_products();
 		if ( $bad ) {

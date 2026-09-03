@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.15
+Stable tag: 1.5.16
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -78,10 +78,10 @@ Check the version displayed by WordPress.org before installation. A stable versi
 
 = Manual release installation =
 
-1. Obtain the GitHub release asset for version 1.5.15, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.15`.
+1. Obtain the GitHub release asset for version 1.5.16, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.16`.
 2. The ZIP must contain one top-level `corsen-context` folder with `corsen-context.php`, `includes/`, `uninstall.php`, and `readme.txt`; do not upload the monorepo ZIP.
 3. Go to Plugins > Add New > Upload Plugin, upload that plugin ZIP, and activate it.
-4. Confirm version 1.5.15 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
+4. Confirm version 1.5.16 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
 
 = After Activation =
 
@@ -151,6 +151,9 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.16 - 2026-09-03 =
+* Agent conduct policy states what an agent may do, not only what it must not: for a product whose `agentPurchase` is `allowed`, an agent acting for its user may complete the store's ordinary checkout, including creating the customer account it requires; everything outside those explicit per-product permissions stays human-only, and the agent is told to stop and report the page URL to its user. The same sentence is rendered in `llms.txt`, the `[corsen_agent_policy]` page, the machine-readable policy JSON, the `get_product` description, and the default per-product reason.
 
 = 1.5.15 - 2026-09-03 =
 * "Hide user enumeration" now flips anonymous author archives to 404 on `pre_handle_404`, inside `WP::main()` and before the `wp` action, instead of on `template_redirect`. The previous hook returned the right status but SEO plugins and `wp_get_document_title()` had already resolved the author, so the 404 page's `<title>` and Open Graph tags still printed the author's nicename and archive URL. The queried user is also dropped from the main query, and the integration test now asserts the document title, `is_author()`, and the queried object.
@@ -310,6 +313,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 * Clean uninstall (removes all options and transients)
 
 == Upgrade Notice ==
+
+= 1.5.16 =
+The agent conduct policy now spells out the allowed purchase path (cart, checkout, account creation) next to the human-only rules, so a well-behaved agent completes what the owner permits and hands the rest to a person.
 
 = 1.5.15 =
 Closes the last author-enumeration leak: blocked author archives no longer print the author's nicename in the 404 page title or Open Graph tags.

@@ -1,5 +1,15 @@
 # Changelog
 
+## WordPress plugin [1.5.16] - 2026-09-03
+
+- The agent conduct policy now states the permitted path as precisely as the
+  refusals: for an `agentPurchase: allowed` product an agent acting for its
+  user may complete the ordinary checkout, including the customer account it
+  requires; outside those per-product permissions it must stop and report the
+  page URL to its user. Rendered from one table into `llms.txt`, the policy
+  page, the policy JSON, the `get_product` description, and the default
+  per-product reason.
+
 ## WordPress plugin [1.5.15] - 2026-09-03
 
 - "Hide user enumeration" now blocks anonymous author archives on

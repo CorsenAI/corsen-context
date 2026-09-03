@@ -35,7 +35,7 @@ class Corsen_Context_Products {
 	public static function definition(): array {
 		return array(
 			'name'        => 'get_product',
-			'description' => 'Read one product from this store with live commercial data: price, sale status, stock status and quantity, images, categories, and for variable products up to 20 variants with their price and availability. Pass exactly one of slug or uri, taken from list_content(type=product) or search_site output. Every product also carries agentPurchase (allowed|forbidden) with a reason: on forbidden, an AI agent must not start checkout — hand the product URL to a human. Read-only.',
+			'description' => 'Read one product from this store with live commercial data: price, sale status, stock status and quantity, images, categories, and for variable products up to 20 variants with their price and availability. Pass exactly one of slug or uri, taken from list_content(type=product) or search_site output. Every product also carries agentPurchase (allowed|forbidden) with a reason: on allowed, an AI agent acting for its user may complete the store\'s ordinary checkout for it; on forbidden, it must not start checkout — hand the product URL to a human. Read-only.',
 			'inputSchema' => array(
 				'type'                 => 'object',
 				'properties'           => array(

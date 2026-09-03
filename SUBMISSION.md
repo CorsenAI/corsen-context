@@ -180,8 +180,8 @@ manual gate because an HTTP verifier cannot prove that a browser agent
 registered and executed a tool.
 
 The public distribution receipts are npm 2.0.1 and the WordPress 1.5.x plugin
-line: 1.5.14 on WordPress.org, and 1.5.15 as the GitHub release that adds the
-author-archive title fix. Record the exact installed version in every
+line: 1.5.14 on WordPress.org, and 1.5.16 as the GitHub release that adds the
+author-archive title fix and the explicit allowed-purchase wording. Record the exact installed version in every
 submission receipt; do not infer candidate behavior from a different package
 or commit.
 
