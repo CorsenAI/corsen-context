@@ -438,28 +438,46 @@ class Corsen_Context_Security {
 	 * Same switch, second door: the REST collection was closed while the
 	 * classic /author/{login} archive and the ?author=N probe (audit
 	 * 2026-09-01: 301 to a 200 page printing the admin login) stayed open.
-	 * Runs at template_redirect priority 5, ahead of core's canonical
-	 * redirect, so the login never leaks even in a Location header.
 	 *
-	 * @return void
+	 * Hooked to `pre_handle_404`, which WP::main() applies right after the
+	 * main query and before the `wp` action and canonical redirect. The
+	 * earlier template_redirect hook already answered 404, but SEO plugins
+	 * and wp_get_document_title() had resolved the author context before it
+	 * ran and still printed the author's nicename in the 404 page title and
+	 * Open Graph tags (audit 2026-09-03). Flipping the query here means no
+	 * downstream consumer ever sees an author archive.
+	 *
+	 * @param bool|mixed     $preempt Whether core's 404 handling is already preempted.
+	 * @param \WP_Query|null $query   Main query; the global is used when absent.
+	 * @return bool|mixed True when this method issued the 404, otherwise $preempt.
 	 */
-	public static function maybe_block_author_archives(): void {
+	public static function maybe_block_author_archives( $preempt = false, $query = null ) {
 		$settings = get_option( 'corsen_context_settings', array() );
 		if ( empty( $settings['hide_user_enumeration'] ) || is_user_logged_in() ) {
-			return;
+			return $preempt;
 		}
-		if ( ! isset( $GLOBALS['wp_query'] ) || ! $GLOBALS['wp_query'] instanceof \WP_Query ) {
-			return;
+		if ( ! $query instanceof \WP_Query ) {
+			if ( ! isset( $GLOBALS['wp_query'] ) || ! $GLOBALS['wp_query'] instanceof \WP_Query ) {
+				return $preempt;
+			}
+			$query = $GLOBALS['wp_query'];
 		}
-		$query = $GLOBALS['wp_query'];
 		// is_author() is true for /author/{login}, /author/{id} AND ?author=N
 		// once the main query parsed them. Never test query_vars with isset():
 		// core seeds 'author' => '' on EVERY front query, and the first 1.5.11
 		// deploy 404'd the whole anonymous site through that trap (same-day
 		// live regression, caught by verify:live SURFACE_FAILURE home=404).
-		if ( $query->is_author() ) {
-			$query->set_404();
-			status_header( 404 );
+		if ( ! $query->is_author() ) {
+			return $preempt;
 		}
+		$query->set_404();
+		// set_404() resets the conditional flags but keeps the resolved
+		// WP_User as the queried object; drop it so no title, canonical or
+		// Open Graph helper can print the author's name or archive URL.
+		$query->queried_object    = null;
+		$query->queried_object_id = 0;
+		status_header( 404 );
+		nocache_headers();
+		return true;
 	}
 }

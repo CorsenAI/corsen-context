@@ -5,7 +5,7 @@ Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.14
+Stable tag: 1.5.15
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -78,10 +78,10 @@ Check the version displayed by WordPress.org before installation. A stable versi
 
 = Manual release installation =
 
-1. Obtain the GitHub release asset for version 1.5.14, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.14`.
+1. Obtain the GitHub release asset for version 1.5.15, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.15`.
 2. The ZIP must contain one top-level `corsen-context` folder with `corsen-context.php`, `includes/`, `uninstall.php`, and `readme.txt`; do not upload the monorepo ZIP.
 3. Go to Plugins > Add New > Upload Plugin, upload that plugin ZIP, and activate it.
-4. Confirm version 1.5.14 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
+4. Confirm version 1.5.15 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
 
 = After Activation =
 
@@ -151,6 +151,9 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.15 - 2026-09-03 =
+* "Hide user enumeration" now flips anonymous author archives to 404 on `pre_handle_404`, inside `WP::main()` and before the `wp` action, instead of on `template_redirect`. The previous hook returned the right status but SEO plugins and `wp_get_document_title()` had already resolved the author, so the 404 page's `<title>` and Open Graph tags still printed the author's nicename and archive URL. The queried user is also dropped from the main query, and the integration test now asserts the document title, `is_author()`, and the queried object.
 
 = 1.5.14 - 2026-09-02 =
 * `get_structured_data` now uses WordPress's safe HTTP transport, refuses redirects, and caps the loopback response while downloading it. Stored markup is capped before parsing, JSON-LD clips stay valid UTF-8, multi-type entities are counted correctly, duplicate blocks no longer create a false truncation flag, and every returned block now stays within the documented byte budget.
@@ -307,6 +310,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 * Clean uninstall (removes all options and transients)
 
 == Upgrade Notice ==
+
+= 1.5.15 =
+Closes the last author-enumeration leak: blocked author archives no longer print the author's nicename in the 404 page title or Open Graph tags.
 
 = 1.5.14 =
 Hardens JSON-LD retrieval, unifies owner visibility vetoes across every reader, fixes section-id collisions, completes private-data cleanup, and aligns WordPress Abilities output schemas with actual results.

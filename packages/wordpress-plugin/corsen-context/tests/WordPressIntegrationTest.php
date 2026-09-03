@@ -580,15 +580,22 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		update_option( 'corsen_context_settings', $settings );
 		wp_set_current_user( 0 );
 
-		// go_to() runs WP::main() without loading a template, so core never
-		// fires template_redirect in this harness: invoke the hooked callback
-		// exactly as production does at priority 5.
+		// go_to() runs WP::main(), which applies pre_handle_404 exactly as a
+		// front-end request does; the direct calls below additionally prove
+		// the callback is idempotent once the query is already a 404.
 		$this->go_to( '/?author=' . $user_id );
+		$this->assertTrue( is_404(), '?author=N must 404 for anonymous once hiding is on, through the hook alone.' );
 		Corsen_Context_Security::maybe_block_author_archives();
-		$this->assertTrue( is_404(), '?author=N must 404 for anonymous once hiding is on.' );
+		$this->assertTrue( is_404(), '?author=N must stay 404 after a direct call.' );
 		$this->go_to( '/author/jane-writer/' );
 		Corsen_Context_Security::maybe_block_author_archives();
 		$this->assertTrue( is_404(), 'Author archives must 404 for anonymous.' );
+		// Audit 2026-09-03: the 404 status was right but the page title and
+		// Open Graph tags still printed the nicename, because the queried
+		// WP_User survived set_404(). Nothing downstream may see the author.
+		$this->assertNull( get_queried_object(), 'The author must not remain the queried object of a 404.' );
+		$this->assertFalse( is_author(), 'A blocked archive must not report is_author().' );
+		$this->assertStringNotContainsString( 'jane-writer', wp_get_document_title(), 'The 404 document title must not leak the author nicename.' );
 
 		// Positive control (live lesson 2026-09-01: an isset(query_vars) check
 		// 404'd the ENTIRE anonymous site, front page included, while both

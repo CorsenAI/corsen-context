@@ -59,20 +59,22 @@ const obsJs = read('cc-observatory.js');
 const wpHtml = read('wp-home.html');
 
 // --- Static files (Astro/Next/static serve them via /corsen/* or /cc-*) ---
-for (const name of ['cc-nav.css', 'cc-nav.js', 'cc-observatory.css', 'cc-observatory.js']) {
+for (const name of FILES.filter((file) => file !== 'wp-home.html')) {
   writeFileSync(join(OUT, name), read(name), 'utf8');
 }
 
 // --- WordPress homepage: inject CSS+JS via base64 bootstrap ---
 // wpautop must not see blank lines inside <style>/<script>: collapse them.
+// This is a whitespace normalizer over first-party source, not an HTML
+// sanitizer; the closing-tag patterns tolerate whitespace before ">".
 const wpSanitizedHtml = wpHtml
   .replace(/\r\n/g, '\n')
   .replace(
-    /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi,
+    /(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi,
     (m, open, body, close) => open + body.replace(/\n[ \t]*\n/g, '\n') + close,
   )
   .replace(
-    /(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi,
+    /(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi,
     (m, open, body, close) => open + body.replace(/\n[ \t]*\n/g, '\n') + close,
   );
 const bootstrap = wpBootstrap(navCss + '\n' + obsCss, obsJs + '\n' + navJs);
@@ -82,13 +84,7 @@ writeFileSync(join(OUT, 'wp-home.html'), wpFinal, 'utf8');
 
 // --- Manifest ---
 const manifest = {};
-for (const name of [
-  'cc-nav.css',
-  'cc-nav.js',
-  'cc-observatory.css',
-  'cc-observatory.js',
-  'wp-home.html',
-]) {
+for (const name of FILES) {
   const data = readFileSync(join(OUT, name));
   manifest[name] = { bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') };
 }

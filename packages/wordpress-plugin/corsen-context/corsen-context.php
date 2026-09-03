@@ -3,7 +3,7 @@
  * Plugin Name: Corsen Context
  * Plugin URI: https://github.com/CorsenAI/corsen-context
  * Description: Publish selected public content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
- * Version: 1.5.14
+ * Version: 1.5.15
  * Author: Corsen AI
  * Author URI: https://corsen.ai
  * License: MIT
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CORSEN_CONTEXT_VERSION', '1.5.14' );
+define( 'CORSEN_CONTEXT_VERSION', '1.5.15' );
 define( 'CORSEN_CONTEXT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'CORSEN_CONTEXT_PLUGIN_FILE', __FILE__ );
@@ -108,9 +108,11 @@ final class Corsen_Context {
 		add_filter( 'rest_endpoints', array( 'Corsen_Context_Security', 'maybe_hide_user_enumeration' ) );
 
 		// Same switch, second door: /?author=N and /author/{login} archives
-		// answer 404 to anonymous. Priority 5 beats core's canonical redirect
-		// so the login never leaks in a Location header (audit 2026-09-01).
-		add_action( 'template_redirect', array( 'Corsen_Context_Security', 'maybe_block_author_archives' ), 5 );
+		// answer 404 to anonymous. pre_handle_404 fires inside WP::main()
+		// right after the main query and before the `wp` action, so neither
+		// core's canonical redirect (audit 2026-09-01) nor an SEO plugin's
+		// document title (audit 2026-09-03) ever sees the author context.
+		add_filter( 'pre_handle_404', array( 'Corsen_Context_Security', 'maybe_block_author_archives' ), 5, 2 );
 
 		// The MCP route's OPTIONS preflight is served here, not by core's REST
 		// loader: rest_api_loaded hooks parse_request at priority 10 (not 100,

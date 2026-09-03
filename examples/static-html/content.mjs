@@ -1,6 +1,5 @@
 /** Single source of truth for both the generated HTML and read-only tools. */
 export { SITE_URL } from './site-url.mjs';
-import { SITE_URL } from './site-url.mjs';
 
 export const prompts = [
   'What is Corsen Context and which four read-only tools does it publish?',

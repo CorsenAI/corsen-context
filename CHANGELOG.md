@@ -1,5 +1,22 @@
 # Changelog
 
+## WordPress plugin [1.5.15] - 2026-09-03
+
+- "Hide user enumeration" now blocks anonymous author archives on
+  `pre_handle_404`, before the `wp` action, and drops the queried user from
+  the main query. The previous `template_redirect` hook returned 404 but SEO
+  plugins and `wp_get_document_title()` still printed the author's nicename
+  and archive URL in the 404 page title and Open Graph tags. Covered by the
+  integration test.
+- Repository hygiene: the shared demo navigation resolves `data-repository`
+  through an allowlist of known repositories and `data-home` through a fixed
+  two-value switch, so no attribute text reaches an `href` sink; the
+  observatory bundler and the inline-script smoke tolerate whitespace in
+  closing tags; an unused import and an unused constant were removed. This
+  closes the nine CodeQL alerts opened by the 2026-09-03 navigation rewrite.
+- A private research file (`probe_sites.json`) that had been committed by
+  mistake was removed from the repository.
+
 ## npm packages [2.0.1] - Candidate - 2026-09-02
 
 - The CLI now discovers custom MCP endpoints from `llms.txt` or `robots.txt`,

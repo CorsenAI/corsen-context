@@ -118,18 +118,18 @@ evidence and the submission does not ask judges to trust or reproduce them.
 The repository covers ten deployment targets, with deliberately different
 levels of native integration:
 
-| Stack              | What a site owner receives                                     |
-| ------------------ | -------------------------------------------------------------- |
-| WordPress          | public WordPress.org plugin 1.5.14 plus standalone source      |
-| Next.js App Router | published npm 2.0.1 adapter plus reference app                 |
-| Astro              | published npm 2.0.1 adapter plus SSR reference app             |
-| Express            | framework-agnostic core plus reference server                  |
-| Static HTML        | generated static assets plus one same-origin Node endpoint     |
-| Ghost              | reference Node bridge over the Content API                     |
-| Strapi             | reference Node bridge over an explicitly configured collection |
-| Directus           | reference Node bridge with a published-content filter          |
-| Wagtail            | reference Node bridge adapted to a configured page model       |
-| MediaWiki          | reference Node bridge over the Action API                      |
+| Stack              | What a site owner receives                                      |
+| ------------------ | --------------------------------------------------------------- |
+| WordPress          | public WordPress.org plugin (1.5.x line) plus standalone source |
+| Next.js App Router | published npm 2.0.1 adapter plus reference app                  |
+| Astro              | published npm 2.0.1 adapter plus SSR reference app              |
+| Express            | framework-agnostic core plus reference server                   |
+| Static HTML        | generated static assets plus one same-origin Node endpoint      |
+| Ghost              | reference Node bridge over the Content API                      |
+| Strapi             | reference Node bridge over an explicitly configured collection  |
+| Directus           | reference Node bridge with a published-content filter           |
+| Wagtail            | reference Node bridge adapted to a configured page model        |
+| MediaWiki          | reference Node bridge over the Action API                       |
 
 The five CMS bridges are deployable reference services, not native CMS plugins
 or extensions. A site owner must configure a least-privilege CMS role, map the
@@ -179,9 +179,11 @@ selected result with a scenario marker. Browser execution remains a separate
 manual gate because an HTTP verifier cannot prove that a browser agent
 registered and executed a tool.
 
-The final public distribution receipts are WordPress 1.5.14 and npm 2.0.1.
-Record the exact installed version in every submission receipt; do not infer
-candidate behavior from a different package or commit.
+The public distribution receipts are npm 2.0.1 and the WordPress 1.5.x plugin
+line: 1.5.14 on WordPress.org, and 1.5.15 as the GitHub release that adds the
+author-archive title fix. Record the exact installed version in every
+submission receipt; do not infer candidate behavior from a different package
+or commit.
 
 An ordinary push cannot publish the npm packages. It may prepare a Changesets
 version pull request; publication is a separately confirmed manual workflow

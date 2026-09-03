@@ -1,11 +1,15 @@
 /* ============================================================
-   Corsen Context shared navigation  - logic (v4)
+   Corsen Context shared navigation  - logic (v5)
    Injects nav+footer into [data-cc-nav] / [data-cc-foot].
    Mobile toggle, aria-expanded, Escape, per-stack accent.
    v3: builds every node through the DOM API (createElement /
    textContent / setAttribute) — no innerHTML anywhere, so page
    attributes can never be reinterpreted as HTML (CodeQL
    js/xss-through-dom). href values pass a scheme allowlist.
+   v5: every href written to the DOM is a constant from this file.
+   data-repository is resolved through an allowlist of known
+   repositories and data-home through a two-value switch, so no
+   attribute text ever reaches an href sink.
    ============================================================ */
 (function () {
   'use strict';
@@ -18,6 +22,7 @@
     'Next.js': 'https://github.com/CorsenAI/corsen-context-nextjs',
     Astro: 'https://github.com/CorsenAI/corsen-context-astro',
     'Static HTML': 'https://github.com/CorsenAI/corsen-context-static-html',
+    Netlify: 'https://github.com/CorsenAI/corsen-context-netlify',
     Ghost: 'https://github.com/CorsenAI/corsen-context-ghost',
     Strapi: 'https://github.com/CorsenAI/corsen-context-strapi',
     Directus: 'https://github.com/CorsenAI/corsen-context-directus',
@@ -25,9 +30,18 @@
     MediaWiki: 'https://github.com/CorsenAI/corsen-context-mediawiki',
   };
 
+  /* Repositories a page may name in data-repository. Any other value falls
+     back to the stack default, so the attribute can select a constant but
+     can never inject a destination. */
+  var KNOWN_REPOSITORIES = {};
+  KNOWN_REPOSITORIES[MAIN_REPO] = MAIN_REPO;
+  Object.keys(REPOS).forEach(function (stack) {
+    KNOWN_REPOSITORIES[REPOS[stack]] = REPOS[stack];
+  });
+
   function applyAccent(root) {
-    var acc = root.getAttribute('data-accent') || '';
-    if (acc) root.style.setProperty('--cc-accent', acc);
+    var acc = String(root.getAttribute('data-accent') || '').trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(acc)) root.style.setProperty('--cc-accent', acc);
   }
 
   /* href allowlist: in-page anchors, root-relative paths, http(s) only. */
@@ -69,7 +83,17 @@
   ];
 
   function repositoryFor(root, stack) {
-    return safeHref(root.getAttribute('data-repository'), REPOS[stack] || MAIN_REPO);
+    var declared = String(root.getAttribute('data-repository') || '').trim();
+    if (Object.prototype.hasOwnProperty.call(KNOWN_REPOSITORIES, declared)) {
+      return KNOWN_REPOSITORIES[declared];
+    }
+    return REPOS[stack] || MAIN_REPO;
+  }
+
+  /* data-home selects between two constants: the site root or the
+     in-page top anchor. */
+  function homeFor(root) {
+    return root.getAttribute('data-home') === '/' ? '/' : '#top';
   }
 
   function appendLinks(container, repository) {
@@ -89,7 +113,7 @@
     var stack = root.getAttribute('data-stack') || 'Demo';
     var repository = repositoryFor(root, stack);
     var uid = safeId(root.getAttribute('data-uid'));
-    var homeHref = safeHref(root.getAttribute('data-home'), '#top');
+    var homeHref = homeFor(root);
 
     var nav = el('div', 'cc-nav');
     var inner = el('div', 'cc-nav-inner');
@@ -170,7 +194,11 @@
     var legal = el('div', 'cc-foot-legal');
     legal.appendChild(el('span', '', 'Open-source demo (MIT), built for The WebMCP Challenge.'));
     legal.appendChild(
-      el('span', '', 'No form or account is required for this read-only demo; hosting logs may apply.'),
+      el(
+        'span',
+        '',
+        'No form or account is required for this read-only demo; hosting logs may apply.',
+      ),
     );
     wrap.appendChild(legal);
 
