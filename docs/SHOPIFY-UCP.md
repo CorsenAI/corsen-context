@@ -1,58 +1,62 @@
-# Shopify — Universal Commerce Protocol (UCP)
+# Shopify native WebMCP, Storefront MCP, and UCP
 
-Shopify storefronts expose commerce to AI agents **natively** over the Universal
-Commerce Protocol (UCP). No Corsen Context code is required: the platform
-generates the discovery surface, the MCP endpoint, and the in-page WebMCP bridge
-for every store.
+Shopify owns these commerce surfaces. They are not Corsen Context adapters and
+they do not expose Corsen Context's four-tool public-content contract.
 
-## Discovery
+## WebMCP in a shopper's tab
 
-- `GET https://{shop}.myshopify.com/.well-known/ucp` — UCP merchant profile:
-  protocol version, services, capabilities, and payment handlers.
+Shopify currently provides in-page WebMCP tools on every Liquid storefront
+without an app or configuration step. Hydrogen support is available through a
+developer preview. A compatible Chromium-based agent can discover tools for
+catalog search, product lookup, cart updates, checkout navigation, order
+navigation, and policy search through `document.modelContext`.
 
-## MCP endpoint
+These tools act on the shopper's visible tab and cart session. Test them on the
+actual storefront and theme that will be used; browser support remains limited.
 
-- `POST https://{shop}.myshopify.com/api/ucp/mcp`
-- Header: `MCP-Protocol-Version: 2025-11-25`
-- `tools/list` returns 13 commerce tools:
+Official reference:
+<https://shopify.dev/docs/api/web-mcp>
 
-| Domain   | Tools                                                                                        |
-| -------- | -------------------------------------------------------------------------------------------- |
-| Checkout | `get_checkout`, `create_checkout`, `update_checkout`, `complete_checkout`, `cancel_checkout` |
-| Cart     | `get_cart`, `create_cart`, `update_cart`, `cancel_cart`                                      |
-| Order    | `get_order`                                                                                  |
-| Catalog  | `search_catalog`, `lookup_catalog`, `get_product`                                            |
+## Server-side Storefront MCP
 
-## Agent profile
-
-`tools/call` requires `meta.ucp-agent.profile` — a URL to a JSON agent profile
-that the agent hosts — so the store can negotiate capabilities. A valid fixture
-for testing:
+An external agent can connect to a store's standard Storefront MCP endpoint:
 
 ```text
-https://shopify.dev/ucp/agent-profiles/2026-08-25/valid-with-capabilities.json
+POST https://{store-domain}/api/mcp
 ```
 
-Without it, calls fail with `profile_malformed`.
+Shopify documents store-policy tools on this standard endpoint. Its legacy
+`get_cart` and `update_cart` tools were deprecated in favour of UCP Cart MCP,
+with maintenance promised only through August 31, 2026. Clients must inspect
+the live `tools/list` result instead of assuming those legacy cart tools remain.
 
-## WebMCP in the page
+Official reference:
+<https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront>
 
-The storefront injects `document.modelContext.registerTool(...)`, so
-WebMCP-capable browsers discover the same commerce tools client-side.
+Deprecation notice:
+<https://shopify.dev/changelog/storefront-mcp-cart-tools-are-being-deprecated-in-favour-of-ucp-cart-mcp>
 
-## Install flow (custom distribution)
+## UCP catalog MCP
 
-The reference app is distributed as a custom app from the Shopify Dev Dashboard.
-Any store installs it via the OAuth authorize link:
+Shopify's UCP catalog capability uses a separate endpoint:
 
 ```text
-https://{shop}.myshopify.com/admin/oauth/authorize?client_id={CLIENT_ID}&scope=read_products,write_products&redirect_uri={REDIRECT_URI}&state={nonce}
+POST https://{store-domain}/api/ucp/mcp
 ```
 
-After approval the redirect URI receives an authorization `code`, exchanged for
-an access token at `POST https://{shop}/admin/oauth/access_token`.
+It exposes `search_catalog`, `lookup_catalog`, and `get_product`. Tool calls
+require `meta.ucp-agent.profile`, pointing to the calling agent's hosted UCP
+profile. Some stores can restrict access, so a successful result must be
+verified against the intended store rather than inferred from discovery alone.
 
-## Reference
+## Corsen verification kit
 
-- [UCP specification](https://ucp.dev)
-- [Shopify agent profiles and UCP negotiation](https://shopify.dev/docs/agents/profiles)
+The standalone
+[`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native)
+repository provides a small command-line verifier and a browser checklist for
+store owners. It installs no app, requests no Admin API scopes, and stores no
+shop credentials.
+
+A future Corsen Shopify app would require a separate security and distribution
+review. It must not be represented by an OAuth URL or a documentation-only
+claim.

@@ -5,10 +5,15 @@ A minimal Astro site made agent-native by the Corsen Context Astro adapter:
 `/webmcp.js` — the bridge that registers the same tools with an agent running
 inside the page (WebMCP, `document.modelContext`).
 
+[Standalone repository](https://github.com/CorsenAI/corsen-context-astro) ·
+[Live demo](https://astro-webmcp.corsen.ai)
+
 ## Run
 
 ```bash
-npm install
+git clone https://github.com/CorsenAI/corsen-context-astro.git
+cd corsen-context-astro
+npm ci
 cp .env.example .env
 npm run build
 npm start

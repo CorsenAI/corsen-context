@@ -3,21 +3,26 @@
 Minimal Express server with a bounded MCP 2025-11-25 JSON transport,
 WebMCP, and llms.txt support.
 
+[Standalone repository](https://github.com/CorsenAI/corsen-context-express) ·
+[Live demo](https://express-webmcp.corsen.ai)
+
 ## Setup
 
 ```bash
-cd examples/express-basic
-npm install
+git clone https://github.com/CorsenAI/corsen-context-express.git
+cd corsen-context-express
+npm ci
 npm start
 ```
 
-The public npm release requires `@corsenai/corsen-context` 1.3.0 or newer for
-the WebMCP exports. This checkout targets the unpublished 2.0.0 candidate and
-the repository verifier installs its local package archive without changing
-this example's stable dependency or lockfile.
+The lockfile installs the public `@corsenai/corsen-context` 2.0.1 release.
 The local default is `http://localhost:3000`. For deployment, set `SITE_URL`
 to the site's canonical public origin before starting the service. Replace the
 sample `provider` in `server.js` with your own public CMS/database adapter.
+
+The server binds to `127.0.0.1` by default. Set `HOST=0.0.0.0` only when the
+deployment platform requires a public listener, and put an edge rate limit in
+front of it.
 
 ## Endpoints
 

@@ -20,6 +20,7 @@ if (canonical.includes('`') || canonical.includes('${')) {
 const fileCopies = [
   'examples/astro-basic/public/cc-nav.js',
   'examples/nextjs-app-router/public/corsen/cc-nav.js',
+  'examples/static-html/assets/cc-nav.js',
 ];
 
 for (const relative of fileCopies) {

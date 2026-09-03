@@ -1,3 +1,12 @@
 [build]
   publish = "public"
   command = "node scripts/build.mjs"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+  CORSEN_CONTEXT_REPOSITORY_URL = "https://github.com/CorsenAI/corsen-context-netlify"
+  CORSEN_CONTEXT_LLMS_FULL_TXT_ENABLED = "false"
+
+[functions]
+  node_bundler = "esbuild"

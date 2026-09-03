@@ -25,3 +25,4 @@ coverage/
 
 # Netlify local CLI state
 .netlify/
+.challenge/e2e/creds.env

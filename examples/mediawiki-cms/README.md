@@ -5,6 +5,9 @@ reads public main-namespace pages through the Action API, publishes
 `/llms.txt`, and exposes four read-only tools through `POST /v1/mcp` and
 same-origin WebMCP.
 
+[Standalone repository](https://github.com/CorsenAI/corsen-context-mediawiki) ·
+[Live demo](https://mediawiki-webmcp.corsen.ai)
+
 ## Prerequisites
 
 - Node.js 22.12+
@@ -23,7 +26,9 @@ unbounded walk of a large wiki.
 ## Run locally
 
 ```bash
-npm install
+git clone https://github.com/CorsenAI/corsen-context-mediawiki.git
+cd corsen-context-mediawiki
+npm ci
 cp .env.example .env
 # Edit MW_API_URL and MW_USER_AGENT; review the corpus and cache bounds.
 npm run start:env
@@ -35,6 +40,8 @@ before deployment.
 
 Set `TRUST_PROXY=1` only when this service is reachable exclusively through
 one proxy hop you control. The default ignores forwarded client-IP headers.
+The process binds to `127.0.0.1` by default; set `HOST=0.0.0.0` only on a
+platform that requires a public listener.
 
 Each MediaWiki API fetch has a 10-second timeout. Successful page lists are
 cached in the Node process for 30 seconds by default; `MW_CACHE_TTL_MS` accepts
@@ -53,6 +60,6 @@ explicitly enables `/llms-full.txt`, which is disabled by default.
 ## Integrate an existing site
 
 The provider maps titles to `/wiki/{title}`. Confirm that mapping against the
-wiki's article-path configuration, then follow
-[`docs/CMS-BRIDGE-DEPLOYMENT.md`](../../docs/CMS-BRIDGE-DEPLOYMENT.md) for
+wiki's article-path configuration, then follow the
+[deployment guide](https://github.com/CorsenAI/corsen-context/blob/main/docs/CMS-BRIDGE-DEPLOYMENT.md) for
 same-origin routing, browser injection, and the final two-tool test.

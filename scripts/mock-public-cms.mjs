@@ -40,6 +40,7 @@ const fixtures = {
         title: 'WebMCP Guide',
         excerpt: 'Deterministic public WebMCP verification article served by Directus.',
         body: 'This public Directus article proves search and page retrieval through WebMCP.',
+        status: 'published',
       },
     ],
   },

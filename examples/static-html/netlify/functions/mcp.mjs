@@ -1,7 +1,6 @@
 import { CorsenContext, MCP_PROTOCOL_VERSION, extractClientIp } from '@corsenai/corsen-context';
 import { pages } from '../../content.mjs';
-
-const SITE_URL = 'https://corsen-context-demo.netlify.app';
+import { SITE_URL } from '../../site-url.mjs';
 
 const provider = {
   async getPages() {
@@ -53,12 +52,47 @@ const cc = new CorsenContext(
 );
 
 const server = cc.createMCPServer();
+const MAX_BODY_BYTES = 102_400;
 
 function json(status, body, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', ...extraHeaders },
   });
+}
+
+async function readBoundedJson(request) {
+  const declaredLength = Number.parseInt(request.headers.get('Content-Length') || '', 10);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    return { ok: false, tooLarge: true };
+  }
+  if (!request.body) return { ok: false, tooLarge: false };
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return { ok: false, tooLarge: true };
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return { ok: true, body: JSON.parse(new TextDecoder().decode(bytes)) };
+  } catch {
+    return { ok: false, tooLarge: false };
+  }
 }
 
 export default async (req) => {
@@ -127,16 +161,22 @@ export default async (req) => {
     });
   }
 
-  let body;
-  try {
-    body = await req.json();
-  } catch {
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok && parsed.tooLarge) {
+    return json(413, {
+      jsonrpc: '2.0',
+      error: { code: -32600, message: 'Request body too large' },
+      id: null,
+    });
+  }
+  if (!parsed.ok) {
     return json(400, {
       jsonrpc: '2.0',
       error: { code: -32700, message: 'Parse error' },
       id: null,
     });
   }
+  const body = parsed.body;
 
   const isResponse =
     !!body &&

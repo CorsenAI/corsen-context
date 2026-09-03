@@ -108,8 +108,8 @@ all the same kind of product. A public target is current only when
 | Stack              | Integration delivered to the site owner                            |
 | ------------------ | ------------------------------------------------------------------ |
 | WordPress          | Native PHP plugin                                                  |
-| Next.js App Router | npm 2.0.1 candidate plus complete example                          |
-| Astro              | npm 2.0.1 candidate plus complete SSR example                      |
+| Next.js App Router | Published npm 2.0.1 adapter plus complete example                   |
+| Astro              | Published npm 2.0.1 adapter plus complete SSR example               |
 | Express            | Framework-agnostic core plus reference server                      |
 | Static HTML        | Build-time assets plus one same-origin Node endpoint               |
 | Ghost              | Deployable read-only Node bridge over the Content API              |
@@ -123,17 +123,40 @@ extensions. They can act as a frontend or run as a same-origin sidecar. See
 [`docs/CMS-BRIDGE-DEPLOYMENT.md`](docs/CMS-BRIDGE-DEPLOYMENT.md) before using
 one on an existing site.
 
-Shopify is supported natively and requires no Corsen Context code: every
-storefront exposes commerce over the Universal Commerce Protocol (UCP), with an
-MCP endpoint (`POST /api/ucp/mcp`) and an in-page WebMCP bridge
-(`document.modelContext`). See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md) for
-the live demo and the install flow.
+Shopify provides its own WebMCP tools on Liquid storefronts without a Corsen
+Context installation; Hydrogen support is currently a developer preview.
+Shopify's in-page WebMCP tools are distinct from its Storefront MCP and UCP
+endpoints. The standalone
+[`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native)
+verification kit documents and checks those native surfaces without pretending
+to be a Shopify app. See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md).
+
+### Standalone integration repositories
+
+Each demonstrated stack also has a cloneable repository with its own license,
+lockfile, setup instructions, and CI. The npm packages remain maintained in
+this canonical monorepo.
+
+| Stack       | Standalone source and download |
+| ----------- | ------------------------------ |
+| WordPress   | [`corsen-context-wordpress`](https://github.com/CorsenAI/corsen-context-wordpress) |
+| Next.js     | [`corsen-context-nextjs`](https://github.com/CorsenAI/corsen-context-nextjs) |
+| Astro       | [`corsen-context-astro`](https://github.com/CorsenAI/corsen-context-astro) |
+| Express     | [`corsen-context-express`](https://github.com/CorsenAI/corsen-context-express) |
+| Static HTML | [`corsen-context-static-html`](https://github.com/CorsenAI/corsen-context-static-html) |
+| Netlify     | [`corsen-context-netlify`](https://github.com/CorsenAI/corsen-context-netlify) |
+| Ghost       | [`corsen-context-ghost`](https://github.com/CorsenAI/corsen-context-ghost) |
+| Strapi      | [`corsen-context-strapi`](https://github.com/CorsenAI/corsen-context-strapi) |
+| Directus    | [`corsen-context-directus`](https://github.com/CorsenAI/corsen-context-directus) |
+| Wagtail     | [`corsen-context-wagtail`](https://github.com/CorsenAI/corsen-context-wagtail) |
+| MediaWiki   | [`corsen-context-mediawiki`](https://github.com/CorsenAI/corsen-context-mediawiki) |
+| Shopify native verifier | [`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native) |
 
 ## Quick start
 
 ### Next.js App Router
 
-The packages are published on npm at `2.0.0`:
+The packages are published on npm at `2.0.1`:
 
 ```bash
 npm install @corsenai/corsen-context @corsenai/corsen-context-nextjs
@@ -199,8 +222,8 @@ The plugin source is
 [`packages/wordpress-plugin/corsen-context`](packages/wordpress-plugin/corsen-context).
 It publishes owner-selected public post types, path exclusions, `llms.txt`, an
 MCP endpoint, and opt-in WebMCP. Check the version shown on WordPress.org
-before installation: a public stable version older than `1.4.1` does not
-contain this candidate's strict WebMCP contract.
+before installation. Version `1.5.14` is the release demonstrated by the
+flagship site.
 
 For a source install, package only the `corsen-context` plugin directory,
 upload the ZIP through **Plugins > Add New > Upload Plugin**, activate it, and

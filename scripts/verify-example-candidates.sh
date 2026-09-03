@@ -9,6 +9,7 @@ cd "$ROOT_DIR"
 export NPM_CONFIG_USERCONFIG=/dev/null
 export NEXT_TELEMETRY_DISABLED=1
 export ASTRO_TELEMETRY_DISABLED=1
+export CI="${CI:-true}"
 
 for command in node npm pnpm diff sha256sum; do
   if ! command -v "$command" >/dev/null 2>&1; then

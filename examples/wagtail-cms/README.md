@@ -4,6 +4,9 @@ This is a deployable Node reference bridge, not a Wagtail package. It reads a
 configured public page type through Wagtail API v2, publishes `/llms.txt`, and
 exposes four read-only tools through `POST /v1/mcp` and same-origin WebMCP.
 
+[Standalone repository](https://github.com/CorsenAI/corsen-context-wagtail) ·
+[Live demo](https://wagtail-webmcp.corsen.ai)
+
 ## Prerequisites
 
 - Node.js 22.12+
@@ -19,7 +22,9 @@ returns live pages through its public API.
 ## Run locally
 
 ```bash
-npm install
+git clone https://github.com/CorsenAI/corsen-context-wagtail.git
+cd corsen-context-wagtail
+npm ci
 cp .env.example .env
 # Edit WAGTAIL_URL, WAGTAIL_PAGE_TYPE, and WAGTAIL_BODY_FIELD.
 npm run start:env
@@ -31,6 +36,8 @@ before deployment.
 
 Set `TRUST_PROXY=1` only when this service is reachable exclusively through
 one proxy hop you control. The default ignores forwarded client-IP headers.
+The process binds to `127.0.0.1` by default; set `HOST=0.0.0.0` only on a
+platform that requires a public listener.
 
 Each Wagtail API fetch has a 10-second timeout. Successful page lists are cached
 for a fixed 60 seconds in the Node process, and concurrent cache misses share
@@ -48,7 +55,7 @@ explicitly enables `/llms-full.txt`, which is disabled by default.
 ## Integrate an existing site
 
 Enable and mount the Wagtail API using the official Wagtail documentation,
-then follow
-[`docs/CMS-BRIDGE-DEPLOYMENT.md`](../../docs/CMS-BRIDGE-DEPLOYMENT.md) for
+then follow the
+[deployment guide](https://github.com/CorsenAI/corsen-context/blob/main/docs/CMS-BRIDGE-DEPLOYMENT.md) for
 same-origin routing, browser injection, canonical URL mapping, and final
 verification.

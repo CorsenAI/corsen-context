@@ -358,7 +358,7 @@ const mcpEnabled = process.env.CORSEN_CONTEXT_MCP_ENABLED !== 'false';
 const bridgeTag = mcpEnabled ? '<script src="/webmcp.js" defer></script>' : '';
 const pageShell = (title, inner) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${esc(title)}</title>
 <style>/* ============================================================
    Corsen Context shared navigation (v2)
    Isolated: .cc-nav / .cc-nav-*. Sticky, accessible, mobile-ready.
@@ -872,7 +872,7 @@ ${inner}
 })();
 </script>
 <script>/* ============================================================
-   Corsen Context shared navigation  - logic (v3)
+   Corsen Context shared navigation  - logic (v4)
    Injects nav+footer into [data-cc-nav] / [data-cc-foot].
    Mobile toggle, aria-expanded, Escape, per-stack accent.
    v3: builds every node through the DOM API (createElement /
@@ -884,7 +884,19 @@ ${inner}
   'use strict';
 
   var FLAGSHIP = 'https://webmcp.corsen.ai';
-  var REPO = 'https://github.com/CorsenAI/corsen-context';
+  var MAIN_REPO = 'https://github.com/CorsenAI/corsen-context';
+  var REPOS = {
+    WordPress: 'https://github.com/CorsenAI/corsen-context-wordpress',
+    Express: 'https://github.com/CorsenAI/corsen-context-express',
+    'Next.js': 'https://github.com/CorsenAI/corsen-context-nextjs',
+    Astro: 'https://github.com/CorsenAI/corsen-context-astro',
+    'Static HTML': 'https://github.com/CorsenAI/corsen-context-static-html',
+    Ghost: 'https://github.com/CorsenAI/corsen-context-ghost',
+    Strapi: 'https://github.com/CorsenAI/corsen-context-strapi',
+    Directus: 'https://github.com/CorsenAI/corsen-context-directus',
+    Wagtail: 'https://github.com/CorsenAI/corsen-context-wagtail',
+    MediaWiki: 'https://github.com/CorsenAI/corsen-context-mediawiki',
+  };
 
   function applyAccent(root) {
     var acc = root.getAttribute('data-accent') || '';
@@ -926,13 +938,17 @@ ${inner}
     { text: 'Live trace', href: '#live' },
     { text: 'How it works', href: '#how' },
     { text: 'All integrations', href: FLAGSHIP + '/#integrations', external: true },
-    { text: 'GitHub', href: REPO, external: true },
   ];
 
-  function appendLinks(container) {
+  function repositoryFor(root, stack) {
+    return safeHref(root.getAttribute('data-repository'), REPOS[stack] || MAIN_REPO);
+  }
+
+  function appendLinks(container, repository) {
     LINKS.forEach(function (l) {
       container.appendChild(link('cc-nav-link', l.href, l.text, l.external));
     });
+    container.appendChild(link('cc-nav-link', repository, 'Get this integration', true));
     container.appendChild(link('cc-nav-cta', FLAGSHIP, 'Flagship', true));
     return container;
   }
@@ -943,6 +959,7 @@ ${inner}
     applyAccent(root);
 
     var stack = root.getAttribute('data-stack') || 'Demo';
+    var repository = repositoryFor(root, stack);
     var uid = safeId(root.getAttribute('data-uid'));
     var homeHref = safeHref(root.getAttribute('data-home'), '#top');
 
@@ -959,7 +976,7 @@ ${inner}
 
     var navEl = el('nav', 'cc-nav-links');
     navEl.setAttribute('aria-label', 'Primary');
-    appendLinks(navEl);
+    appendLinks(navEl, repository);
 
     var toggle = el('button', 'cc-nav-toggle');
     toggle.type = 'button';
@@ -978,7 +995,7 @@ ${inner}
     var mobile = el('nav', 'cc-nav-mobile');
     mobile.id = 'cc-nav-mobile-' + uid;
     mobile.setAttribute('aria-label', 'Primary mobile');
-    appendLinks(mobile);
+    appendLinks(mobile, repository);
 
     nav.appendChild(inner);
     nav.appendChild(mobile);
@@ -1011,12 +1028,13 @@ ${inner}
     applyAccent(root);
 
     var stack = root.getAttribute('data-stack') || 'Demo';
+    var repository = repositoryFor(root, stack);
 
     var wrap = el('div', 'cc-foot-common');
 
     var linksEl = el('div', 'cc-foot-links');
     linksEl.appendChild(link('', FLAGSHIP, 'Flagship demo', true));
-    linksEl.appendChild(link('', REPO, 'GitHub repository', true));
+    linksEl.appendChild(link('', repository, 'Download this integration', true));
 
     wrap.appendChild(linksEl);
     wrap.appendChild(el('div', 'cc-foot-stack', 'Demonstration site — stack: ' + stack));
@@ -1024,7 +1042,7 @@ ${inner}
     var legal = el('div', 'cc-foot-legal');
     legal.appendChild(el('span', '', 'Open-source demo (MIT), built for The WebMCP Challenge.'));
     legal.appendChild(
-      el('span', '', 'This page exposes read-only public content; it collects no personal data.'),
+      el('span', '', 'No form or account is required for this read-only demo; hosting logs may apply.'),
     );
     wrap.appendChild(legal);
 
@@ -1102,6 +1120,7 @@ app.use((error, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const HOST = process.env.HOST || '127.0.0.1';
+app.listen(PORT, HOST, () => {
   console.log(`Wagtail + Corsen Context demo at ${SITE_URL} (port ${PORT})`);
 });

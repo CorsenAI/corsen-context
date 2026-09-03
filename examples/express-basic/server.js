@@ -271,7 +271,8 @@ app.get('*path', (req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const HOST = process.env.HOST || '127.0.0.1';
+app.listen(PORT, HOST, () => {
   console.log(`Aurora Kits Express demo running at http://localhost:${PORT}`);
   console.log('  GET /llms.txt');
   console.log('  POST /v1/mcp');

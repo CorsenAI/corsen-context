@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "start": "node function/server.js"
+    "build": "node --env-file-if-exists=.env scripts/build.mjs",
+    "start": "node --env-file-if-exists=.env function/server.js"
   },
   "dependencies": {
-    "@corsenai/corsen-context": "^2.0.0",
+    "@corsenai/corsen-context": "^2.0.1",
     "express": "^5.0.0"
   },
   "overrides": {

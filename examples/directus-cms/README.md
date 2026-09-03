@@ -5,6 +5,9 @@ reads a configured public corpus through the Directus REST API, publishes
 `/llms.txt`, and exposes four read-only tools through `POST /v1/mcp` and
 same-origin WebMCP.
 
+[Standalone repository](https://github.com/CorsenAI/corsen-context-directus) ·
+[Live demo](https://directus-webmcp.corsen.ai)
+
 ## Prerequisites
 
 - Node.js 22.12+
@@ -13,13 +16,17 @@ same-origin WebMCP.
 - a public role or service user restricted to read published items and only
   those fields
 
-The query explicitly selects items whose `status` is `published`. Adapt that
-value if the project uses another publication workflow.
+The query and response filter both require `status=published` by default.
+Configure `DIRECTUS_STATUS_FIELD` and `DIRECTUS_PUBLISHED_VALUE` when the
+project uses another publication workflow; the API role must be allowed to
+read that field.
 
 ## Run locally
 
 ```bash
-npm install
+git clone https://github.com/CorsenAI/corsen-context-directus.git
+cd corsen-context-directus
+npm ci
 cp .env.example .env
 # Edit DIRECTUS_URL and, when required, DIRECTUS_TOKEN.
 npm run start:env
@@ -31,6 +38,8 @@ before deployment.
 
 Set `TRUST_PROXY=1` only when this service is reachable exclusively through
 one proxy hop you control. The default ignores forwarded client-IP headers.
+The process binds to `127.0.0.1` by default; set `HOST=0.0.0.0` only on a
+platform that requires a public listener.
 
 Each Directus API fetch has a 10-second timeout. Successful post lists are
 cached for a fixed 60 seconds in the Node process, and concurrent cache misses
@@ -48,7 +57,7 @@ explicitly enables `/llms-full.txt`, which is disabled by default.
 ## Integrate an existing site
 
 The provider maps Directus items to `/posts/{slug}`. Adapt that mapping to the
-real frontend and follow
-[`docs/CMS-BRIDGE-DEPLOYMENT.md`](../../docs/CMS-BRIDGE-DEPLOYMENT.md) for
+real frontend and follow the
+[deployment guide](https://github.com/CorsenAI/corsen-context/blob/main/docs/CMS-BRIDGE-DEPLOYMENT.md) for
 same-origin routing, credential boundaries, browser injection, and final
 verification.

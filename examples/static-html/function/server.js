@@ -230,7 +230,8 @@ if (!existsSync(publicDir)) {
 app.use(express.static(publicDir));
 
 const PORT = process.env.PORT || 3010;
-app.listen(PORT, () => {
+const HOST = process.env.HOST || '127.0.0.1';
+app.listen(PORT, HOST, () => {
   console.log(`Static site and MCP endpoint available at http://localhost:${PORT}`);
   console.log(`Public content URLs are generated for ${SITE_URL}`);
 });

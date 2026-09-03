@@ -4,6 +4,9 @@ This is a deployable Node reference bridge, not a native Ghost plugin. It
 reads published posts through Ghost's Content API, publishes `/llms.txt`, and
 exposes four read-only tools through `POST /v1/mcp` and same-origin WebMCP.
 
+[Standalone repository](https://github.com/CorsenAI/corsen-context-ghost) ·
+[Live demo](https://ghost-webmcp.corsen.ai)
+
 ## Prerequisites
 
 - Node.js 22.12+
@@ -15,7 +18,9 @@ The Content API key is read-only and remains on the server.
 ## Run locally
 
 ```bash
-npm install
+git clone https://github.com/CorsenAI/corsen-context-ghost.git
+cd corsen-context-ghost
+npm ci
 cp .env.example .env
 # Edit GHOST_CONTENT_KEY in .env.
 npm run start:env
@@ -30,6 +35,8 @@ before deployment.
 
 Set `TRUST_PROXY=1` only when this service is reachable exclusively through
 one proxy hop you control. The default ignores forwarded client-IP headers.
+The process binds to `127.0.0.1` by default; set `HOST=0.0.0.0` only on a
+platform that requires a public listener.
 
 Each Ghost API fetch has a 10-second timeout. Successful post lists are cached
 for a fixed 60 seconds in the Node process, and concurrent cache misses share
@@ -49,5 +56,5 @@ explicitly enables `/llms-full.txt`, which is disabled by default.
 The server can be the public frontend, or a sidecar behind the site's reverse
 proxy. For the latter, map `/v1/mcp`, `/webmcp.js`, and `/llms.txt` to this
 service and load `/webmcp.js` from the Ghost theme. Follow
-[`docs/CMS-BRIDGE-DEPLOYMENT.md`](../../docs/CMS-BRIDGE-DEPLOYMENT.md) for the
+[deployment guide](https://github.com/CorsenAI/corsen-context/blob/main/docs/CMS-BRIDGE-DEPLOYMENT.md) for the
 same-origin, credentials, and verification requirements.

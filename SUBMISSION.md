@@ -122,9 +122,9 @@ levels of native integration:
 
 | Stack              | What a site owner receives                                     |
 | ------------------ | -------------------------------------------------------------- |
-| WordPress          | native PHP plugin; source candidate 1.5.14                     |
-| Next.js App Router | npm 2.0.1 candidate plus reference app                         |
-| Astro              | npm 2.0.1 candidate plus SSR reference app                     |
+| WordPress          | public WordPress.org plugin 1.5.14 plus standalone source      |
+| Next.js App Router | published npm 2.0.1 adapter plus reference app                 |
+| Astro              | published npm 2.0.1 adapter plus SSR reference app             |
 | Express            | framework-agnostic core plus reference server                  |
 | Static HTML        | generated static assets plus one same-origin Node endpoint     |
 | Ghost              | reference Node bridge over the Content API                     |
@@ -181,9 +181,9 @@ selected result with a scenario marker. Browser execution remains a separate
 manual gate because an HTTP verifier cannot prove that a browser agent
 registered and executed a tool.
 
-The WordPress.org stable channel and npm registry can also lag the repository
-candidate. Record the exact installed version in every submission receipt;
-do not infer candidate behavior from an older public package.
+The final public distribution receipts are WordPress 1.5.14 and npm 2.0.1.
+Record the exact installed version in every submission receipt; do not infer
+candidate behavior from a different package or commit.
 
 An ordinary push cannot publish the npm packages. It may prepare a Changesets
 version pull request; publication is a separately confirmed manual workflow
