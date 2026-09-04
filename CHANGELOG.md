@@ -1,5 +1,20 @@
 # Changelog
 
+## Security advisory - examples/directus-cms - 2026-09-04
+
+- Between commit 18bad85 (2026-08-30) and commit 10a12e6 (2026-09-03) the
+  Directus reference bridge in `examples/directus-cms` sent no publication
+  filter to Directus and did not re-check the returned rows. Every item
+  readable by the configured token was exposed through `/llms.txt`, MCP and
+  WebMCP. Since 10a12e6 the published-only filter is restored in the query
+  and re-checked on every row, and `DIRECTUS_PUBLIC_COLLECTION=1` (222e14f)
+  is the only way to expose a collection that has no publication field. The
+  standalone repository never shipped an affected revision. Tracked as
+  GHSA-7mx7-785c-vvj8, published once the reporter has confirmed the scope.
+  Reported privately by an independent security researcher on 2026-09-03.
+- SECURITY.md now lists security@corsen.ai as the fallback channel, and
+  private vulnerability reporting is enabled on every CorsenAI repository.
+
 ## WordPress plugin [1.5.16] - 2026-09-03
 
 - The agent conduct policy now states the permitted path as precisely as the

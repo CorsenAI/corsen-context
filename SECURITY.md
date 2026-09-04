@@ -7,6 +7,9 @@ the site operator and content provider remain part of the security boundary.
 This document separates behavior implemented by the repository from controls
 that a deployment must supply. Report suspected vulnerabilities privately
 through [GitHub's security advisory form](https://github.com/CorsenAI/corsen-context/security/advisories/new).
+If the advisory form is unavailable, email security@corsen.ai with the subject
+"Vulnerability report: corsen-context". We acknowledge reports within three
+business days and coordinate the disclosure date with the reporter.
 Do not include credentials, private content, or exploit data in a public issue.
 
 ## Scope and trust boundary
