@@ -33,7 +33,17 @@ final class ContentConverterTest extends TestCase {
 	}
 
 	public function test_escapes_untrusted_markdown_metadata(): void {
-		$this->assertSame( 'Title \\[link\\]\\(x\\)', Corsen_Context_Content_Converter::escape_markdown_inline( 'Title [link](x)' ) );
+		$this->assertSame( 'Title \\[link\\]\\(x)', Corsen_Context_Content_Converter::escape_markdown_inline( 'Title [link](x)' ) );
+		$this->assertSame( 'a \\*b\\* \\_c\\_ \\`d\\` 1 \\< 2 \\> 0', Corsen_Context_Content_Converter::escape_markdown_inline( 'a *b* _c_ `d` 1 < 2 > 0' ) );
+	}
+
+	public function test_plain_punctuation_is_not_escaped(): void {
+		// Audit 2026-10-17: every site's llms.txt read "Hello world\\!" and
+		// "first post\\. Edit\\-or\\-delete \\(it\\)"; CommonMark needs none of it.
+		$this->assertSame(
+			'Hello world! A human-owned checklist (in most themes). Version 2.0, #1 kit + more',
+			Corsen_Context_Content_Converter::escape_markdown_inline( 'Hello world! A human-owned checklist (in most themes). Version 2.0, #1 kit + more' )
+		);
 	}
 
 	public function test_adjacent_list_items_remain_separate_markdown_items(): void {

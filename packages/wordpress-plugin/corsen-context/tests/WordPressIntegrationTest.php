@@ -69,6 +69,31 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Members Guide', $content );
 	}
 
+	public function test_llms_txt_reads_naturally_and_opens_with_the_site_summary(): void {
+		update_option( 'blogdescription', 'Field kits & guides' );
+		self::factory()->post->create(
+			array(
+				'post_title'   => 'Hello world!',
+				'post_status'  => 'publish',
+				'post_content' => 'A human-owned checklist (in most themes). Edit or delete it, then start writing!',
+			)
+		);
+
+		$content = ( new Corsen_Context_Llms_Generator() )->generate_llms_txt();
+		$lines   = explode( "\n", $content );
+
+		$this->assertStringStartsWith( '# ', $lines[0] );
+		$this->assertSame( '> Field kits & guides', $lines[2], 'The tagline is the single summary blockquote.' );
+		$this->assertSame( '## About this AI Context File', $lines[4] );
+		$this->assertStringStartsWith( 'START HERE for AI agents:', $lines[5] );
+		$this->assertStringContainsString( '- [Hello world!](', $content );
+		$this->assertStringContainsString( 'A human-owned checklist (in most themes). Edit or delete it, then start writing!', $content );
+		$this->assertStringNotContainsString( '\\!', $content );
+		$this->assertStringNotContainsString( '\\.', $content );
+		$this->assertStringNotContainsString( '\\-', $content );
+		$this->assertStringContainsString( "\n\n## Agent conduct policy", $content );
+	}
+
 	public function test_llms_routes_avoid_canonical_slash_redirects(): void {
 		$plugin = Corsen_Context::instance();
 

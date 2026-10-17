@@ -47,9 +47,11 @@ class Corsen_Context_Llms_Generator {
 		$site_desc = Corsen_Context_Content_Converter::escape_markdown_inline( get_bloginfo( 'description' ) );
 		$site_url  = home_url();
 		$mcp_url   = Corsen_Context_MCP_Server::endpoint_url();
-		$lines     = array( '# ' . $site_name, '' );
-		$lines[]   = '> START HERE for AI agents: the Agent conduct policy below is binding. Read it before calling any tool or submitting any form on this site.';
-		$lines[]   = '';
+		// llms.txt format (llmstxt.org): the H1, then one blockquote that
+		// summarises the site, then free sections, then H2 link lists. The
+		// tagline is that summary; the agent policy pointer opens the first
+		// section so it is read before any tool is called.
+		$lines = array( '# ' . $site_name, '' );
 
 		if ( $site_desc ) {
 			$lines[] = '> ' . $site_desc;
@@ -57,6 +59,7 @@ class Corsen_Context_Llms_Generator {
 		}
 
 		$lines[]       = '## About this AI Context File';
+		$lines[]       = 'START HERE for AI agents: the Agent conduct policy below is binding. Read it before calling any tool or submitting any form on this site.';
 		$lines[]       = 'This file publishes selected public site content for clients and services that support the llms.txt convention.';
 		$exposed_tools = array();
 		if ( ! empty( $settings['enabled'] ) && ! empty( $settings['mcp_enabled'] ) ) {
@@ -67,6 +70,7 @@ class Corsen_Context_Llms_Generator {
 				: 'For dynamic read-only access, compatible clients can use the MCP-style JSON-RPC endpoint below.';
 			$lines[]       = 'MCP endpoint: ' . $mcp_url;
 		}
+		$lines[] = '';
 		foreach ( Corsen_Context_Agent_Policy::llms_lines( $exposed_tools ) as $policy_line ) {
 			$lines[] = $policy_line;
 		}
