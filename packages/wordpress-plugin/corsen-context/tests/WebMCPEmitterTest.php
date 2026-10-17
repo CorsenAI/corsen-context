@@ -2,6 +2,8 @@
 /**
  * The WordPress WebMCP bridge is a second implementation of the same
  * contract, so it is held to the same security invariants as the core one.
+ * The bridge ships as assets/js/webmcp-bridge.js; the page carries only an
+ * inline configuration (tool definitions, endpoint, protocol version).
  *
  * @package Corsen_Context
  */
@@ -13,6 +15,7 @@ final class WebMCPEmitterTest extends TestCase {
 	protected function tearDown(): void {
 		$GLOBALS['corsen_test_options'] = array();
 		$GLOBALS['corsen_test_filters'] = array();
+		$GLOBALS['corsen_test_scripts'] = array();
 		unset( $GLOBALS['corsen_test_rest_url'] );
 	}
 
@@ -22,11 +25,19 @@ final class WebMCPEmitterTest extends TestCase {
 		return Corsen_Context_WebMCP::with_annotations( $server->get_tool_definitions() );
 	}
 
-	private function script(): string {
+	/** The inline configuration printed before the bridge. */
+	private function config(): string {
 		return Corsen_Context_WebMCP::build_script(
 			$this->annotated_tools(),
 			'https://example.com/wp-json/corsen-context/v1/mcp'
 		);
+	}
+
+	/** The bridge script shipped with the plugin. */
+	private function bridge(): string {
+		$source = Corsen_Context_WebMCP::bridge_source();
+		$this->assertNotSame( '', $source, 'assets/js/webmcp-bridge.js must ship with the plugin.' );
+		return $source;
 	}
 
 	public function test_every_tool_is_read_only_and_untrusted(): void {
@@ -109,104 +120,105 @@ final class WebMCPEmitterTest extends TestCase {
 
 	public function test_tools_carry_a_title_on_both_transports(): void {
 		foreach ( array( 'webmcp', 'mcp' ) as $transport ) {
-			$tools = Corsen_Context_WebMCP::with_annotations( ( new Corsen_Context_MCP_Server() )->get_tool_definitions(), $transport );
+			$tools   = Corsen_Context_WebMCP::with_annotations( ( new Corsen_Context_MCP_Server() )->get_tool_definitions(), $transport );
 			$by_name = array_column( $tools, null, 'name' );
 			$this->assertSame( 'Search site', $by_name['search_site']['title'] );
 			$this->assertSame( 'Read a page', $by_name['get_page_content']['title'] );
 		}
-		$this->assertStringContainsString( 'title: tool.title,', $this->script() );
+		$this->assertStringContainsString( 'title: tool.title,', $this->bridge() );
 	}
 
 	public function test_registers_through_document_with_navigator_alias(): void {
-		$script = $this->script();
-		$this->assertStringContainsString( 'document.modelContext || navigator.modelContext', $script );
-		$this->assertStringContainsString( 'mc.registerTool(', $script );
+		$bridge = $this->bridge();
+		$this->assertStringContainsString( 'document.modelContext || navigator.modelContext', $bridge );
+		$this->assertStringContainsString( 'mc.registerTool(', $bridge );
+		$this->assertStringContainsString( 'window.corsenContextWebMCP', $bridge );
 	}
 
 	public function test_refuses_to_register_inside_a_frame(): void {
-		$this->assertStringContainsString( 'if (window.top !== window.self) return;', $this->script() );
+		$this->assertStringContainsString( 'if (window.top !== window.self) return;', $this->bridge() );
 	}
 
 	public function test_never_widens_exposure_to_cross_origin_documents(): void {
-		$this->assertStringNotContainsString( 'exposedTo', $this->script() );
+		$this->assertStringNotContainsString( 'exposedTo', $this->bridge() );
+		$this->assertStringNotContainsString( 'exposedTo', $this->config() );
 	}
 
 	public function test_invalid_or_cross_origin_endpoint_is_rejected_before_registration_or_fetch(): void {
-		$script = $this->script();
+		$bridge = $this->bridge();
 		$guard  = 'if (endpointUrl.origin !== window.location.origin) return;';
 
-		$this->assertStringContainsString( 'new URL(endpoint, window.location.href)', $script );
-		$this->assertStringContainsString( "endpointUrl.protocol !== 'http:'", $script );
-		$this->assertStringContainsString( 'if (endpointUrl.username || endpointUrl.password) return;', $script );
-		$this->assertStringContainsString( $guard, $script );
-		$this->assertLessThan( strpos( $script, 'var mc =' ), strpos( $script, $guard ) );
-		$this->assertLessThan( strpos( $script, 'return fetch(endpoint' ), strpos( $script, $guard ) );
-		$this->assertLessThan( strpos( $script, 'mc.registerTool(' ), strpos( $script, $guard ) );
+		$this->assertStringContainsString( 'new URL(endpoint, window.location.href)', $bridge );
+		$this->assertStringContainsString( "endpointUrl.protocol !== 'http:'", $bridge );
+		$this->assertStringContainsString( 'if (endpointUrl.username || endpointUrl.password) return;', $bridge );
+		$this->assertStringContainsString( $guard, $bridge );
+		$this->assertLessThan( strpos( $bridge, 'var mc =' ), strpos( $bridge, $guard ) );
+		$this->assertLessThan( strpos( $bridge, 'return fetch(endpoint' ), strpos( $bridge, $guard ) );
+		$this->assertLessThan( strpos( $bridge, 'mc.registerTool(' ), strpos( $bridge, $guard ) );
 	}
 
 	public function test_bridge_sends_no_credentials_and_targets_the_plugin_endpoint(): void {
-		$script = $this->script();
-		$this->assertStringContainsString( "credentials: 'omit'", $script );
-		$this->assertStringNotContainsString( "credentials: 'include'", $script );
-		$this->assertStringContainsString( 'tools/call', $script );
-		$this->assertStringContainsString( 'https://example.com/wp-json/corsen-context/v1/mcp', $script );
+		$bridge = $this->bridge();
+		$this->assertStringContainsString( "credentials: 'omit'", $bridge );
+		$this->assertStringNotContainsString( "credentials: 'include'", $bridge );
+		$this->assertStringContainsString( 'tools/call', $bridge );
+		$this->assertStringContainsString( '"endpoint":"https://example.com/wp-json/corsen-context/v1/mcp"', $this->config() );
 	}
 
 	public function test_bridge_completes_the_mcp_lifecycle_before_tool_calls(): void {
-		$script = $this->script();
-		$this->assertStringContainsString( "'Accept': 'application/json, text/event-stream'", $script );
-		$this->assertStringContainsString( "body.method !== 'initialize'", $script );
-		$this->assertStringContainsString( "headers['MCP-Protocol-Version'] = protocolVersion", $script );
-		$this->assertStringContainsString( "method: 'initialize'", $script );
-		$this->assertStringContainsString( "method: 'notifications/initialized'", $script );
-		$this->assertStringContainsString( 'res.status !== 202', $script );
-		$this->assertStringContainsString( 'AbortSignal.timeout(8000)', $script );
-		$this->assertStringContainsString( 'return waitForInitialization(signal)', $script );
-		$this->assertStringContainsString( 'tool execution aborted', $script );
-		$this->assertStringContainsString( '"' . Corsen_Context_MCP_Server::protocol_version() . '"', $script );
-		$this->assertLessThan( strpos( $script, "method: 'tools/call'" ), strpos( $script, "method: 'initialize'" ) );
-		$this->assertLessThan( strpos( $script, "method: 'tools/call'" ), strpos( $script, "method: 'notifications/initialized'" ) );
+		$bridge = $this->bridge();
+		$this->assertStringContainsString( "'Accept': 'application/json, text/event-stream'", $bridge );
+		$this->assertStringContainsString( "body.method !== 'initialize'", $bridge );
+		$this->assertStringContainsString( "headers['MCP-Protocol-Version'] = protocolVersion", $bridge );
+		$this->assertStringContainsString( "method: 'initialize'", $bridge );
+		$this->assertStringContainsString( "method: 'notifications/initialized'", $bridge );
+		$this->assertStringContainsString( 'res.status !== 202', $bridge );
+		$this->assertStringContainsString( 'AbortSignal.timeout(8000)', $bridge );
+		$this->assertStringContainsString( 'return waitForInitialization(signal)', $bridge );
+		$this->assertStringContainsString( 'tool execution aborted', $bridge );
+		$this->assertStringContainsString( '"protocolVersion":"' . Corsen_Context_MCP_Server::protocol_version() . '"', $this->config() );
+		$this->assertLessThan( strpos( $bridge, "method: 'tools/call'" ), strpos( $bridge, "method: 'initialize'" ) );
+		$this->assertLessThan( strpos( $bridge, "method: 'tools/call'" ), strpos( $bridge, "method: 'notifications/initialized'" ) );
 	}
 
 	public function test_execute_forwards_the_abort_signal_to_fetch(): void {
-		$script = $this->script();
-		$this->assertStringContainsString( 'options && options.signal', $script );
-		$this->assertStringContainsString( 'signal: signal || null', $script );
+		$bridge = $this->bridge();
+		$this->assertStringContainsString( 'options && options.signal', $bridge );
+		$this->assertStringContainsString( 'signal: signal || null', $bridge );
 	}
 
 	public function test_execute_returns_tool_errors_as_structured_results(): void {
 		// The WebMCP draft exposes a rejected execute() to the agent only as
 		// a DOMException name, so not_found, invalid_params and the human_only
 		// handoff URL must travel inside the returned result instead.
-		$script = $this->script();
+		$bridge = $this->bridge();
 
-		$this->assertStringContainsString( 'body.result.isError', $script );
-		$this->assertStringContainsString( 'Array.isArray(body.result.content)', $script );
-		$this->assertStringContainsString( 'function failure(code, message, extra)', $script );
-		$this->assertStringContainsString( "error_code: code", $script );
-		$this->assertStringContainsString( "typeof machine.error_code === 'string' ? machine.error_code : 'tool_error'", $script );
-		$this->assertStringContainsString( "error && error.corsenCode ? error.corsenCode : 'transport_error'", $script );
-		$this->assertStringNotContainsString( 'throw new Error(errorText', $script );
+		$this->assertStringContainsString( 'body.result.isError', $bridge );
+		$this->assertStringContainsString( 'Array.isArray(body.result.content)', $bridge );
+		$this->assertStringContainsString( 'function failure(code, message, extra)', $bridge );
+		$this->assertStringContainsString( 'error_code: code', $bridge );
+		$this->assertStringContainsString( "typeof machine.error_code === 'string' ? machine.error_code : 'tool_error'", $bridge );
+		$this->assertStringContainsString( "error && error.corsenCode ? error.corsenCode : 'transport_error'", $bridge );
+		$this->assertStringNotContainsString( 'throw new Error(errorText', $bridge );
 		// Cancellation is the one failure that still rejects.
-		$this->assertStringContainsString( 'if (isAbort(error, signal)) throw error;', $script );
-		$this->assertLessThan( strpos( $script, 'var content = body && body.result' ), strpos( $script, 'body.result.isError' ) );
+		$this->assertStringContainsString( 'if (isAbort(error, signal)) throw error;', $bridge );
+		$this->assertLessThan( strpos( $bridge, 'var content = body && body.result' ), strpos( $bridge, 'body.result.isError' ) );
 	}
 
 	public function test_registration_promise_rejections_are_handled(): void {
-		$script = $this->script();
-		$this->assertStringContainsString( 'Promise.resolve(mc.registerTool({', $script );
-		$this->assertStringContainsString( ')).catch(function (error) {', $script );
-		$this->assertStringContainsString( 'WebMCP registration failed for', $script );
+		$bridge = $this->bridge();
+		$this->assertStringContainsString( 'Promise.resolve(mc.registerTool({', $bridge );
+		$this->assertStringContainsString( ')).catch(function (error) {', $bridge );
+		$this->assertStringContainsString( 'WebMCP registration failed for', $bridge );
 	}
 
 	public function test_carries_annotations_to_the_agent(): void {
-		$script = $this->script();
-		$this->assertStringContainsString( '"untrustedContentHint":true', $script );
-		$this->assertStringContainsString( 'annotations: tool.annotations', $script );
+		$this->assertStringContainsString( '"untrustedContentHint":true', $this->config() );
+		$this->assertStringContainsString( 'annotations: tool.annotations', $this->bridge() );
 	}
 
 	public function test_hostile_content_cannot_close_the_script_block(): void {
-		$script = Corsen_Context_WebMCP::build_script(
+		$config = Corsen_Context_WebMCP::build_script(
 			Corsen_Context_WebMCP::with_annotations(
 				array(
 					array(
@@ -222,8 +234,9 @@ final class WebMCPEmitterTest extends TestCase {
 			'/wp-json/corsen-context/v1/mcp'
 		);
 
-		$this->assertStringNotContainsString( '</script>', $script );
-		$this->assertStringContainsStringIgnoringCase( 'u003c/script', $script );
+		$this->assertStringStartsWith( 'window.corsenContextWebMCP = {', $config );
+		$this->assertStringNotContainsString( '</script>', $config );
+		$this->assertStringContainsStringIgnoringCase( 'u003c/script', $config );
 	}
 
 	public function test_bridge_is_off_until_the_owner_opts_in(): void {
@@ -278,22 +291,32 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertSame( 'Ab1+/=scriptalert1/script', Corsen_Context_WebMCP::origin_trial_token() );
 	}
 
-	public function test_renders_origin_trial_meta_and_bridge_when_enabled(): void {
+	public function test_renders_origin_trial_meta_and_enqueues_the_bridge_when_enabled(): void {
 		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
 			'enabled'                   => true,
 			'mcp_enabled'               => true,
 			'webmcp_enabled'            => true,
 			'webmcp_origin_trial_token' => 'TESTTOKEN123=',
 		);
+		$emitter = new Corsen_Context_WebMCP();
 		ob_start();
-		( new Corsen_Context_WebMCP() )->render();
+		$emitter->render();
 		$out = (string) ob_get_clean();
 		$this->assertStringContainsString( '<meta http-equiv="origin-trial" content="TESTTOKEN123=">', $out );
-		$this->assertStringContainsString( '<script>', $out );
-		$this->assertStringContainsString( 'mc.registerTool(', $out );
+		$this->assertStringNotContainsString( '<script', $out, 'The bridge is enqueued, never printed by hand.' );
+
+		$emitter->enqueue();
+		$script = $GLOBALS['corsen_test_scripts'][ Corsen_Context_WebMCP::HANDLE ] ?? null;
+		$this->assertIsArray( $script );
+		$this->assertTrue( $script['enqueued'] );
+		$this->assertStringEndsWith( 'assets/js/webmcp-bridge.js', $script['src'] );
+		$this->assertTrue( $script['args'], 'The bridge loads in the footer.' );
+		$this->assertSame( 'before', $script['inline'][0][0] );
+		$this->assertStringContainsString( '"search_site"', $script['inline'][0][1] );
+		$this->assertStringContainsString( '"endpoint":"https://example.com/wp-json/corsen-context/v1/mcp"', $script['inline'][0][1] );
 	}
 
-	public function test_render_uses_the_canonical_wordpress_rest_url(): void {
+	public function test_enqueue_uses_the_canonical_wordpress_rest_url(): void {
 		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
 			'enabled'        => true,
 			'mcp_enabled'    => true,
@@ -301,21 +324,32 @@ final class WebMCPEmitterTest extends TestCase {
 		);
 		$GLOBALS['corsen_test_rest_url'] = static fn( string $path ): string => 'https://example.com/?rest_route=/' . ltrim( $path, '/' );
 
-		ob_start();
-		( new Corsen_Context_WebMCP() )->render();
-		$out = (string) ob_get_clean();
+		( new Corsen_Context_WebMCP() )->enqueue();
+		$inline = $GLOBALS['corsen_test_scripts'][ Corsen_Context_WebMCP::HANDLE ]['inline'][0][1];
 
 		$this->assertSame(
 			'https://example.com/?rest_route=/corsen-context/v1/mcp',
 			Corsen_Context_MCP_Server::endpoint_url()
 		);
-		$this->assertStringContainsString( 'https://example.com/?rest_route=/corsen-context/v1/mcp', $out );
-		$this->assertStringNotContainsString( '/wp-json/corsen-context/v1/mcp', $out );
+		$this->assertStringContainsString( 'https://example.com/?rest_route=/corsen-context/v1/mcp', $inline );
+		$this->assertStringNotContainsString( '/wp-json/corsen-context/v1/mcp', $inline );
 	}
 
-	public function test_renders_nothing_at_all_when_disabled(): void {
+	public function test_renders_and_enqueues_nothing_at_all_when_disabled(): void {
+		$emitter = new Corsen_Context_WebMCP();
 		ob_start();
-		( new Corsen_Context_WebMCP() )->render();
+		$emitter->render();
 		$this->assertSame( '', (string) ob_get_clean() );
+		$emitter->enqueue();
+		$this->assertSame( array(), $GLOBALS['corsen_test_scripts'] );
+	}
+
+	public function test_bridge_script_is_plain_es5_without_template_literals(): void {
+		// The file is served to every visitor's browser; keep it dependency-free
+		// and parseable by older engines (no template literals, no modules).
+		$bridge = $this->bridge();
+		$this->assertStringNotContainsString( '`', $bridge );
+		$this->assertStringNotContainsString( 'import ', $bridge );
+		$this->assertStringStartsWith( '/**', $bridge );
 	}
 }

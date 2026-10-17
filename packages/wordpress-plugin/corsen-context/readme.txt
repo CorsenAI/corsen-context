@@ -29,7 +29,7 @@ The plugin provides three separate surfaces, with one implementation behind all 
 
 WebMCP is the draft browser API (`document.modelContext`) through which a page offers tools to an AI agent running in the browser: Chrome with WebMCP enabled, or an agent client with built-in support such as ChatGPT's in-app browser. With Corsen Context, your WordPress site offers in the page the same read-only tools it already serves over MCP: `search_site`, `get_page_content`, `list_content`, `get_sitemap`, plus any extension tool you enable.
 
-* **Nothing to code** - the plugin generates the registration script; every tool call goes back to your site's own MCP endpoint, so the browser never reimplements a tool.
+* **Nothing to code** - the plugin enqueues the registration script with the tool definitions; every tool call goes back to your site's own MCP endpoint, so the browser never reimplements a tool.
 * **Annotated and bounded** - each tool carries a title plus `readOnlyHint` and `untrustedContentHint` annotations, and the human-only expert tool is marked `consequentialHint` so a browser agent asks before calling it; the bridge stays same-origin, sends no cookies, visitor credentials or API key, and refuses to register inside frames. Tool errors reach the agent as structured results (`error_code`, message, handoff URL) rather than a bare exception.
 * **Opt-in** - off until you enable it under Settings > Corsen Context. An optional origin-trial token field emits Chrome's first-party meta tag for public deployments.
 
@@ -126,7 +126,7 @@ The plugin limits output to selected public post types and rejects draft, pendin
 
 = Does this slow down my site? =
 
-When MCP is enabled, normal pages receive a small discovery link. When WebMCP is also enabled, the plugin emits an origin-trial meta tag if configured and an inline registration script. Generated metadata may use bounded WordPress transients for anonymous, cookie-free requests. Rendered page content is not placed in the shared MCP cache, and `/llms-full.txt` uses item, byte, and generation-lock limits. Measure representative pages on your own hosting rather than assuming zero impact.
+When MCP is enabled, normal pages receive a small discovery link. When WebMCP is also enabled, the plugin emits an origin-trial meta tag if configured, a short inline configuration with the tool definitions, and one deferred script file that browsers cache. Generated metadata may use bounded WordPress transients for anonymous, cookie-free requests. Rendered page content is not placed in the shared MCP cache, and `/llms-full.txt` uses item, byte, and generation-lock limits. Measure representative pages on your own hosting rather than assuming zero impact.
 
 = Does it work with page builders? =
 

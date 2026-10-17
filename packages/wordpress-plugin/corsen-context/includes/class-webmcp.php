@@ -169,10 +169,17 @@ class Corsen_Context_WebMCP {
 		return 0 === stripos( (string) home_url( '/' ), 'https://' );
 	}
 
+	/** Script handle used with wp_enqueue_script(). */
+	public const HANDLE = 'corsen-context-webmcp';
+
 	/**
-	 * Build the inline script that registers the tools with the in-page agent.
+	 * Build the inline configuration the bridge script reads from
+	 * window.corsenContextWebMCP: the annotated tool definitions, the MCP
+	 * endpoint and the protocol version the endpoint enforces.
 	 *
-	 * Deliberate constraints, all asserted in tests:
+	 * The bridge itself ships as assets/js/webmcp-bridge.js and is enqueued
+	 * through WordPress, so browsers cache it and the page carries only this
+	 * configuration. Its deliberate constraints, all asserted in tests:
 	 * - exposedTo is never set, so tools stay same-origin.
 	 * - Registration is refused inside a frame: the Permissions Policy `tools`
 	 *   feature already defaults to ['self'], and this stops a same-origin
@@ -182,247 +189,89 @@ class Corsen_Context_WebMCP {
 	 * - Every forwarded call carries the MCP-Protocol-Version header, which
 	 *   the endpoint requires on every request after initialize.
 	 * - execute() receives { signal } as its second argument (an AbortSignal
-	 *   in the draft and in Chrome's imperative API). Each caller can stop
-	 *   waiting for the shared handshake, and its tool fetch receives that
-	 *   signal. The handshake has an independent timeout so one cancellation
-	 *   cannot fail every concurrent execution.
+	 *   in the draft and in Chrome's imperative API); the shared handshake has
+	 *   an independent timeout so one cancellation cannot fail every
+	 *   concurrent execution.
 	 * - A tool error is returned as a structured result, not thrown: the
 	 *   draft surfaces a rejected execute() to the agent only as a bare
-	 *   DOMException name, which would erase not_found, invalid_params and
-	 *   the human_only handoff URL. Only cancellation still rejects.
+	 *   DOMException name. Only cancellation still rejects.
 	 * - Definitions are encoded with JSON_HEX_TAG, so a hostile post title
 	 *   cannot close the script block and become markup.
 	 *
 	 * @param array<int,array<string,mixed>> $tools    Annotated tool definitions.
 	 * @param string                         $endpoint MCP endpoint URL.
-	 * @return string
+	 * @return string JavaScript statement, or an empty string when encoding fails.
 	 */
 	public static function build_script( array $tools, string $endpoint ): string {
 
-		$tools_json    = wp_json_encode( array_values( $tools ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES );
-		$endpoint_json = wp_json_encode( $endpoint, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES );
-		$protocol_json = wp_json_encode( Corsen_Context_MCP_Server::protocol_version(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES );
+		$config = wp_json_encode(
+			array(
+				'tools'           => array_values( $tools ),
+				'endpoint'        => $endpoint,
+				'protocolVersion' => Corsen_Context_MCP_Server::protocol_version(),
+			),
+			JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES
+		);
 
-		if ( false === $tools_json || false === $endpoint_json || false === $protocol_json ) {
+		if ( false === $config ) {
 			return '';
 		}
 
-		return <<<JS
-(function () {
-  var tools = {$tools_json};
-  var endpoint = {$endpoint_json};
-  var protocolVersion = {$protocol_json};
+		return 'window.corsenContextWebMCP = ' . $config . ';';
+	}
 
-  if (window.top !== window.self) return;
+	/**
+	 * Source of the bridge script shipped with the plugin (tests, inspection).
+	 */
+	public static function bridge_source(): string {
+		$path = dirname( __DIR__ ) . '/assets/js/webmcp-bridge.js';
+		if ( ! is_readable( $path ) ) {
+			return '';
+		}
+		$source = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local plugin asset, not a remote resource.
+		return is_string( $source ) ? $source : '';
+	}
 
-  // Resolve relative endpoints against the current page and fail closed if a
-  // filter supplied an invalid or cross-origin destination.
-  var endpointUrl;
-  if (typeof endpoint !== 'string' || endpoint.length === 0) return;
-  try {
-    endpointUrl = new URL(endpoint, window.location.href);
-  } catch (error) {
-    return;
-  }
-  if (endpointUrl.protocol !== 'http:' && endpointUrl.protocol !== 'https:') return;
-  if (endpointUrl.username || endpointUrl.password) return;
-  if (endpointUrl.origin !== window.location.origin) return;
-  endpoint = endpointUrl.href;
+	/**
+	 * Public URL of the bridge script.
+	 */
+	public static function bridge_url(): string {
+		return defined( 'CORSEN_CONTEXT_PLUGIN_URL' ) ? CORSEN_CONTEXT_PLUGIN_URL . 'assets/js/webmcp-bridge.js' : '';
+	}
 
-  // The draft exposes document.modelContext; navigator.modelContext is the
-  // earlier name that some clients still implement. Prefer the current one.
-  var mc = document.modelContext || navigator.modelContext;
-  if (!mc || typeof mc.registerTool !== 'function') return;
+	/**
+	 * Register and enqueue the bridge for front-end pages (wp_enqueue_scripts).
+	 * Nothing is enqueued while the owner has not opted in or no tool is exposed.
+	 */
+	public function enqueue(): void {
 
-  var nextRequestId = 1;
-  var initializationPromise = null;
+		if ( ! self::is_enabled() ) {
+			return;
+		}
 
-  // Structured failure returned to the agent in place of a rejection.
-  function failure(code, message, extra) {
-    var out = { ok: false, error_code: code, message: message };
-    if (extra && typeof extra === 'object') {
-      for (var key in extra) {
-        if (Object.prototype.hasOwnProperty.call(extra, key) && !(key in out)) out[key] = extra[key];
-      }
-    }
-    return out;
-  }
+		$server = new Corsen_Context_MCP_Server();
+		$tools  = $server->get_tool_definitions();
+		if ( empty( $tools ) ) {
+			return;
+		}
 
-  function rpcError(message, code) {
-    var error = new Error(message);
-    error.corsenCode = code;
-    return error;
-  }
+		$config = self::build_script(
+			self::with_annotations( $tools ),
+			Corsen_Context_MCP_Server::endpoint_url()
+		);
+		if ( '' === $config || '' === self::bridge_url() ) {
+			return;
+		}
 
-  function isAbort(error, signal) {
-    return !!((signal && signal.aborted) || (error && error.name === 'AbortError'));
-  }
-
-  function request(body, signal, isNotification) {
-    var headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream'
-    };
-    if (body.method !== 'initialize') {
-      headers['MCP-Protocol-Version'] = protocolVersion;
-    }
-
-    return fetch(endpoint, {
-      method: 'POST',
-      credentials: 'omit',
-      signal: signal || null,
-      headers: headers,
-      body: JSON.stringify(body)
-    })
-      .then(function (res) {
-        if (isNotification) {
-          if (res.status !== 202) {
-            throw rpcError('Corsen Context: MCP notification returned ' + res.status, 'transport_error');
-          }
-          return null;
-        }
-        if (!res.ok) throw rpcError('Corsen Context: MCP endpoint returned ' + res.status, 'transport_error');
-        return res.json();
-      })
-      .then(function (responseBody) {
-        if (isNotification) return null;
-        if (responseBody && responseBody.error) {
-          throw rpcError(responseBody.error.message || 'MCP error', 'protocol_error');
-        }
-        return responseBody;
-      });
-  }
-
-  function ensureInitialized() {
-    if (!initializationPromise) {
-      var initializationSignal =
-        typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-          ? AbortSignal.timeout(8000)
-          : null;
-      initializationPromise = request({
-        jsonrpc: '2.0',
-        id: nextRequestId++,
-        method: 'initialize',
-        params: {
-          protocolVersion: protocolVersion,
-          capabilities: {},
-          clientInfo: { name: 'corsen-context-webmcp', version: '1.0.0' }
-        }
-      }, initializationSignal, false)
-      .then(function (body) {
-        var negotiated = body && body.result && body.result.protocolVersion;
-        if (negotiated !== protocolVersion) {
-          throw rpcError('Corsen Context: unsupported negotiated MCP version', 'protocol_error');
-        }
-        return request({
-          jsonrpc: '2.0',
-          method: 'notifications/initialized',
-          params: {}
-        }, initializationSignal, true);
-      })
-      .catch(function (error) {
-        initializationPromise = null;
-        throw error;
-      });
-    }
-    return initializationPromise;
-  }
-
-  function waitForInitialization(signal) {
-    var ready = ensureInitialized();
-    if (!signal) return ready;
-    if (signal.aborted) {
-      return Promise.reject(new Error('Corsen Context: tool execution aborted'));
-    }
-    if (typeof signal.addEventListener !== 'function') return ready;
-
-    return new Promise(function (resolve, reject) {
-      function cleanup() {
-        if (typeof signal.removeEventListener === 'function') {
-          signal.removeEventListener('abort', onAbort);
-        }
-      }
-      function onAbort() {
-        cleanup();
-        reject(new Error('Corsen Context: tool execution aborted'));
-      }
-      signal.addEventListener('abort', onAbort, { once: true });
-      ready.then(function (value) {
-        cleanup();
-        resolve(value);
-      }, function (error) {
-        cleanup();
-        reject(error);
-      });
-    });
-  }
-
-  function call(name, args, signal) {
-    return waitForInitialization(signal)
-      .then(function () {
-        return request({
-          jsonrpc: '2.0',
-          id: nextRequestId++,
-          method: 'tools/call',
-          params: { name: name, arguments: args || {} }
-        }, signal, false);
-      })
-      .then(function (body) {
-        if (body && body.result && body.result.isError) {
-          var errorContent = Array.isArray(body.result.content) ? body.result.content : [];
-          var errorText = errorContent
-            .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
-            .filter(Boolean)
-            .join('\\n');
-          var machine = body.result.structuredContent;
-          if (machine && typeof machine === 'object') {
-            return failure(
-              typeof machine.error_code === 'string' ? machine.error_code : 'tool_error',
-              typeof machine.message === 'string' ? machine.message : (errorText || 'Corsen Context: tool execution failed'),
-              machine
-            );
-          }
-          return failure('tool_error', errorText || 'Corsen Context: tool execution failed');
-        }
-        var structured = body && body.result && body.result.structuredContent;
-        if (structured && typeof structured === 'object') return structured;
-        var content = body && body.result && body.result.content;
-        if (!Array.isArray(content)) return '';
-        return content
-          .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
-          .join('\\n');
-      })
-      .catch(function (error) {
-        if (isAbort(error, signal)) throw error;
-        return failure(
-          error && error.corsenCode ? error.corsenCode : 'transport_error',
-          (error && error.message) || 'Corsen Context: MCP request failed'
-        );
-      });
-  }
-
-  tools.forEach(function (tool) {
-    try {
-      Promise.resolve(mc.registerTool({
-        name: tool.name,
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        annotations: tool.annotations,
-        execute: function (input, options) { return call(tool.name, input, options && options.signal); }
-      })).catch(function (error) {
-        if (window.console && typeof window.console.warn === 'function') {
-          window.console.warn('Corsen Context: WebMCP registration failed for ' + tool.name, error);
-        }
-      });
-    } catch (error) {
-      if (window.console && typeof window.console.warn === 'function') {
-        window.console.warn('Corsen Context: WebMCP registration failed for ' + tool.name, error);
-      }
-    }
-  });
-})();
-JS;
+		wp_register_script(
+			self::HANDLE,
+			self::bridge_url(),
+			array(),
+			defined( 'CORSEN_CONTEXT_VERSION' ) ? CORSEN_CONTEXT_VERSION : null,
+			true
+		);
+		wp_add_inline_script( self::HANDLE, $config, 'before' );
+		wp_enqueue_script( self::HANDLE );
 	}
 
 	/**
@@ -456,7 +305,8 @@ JS;
 	}
 
 	/**
-	 * Print the bridge in wp_head.
+	 * Print the origin-trial meta tag in wp_head. The bridge script itself is
+	 * enqueued by enqueue() on wp_enqueue_scripts.
 	 */
 	public function render(): void {
 
@@ -471,23 +321,5 @@ JS;
 				esc_attr( $token )
 			);
 		}
-
-		$server = new Corsen_Context_MCP_Server();
-		$tools  = $server->get_tool_definitions();
-
-		if ( empty( $tools ) ) {
-			return;
-		}
-
-		$script = self::build_script(
-			self::with_annotations( $tools ),
-			Corsen_Context_MCP_Server::endpoint_url()
-		);
-
-		if ( '' === $script ) {
-			return;
-		}
-
-		echo "<script>\n" . $script . "\n</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Definitions are JSON-encoded with JSON_HEX_TAG; the surrounding script is a static literal.
 	}
 }

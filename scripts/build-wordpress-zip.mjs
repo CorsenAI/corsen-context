@@ -35,7 +35,7 @@ function normalizedPath(path) {
   return path.split(sep).join('/');
 }
 
-async function collectPhpFiles(directory) {
+async function collectFiles(directory, extensions) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
   for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name, 'en'))) {
@@ -44,8 +44,8 @@ async function collectPhpFiles(directory) {
       throw new Error(`Symbolic links are not allowed in the plugin package: ${absolutePath}`);
     }
     if (entry.isDirectory()) {
-      files.push(...(await collectPhpFiles(absolutePath)));
-    } else if (entry.isFile() && entry.name.endsWith('.php')) {
+      files.push(...(await collectFiles(absolutePath, extensions)));
+    } else if (entry.isFile() && extensions.some((extension) => entry.name.endsWith(extension))) {
       files.push(absolutePath);
     }
   }
@@ -158,20 +158,21 @@ async function buildArchive(entries) {
 async function main() {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log('Usage: node scripts/build-wordpress-zip.mjs');
-    console.log('Builds a deterministic source-only WordPress plugin ZIP in dist/.');
+    console.log('Builds a deterministic source-only WordPress plugin ZIP (PHP, readme, license, assets/js) in dist/.');
     return;
   }
   if (process.argv.length > 2) {
     throw new Error('Unsupported command-line argument');
   }
 
-  const [mainSource, readmeSource, repositoryLicense, pluginLicense, includeFiles] =
+  const [mainSource, readmeSource, repositoryLicense, pluginLicense, includeFiles, assetFiles] =
     await Promise.all([
       readFile(mainFile, 'utf8'),
       readFile(readmeFile, 'utf8'),
       readFile(repositoryLicenseFile),
       readFile(pluginLicenseFile),
-      collectPhpFiles(join(pluginRoot, 'includes')),
+      collectFiles(join(pluginRoot, 'includes'), ['.php']),
+      collectFiles(join(pluginRoot, 'assets'), ['.js', '.css']),
     ]);
   if (!pluginLicense.equals(repositoryLicense)) {
     throw new Error('WordPress LICENSE must be byte-for-byte identical to the repository LICENSE');
@@ -183,6 +184,7 @@ async function main() {
     readmeFile,
     pluginLicenseFile,
     ...includeFiles,
+    ...assetFiles,
   ];
   const entries = await Promise.all(
     sourceFiles.map(async (absolutePath) => ({

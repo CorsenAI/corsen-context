@@ -20,6 +20,11 @@
   say that WebMCP needs HTTPS and name the Chrome 149 to 156 origin trial.
   Tool errors on MCP now also carry the extension's extra fields
   (`handoffUrl`, `policy`, `ids`) in `structuredContent`.
+- The WebMCP bridge is now a script file (`assets/js/webmcp-bridge.js`)
+  enqueued through WordPress in the footer, with only the tool definitions
+  printed inline. Pages shrink by about 10 KB per view, browsers cache the
+  bridge, and the heredoc that Plugin Check rejected is gone. The zip
+  builder ships `assets/js`.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 

@@ -2,6 +2,32 @@
 /** PHPUnit bootstrap for lightweight unit tests. */
 
 define( 'ABSPATH', __DIR__ . '/' );
+if ( ! defined( 'CORSEN_CONTEXT_PLUGIN_URL' ) ) {
+	define( 'CORSEN_CONTEXT_PLUGIN_URL', 'https://example.com/wp-content/plugins/corsen-context/' );
+}
+
+$GLOBALS['corsen_test_scripts'] = array();
+function wp_register_script( $handle, $src, $deps = array(), $ver = false, $args = false ): bool {
+	$GLOBALS['corsen_test_scripts'][ $handle ] = array(
+		'src'      => $src,
+		'deps'     => $deps,
+		'ver'      => $ver,
+		'args'     => $args,
+		'inline'   => array(),
+		'enqueued' => false,
+	);
+	return true;
+}
+function wp_add_inline_script( $handle, $data, $position = 'after' ): bool {
+	$GLOBALS['corsen_test_scripts'][ $handle ]['inline'][] = array( $position, $data );
+	return true;
+}
+function wp_enqueue_script( $handle, $src = '', $deps = array(), $ver = false, $args = false ): void {
+	if ( ! isset( $GLOBALS['corsen_test_scripts'][ $handle ] ) ) {
+		wp_register_script( $handle, $src, $deps, $ver, $args );
+	}
+	$GLOBALS['corsen_test_scripts'][ $handle ]['enqueued'] = true;
+}
 
 if ( ! class_exists( 'WP_UnitTestCase' ) ) {
 	abstract class WP_UnitTestCase extends PHPUnit\Framework\TestCase {}

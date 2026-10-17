@@ -151,8 +151,12 @@ final class Corsen_Context {
 		add_action( 'wp_head', array( $this, 'add_mcp_link_tag' ) );
 		add_action( 'template_redirect', array( $this, 'add_mcp_link_header' ) );
 
-		// Optional WebMCP bridge for agents running inside the page.
-		add_action( 'wp_head', array( new Corsen_Context_WebMCP(), 'render' ), 20 );
+		// Optional WebMCP bridge for agents running inside the page: the
+		// origin-trial meta tag in wp_head, the bridge script enqueued through
+		// WordPress so browsers cache it.
+		$webmcp = new Corsen_Context_WebMCP();
+		add_action( 'wp_head', array( $webmcp, 'render' ), 20 );
+		add_action( 'wp_enqueue_scripts', array( $webmcp, 'enqueue' ) );
 
 		// Legacy safety shim: the experimental write form was removed. Keep old
 		// shortcodes from becoming visible text, but never render or store input.
