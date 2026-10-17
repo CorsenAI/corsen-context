@@ -97,6 +97,8 @@ final class Corsen_Context {
 
 		// Rewrite rules for /llms.txt and /llms-full.txt.
 		add_action( 'init', array( $this, 'register_rewrite_rules' ) );
+		add_filter( 'rewrite_rules_array', array( $this, 'filter_disabled_llms_rewrite_rules' ) );
+		add_action( 'update_option_corsen_context_settings', array( $this, 'refresh_rewrite_rules_on_route_setting_change' ), 10, 2 );
 		add_filter( 'query_vars', array( $this, 'register_query_vars' ) );
 		add_filter( 'redirect_canonical', array( $this, 'prevent_llms_canonical_redirect' ), 10, 2 );
 		add_action( 'template_redirect', array( $this, 'handle_llms_txt_request' ) );
@@ -256,8 +258,87 @@ final class Corsen_Context {
 	 * Rewrite rules for llms.txt files.
 	 */
 	public function register_rewrite_rules(): void {
-		add_rewrite_rule( '^llms\.txt/?$', 'index.php?corsen_context_file=llms', 'top' );
-		add_rewrite_rule( '^llms-full\.txt/?$', 'index.php?corsen_context_file=llms-full', 'top' );
+		$route_state = $this->get_llms_route_state( get_option( 'corsen_context_settings', array() ) );
+
+		if ( $route_state['llms_txt'] ) {
+			add_rewrite_rule( '^llms\.txt/?$', 'index.php?corsen_context_file=llms', 'top' );
+		}
+
+		if ( $route_state['llms_full'] ) {
+			add_rewrite_rule( '^llms-full\.txt/?$', 'index.php?corsen_context_file=llms-full', 'top' );
+		}
+	}
+
+	/**
+	 * Remove stale Corsen routes while an endpoint is disabled.
+	 *
+	 * A settings change can happen after init, when the previous rules are still
+	 * present in the in-memory rewrite collection. Filtering the generated rules
+	 * keeps disabled Corsen endpoints from shadowing another provider during the
+	 * refresh triggered by the settings update.
+	 *
+	 * @param array<string,string> $rules Generated WordPress rewrite rules.
+	 * @return array<string,string>
+	 */
+	public function filter_disabled_llms_rewrite_rules( array $rules ): array {
+		$route_state = $this->get_llms_route_state( get_option( 'corsen_context_settings', array() ) );
+
+		$owned_routes = array(
+			'^llms\.txt/?$'      => array(
+				'enabled' => $route_state['llms_txt'],
+				'query'   => 'index.php?corsen_context_file=llms',
+			),
+			'^llms-full\.txt/?$' => array(
+				'enabled' => $route_state['llms_full'],
+				'query'   => 'index.php?corsen_context_file=llms-full',
+			),
+		);
+
+		foreach ( $owned_routes as $pattern => $route ) {
+			if ( ! $route['enabled'] && isset( $rules[ $pattern ] ) && $route['query'] === $rules[ $pattern ] ) {
+				unset( $rules[ $pattern ] );
+			}
+		}
+
+		return $rules;
+	}
+
+	/**
+	 * Refresh rewrite rules when route ownership changes in settings.
+	 *
+	 * @param mixed $old_value Previous settings value.
+	 * @param mixed $value     New settings value.
+	 */
+	public function refresh_rewrite_rules_on_route_setting_change( $old_value, $value ): void {
+		if ( $this->get_llms_route_state( $old_value ) === $this->get_llms_route_state( $value ) ) {
+			return;
+		}
+
+		// Enabling can happen after init, so register the newly enabled route now.
+		// Disabled stale rules are removed by filter_disabled_llms_rewrite_rules().
+		$this->register_rewrite_rules();
+		flush_rewrite_rules( false );
+	}
+
+	/**
+	 * Resolve which Corsen llms routes should currently be owned.
+	 *
+	 * Missing settings use the plugin defaults: llms.txt on, llms-full.txt off.
+	 *
+	 * @param mixed $settings Raw settings value.
+	 * @return array{llms_txt:bool,llms_full:bool}
+	 */
+	private function get_llms_route_state( $settings ): array {
+		$settings = is_array( $settings ) ? $settings : array();
+
+		$enabled           = array_key_exists( 'enabled', $settings ) ? ! empty( $settings['enabled'] ) : true;
+		$llms_txt_enabled  = array_key_exists( 'llms_txt_enabled', $settings ) ? ! empty( $settings['llms_txt_enabled'] ) : true;
+		$llms_full_enabled = ! empty( $settings['llms_full_enabled'] );
+
+		return array(
+			'llms_txt'  => $enabled && $llms_txt_enabled,
+			'llms_full' => $enabled && $llms_txt_enabled && $llms_full_enabled,
+		);
 	}
 
 	/**

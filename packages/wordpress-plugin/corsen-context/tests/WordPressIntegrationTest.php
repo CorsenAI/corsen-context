@@ -102,7 +102,70 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$rules = get_option( 'rewrite_rules', array() );
 		$this->assertSame( CORSEN_CONTEXT_VERSION, get_option( 'corsen_context_rewrite_version' ) );
 		$this->assertArrayHasKey( '^llms\.txt/?$', $rules );
-		$this->assertArrayHasKey( '^llms-full\.txt/?$', $rules );
+		$this->assertArrayNotHasKey( '^llms-full\.txt/?$', $rules );
+	}
+
+	public function test_disabled_llms_routes_are_not_registered(): void {
+		global $wp_rewrite;
+
+		$settings                      = get_option( 'corsen_context_settings' );
+		$settings['llms_txt_enabled']  = false;
+		$settings['llms_full_enabled'] = false;
+		update_option( 'corsen_context_settings', $settings );
+
+		$original_extra_rules_top    = $wp_rewrite->extra_rules_top;
+		$wp_rewrite->extra_rules_top = array();
+
+		try {
+			Corsen_Context::instance()->register_rewrite_rules();
+
+			$this->assertArrayNotHasKey( '^llms\.txt/?$', $wp_rewrite->extra_rules_top );
+			$this->assertArrayNotHasKey( '^llms-full\.txt/?$', $wp_rewrite->extra_rules_top );
+		} finally {
+			$wp_rewrite->extra_rules_top = $original_extra_rules_top;
+		}
+	}
+
+	public function test_disabling_llms_txt_refreshes_rules_without_shadowing_other_provider(): void {
+		global $wp_rewrite;
+
+		$plugin                   = Corsen_Context::instance();
+		$original_settings        = get_option( 'corsen_context_settings' );
+		$original_rewrite_rules   = get_option( 'rewrite_rules', false );
+		$original_extra_rules_top = $wp_rewrite->extra_rules_top;
+
+		try {
+			$wp_rewrite->extra_rules_top = array();
+
+			$settings                     = $original_settings;
+			$settings['enabled']          = true;
+			$settings['llms_txt_enabled'] = true;
+			update_option( 'corsen_context_settings', $settings );
+
+			$plugin->register_rewrite_rules();
+			add_rewrite_rule( '^llms\.txt$', 'index.php?other_llms=1', 'top' );
+			flush_rewrite_rules( false );
+
+			$rules = get_option( 'rewrite_rules', array() );
+			$this->assertArrayHasKey( '^llms\.txt/?$', $rules );
+			$this->assertSame( 'index.php?other_llms=1', $rules['^llms\.txt$'] );
+
+			$settings['llms_txt_enabled'] = false;
+			update_option( 'corsen_context_settings', $settings );
+
+			$rules = get_option( 'rewrite_rules', array() );
+			$this->assertArrayNotHasKey( '^llms\.txt/?$', $rules );
+			$this->assertSame( 'index.php?other_llms=1', $rules['^llms\.txt$'] );
+		} finally {
+			update_option( 'corsen_context_settings', $original_settings );
+			$wp_rewrite->extra_rules_top = $original_extra_rules_top;
+
+			if ( false === $original_rewrite_rules ) {
+				delete_option( 'rewrite_rules' );
+			} else {
+				update_option( 'rewrite_rules', $original_rewrite_rules );
+			}
+		}
 	}
 
 	public function test_exposure_filter_can_veto_a_published_post(): void {
