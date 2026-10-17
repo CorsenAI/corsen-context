@@ -292,6 +292,14 @@ class Corsen_Context_Content_Converter {
 	/**
 	 * Escape untrusted inline text before inserting it into generated Markdown.
 	 *
+	 * Only the characters that can open or close inline Markdown or raw HTML
+	 * are escaped (backslash, backtick, emphasis, link brackets, angle
+	 * brackets), so a title such as "Hello world!" or a description with
+	 * sentences, hyphens and parentheses reads naturally. A closing bracket
+	 * is always escaped, which is what stops text from closing a link label;
+	 * an opening parenthesis right after it is escaped too, so the sequence
+	 * "](" never appears unescaped even for readers that ignore backslashes.
+	 *
 	 * @param string $text Inline text.
 	 * @return string Escaped text.
 	 */
@@ -299,7 +307,8 @@ class Corsen_Context_Content_Converter {
 
 		$text = html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		$text = preg_replace( '/\s+/u', ' ', trim( $text ) ) ?? trim( $text );
-		return preg_replace( '/([\\\\`*_[\]{}()#+.!>|-])/u', '\\\\$1', $text ) ?? $text;
+		$text = preg_replace( '/([\\\\`*_[\]<>])/u', '\\\\$1', $text ) ?? $text;
+		return str_replace( '\\](', '\\]\\(', $text );
 	}
 
 	/**

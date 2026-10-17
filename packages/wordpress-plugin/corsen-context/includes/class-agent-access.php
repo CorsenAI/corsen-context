@@ -272,7 +272,7 @@ class Corsen_Context_Agent_Access {
 	 */
 	private static function valid_surface_body( string $target, string $body ): bool {
 		if ( 'llms' === $target ) {
-			return str_contains( $body, '> START HERE for AI agents:' )
+			return str_contains( $body, 'START HERE for AI agents:' )
 				&& str_contains( $body, '## Agent conduct policy' );
 		}
 		if ( 'mcp' !== $target ) {

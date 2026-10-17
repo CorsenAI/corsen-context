@@ -25,6 +25,12 @@
   printed inline. Pages shrink by about 10 KB per view, browsers cache the
   bridge, and the heredoc that Plugin Check rejected is gone. The zip
   builder ships `assets/js`.
+- `llms.txt` reads naturally: titles and descriptions no longer escape
+  periods, exclamation marks, hyphens, parentheses and hashes (only the
+  characters that can open inline Markdown or HTML are escaped, and a closing
+  bracket is always escaped), and the file follows the llmstxt.org order: H1,
+  the site tagline as the single summary blockquote, then the About section
+  that opens with the agent policy pointer.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 
