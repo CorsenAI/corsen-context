@@ -612,7 +612,7 @@ const [home, llms] = await Promise.all([
     text: await response.text(),
   })),
 ]);
-if (!home.includes('document.modelContext') || !home.includes('registerTool')) {
+if (!home.includes('corsenContextWebMCP') || !home.includes('webmcp-bridge.js')) {
   throw new Error('Home page does not contain the enabled WebMCP registration');
 }
 const expectedLlmsMarker = contentMode === 'aurora' ? 'Aurora Kits' : 'Package receipt';
@@ -762,7 +762,7 @@ const [home, endpoint] = await Promise.all([
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
   }),
 ]);
-if (home.includes('document.modelContext') || home.includes('registerTool')) {
+if (home.includes('corsenContextWebMCP') || home.includes('webmcp-bridge.js')) {
   throw new Error('Disabling WebMCP did not remove the in-page registration');
 }
 if (!endpoint.ok) throw new Error(`Disabling WebMCP unexpectedly disabled MCP: HTTP ${endpoint.status}`);
@@ -796,7 +796,7 @@ if (response.status !== 404) {
   throw new Error(`Removed plugin endpoint returned HTTP ${response.status}, expected 404`);
 }
 const home = await fetch(new URL('/', baseUrl)).then((result) => result.text());
-if (home.includes('document.modelContext') || home.includes('registerTool')) {
+if (home.includes('corsenContextWebMCP') || home.includes('webmcp-bridge.js')) {
   throw new Error('Removed plugin left a WebMCP registration on the page');
 }
 console.log('ROLLBACK plugin removed, settings cleared, endpoint=404');

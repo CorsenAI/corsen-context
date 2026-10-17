@@ -14,7 +14,8 @@ WordPress stable tag match. It then writes:
 - `dist/corsen-context-VERSION.zip.sha256`.
 
 Only the distributable plugin files are included: the main file, uninstall
-handler, readme, and PHP files under `includes/`. Tests, Composer development
+handler, readme, license, PHP files under `includes/` and the browser bridge
+under `assets/js/`. Tests, Composer development
 dependencies, private evidence, repository metadata, and build tools are not
 packaged.
 

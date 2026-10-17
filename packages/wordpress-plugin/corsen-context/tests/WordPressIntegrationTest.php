@@ -553,10 +553,12 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 			$llms = ( new Corsen_Context_Llms_Generator() )->generate_llms_txt();
 			$this->assertStringContainsString( 'MCP endpoint: ' . $expected, $llms );
 
-			ob_start();
-			( new Corsen_Context_WebMCP() )->render();
-			$bridge = (string) ob_get_clean();
+			( new Corsen_Context_WebMCP() )->enqueue();
+			$this->assertTrue( wp_script_is( Corsen_Context_WebMCP::HANDLE, 'enqueued' ) );
+			$inline = wp_scripts()->get_data( Corsen_Context_WebMCP::HANDLE, 'before' );
+			$bridge = is_array( $inline ) ? implode( "\n", $inline ) : (string) $inline;
 			$this->assertStringContainsString( $expected, $bridge );
+			$this->assertStringContainsString( 'assets/js/webmcp-bridge.js', (string) wp_scripts()->registered[ Corsen_Context_WebMCP::HANDLE ]->src );
 
 			wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 			ob_start();
