@@ -18,7 +18,6 @@ class Corsen_Context_Security {
 		'Referrer-Policy'         => 'strict-origin-when-cross-origin',
 		'Content-Security-Policy' => "default-src 'none'",
 		'Cache-Control'           => 'no-store',
-		'X-Powered-By'            => 'Corsen Context / Corsen AI',
 	);
 
 	/**

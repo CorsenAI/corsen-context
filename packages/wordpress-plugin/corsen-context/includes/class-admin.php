@@ -255,7 +255,7 @@ class Corsen_Context_Admin {
 			'corsen_context_security',
 			array(
 				'field' => 'credit',
-				'label' => 'Include "Powered by Corsen Context" credit line',
+				'label' => 'Add a "Powered by Corsen Context" line to llms.txt and llms-full.txt (off by default)',
 			)
 		);
 		add_settings_field(
@@ -299,6 +299,7 @@ class Corsen_Context_Admin {
 		$sanitized['llms_txt_enabled']          = ! empty( $input['llms_txt_enabled'] );
 		$sanitized['llms_full_enabled']         = ! empty( $input['llms_full_enabled'] );
 		$sanitized['credit']                    = ! empty( $input['credit'] );
+		$sanitized['credit_opt_in_migrated']    = true;
 		$sanitized['include_author']            = ! empty( $input['include_author'] );
 		$sanitized['webmcp_enabled']            = ! empty( $input['webmcp_enabled'] );
 		$all_tools                              = Corsen_Context_Tool_Registry::known();

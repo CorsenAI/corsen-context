@@ -209,7 +209,8 @@ final class Corsen_Context {
 			'post_types'         => array( 'post', 'page' ),
 			'exclude_paths'      => '',
 			'rate_limit'         => 100,
-			'credit'             => true,
+			// Front-facing credits are opt-in (plugin directory guideline 10).
+			'credit'             => false,
 			'include_author'     => false,
 			'cache_ttl'          => 3600,
 			'max_pages'          => 500,
@@ -223,6 +224,14 @@ final class Corsen_Context {
 		);
 		$current  = get_option( 'corsen_context_settings', false );
 		$settings = is_array( $current ) ? array_merge( $defaults, $current ) : $defaults;
+
+		// One-time migration: the credit line used to default to on. A site
+		// that never saw the checkbox has not opted in, so it is switched off
+		// once; the marker keeps a later deliberate opt-in intact.
+		if ( empty( $settings['credit_opt_in_migrated'] ) ) {
+			$settings['credit']                 = false;
+			$settings['credit_opt_in_migrated'] = true;
+		}
 
 		if ( $settings !== $current ) {
 			update_option( 'corsen_context_settings', $settings );
