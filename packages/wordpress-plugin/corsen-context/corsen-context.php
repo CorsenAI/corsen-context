@@ -284,8 +284,14 @@ final class Corsen_Context {
 		$route_state = $this->get_llms_route_state( get_option( 'corsen_context_settings', array() ) );
 
 		$owned_routes = array(
-			'^llms\.txt/?$'      => array( 'enabled' => $route_state['llms_txt'], 'query' => 'index.php?corsen_context_file=llms' ),
-			'^llms-full\.txt/?$' => array( 'enabled' => $route_state['llms_full'], 'query' => 'index.php?corsen_context_file=llms-full' ),
+			'^llms\.txt/?$'      => array(
+				'enabled' => $route_state['llms_txt'],
+				'query'   => 'index.php?corsen_context_file=llms',
+			),
+			'^llms-full\.txt/?$' => array(
+				'enabled' => $route_state['llms_full'],
+				'query'   => 'index.php?corsen_context_file=llms-full',
+			),
 		);
 
 		foreach ( $owned_routes as $pattern => $route ) {
