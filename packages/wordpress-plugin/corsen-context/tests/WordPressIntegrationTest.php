@@ -677,6 +677,34 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$this->assertFalse( is_404(), 'The switch off must keep author archives public for the owner.' );
 	}
 
+	public function test_credit_line_is_opt_in_and_reset_once_for_existing_installs(): void {
+		delete_option( 'corsen_context_settings' );
+		Corsen_Context::instance()->maybe_upgrade_settings();
+		$settings = get_option( 'corsen_context_settings' );
+		$this->assertFalse( $settings['credit'], 'A fresh install must not print a credit line.' );
+		$this->assertTrue( $settings['credit_opt_in_migrated'] );
+
+		// An install still carrying the pre-migration default is switched off once.
+		unset( $settings['credit_opt_in_migrated'] );
+		$settings['credit'] = true;
+		update_option( 'corsen_context_settings', $settings );
+		Corsen_Context::instance()->maybe_upgrade_settings();
+		$this->assertFalse( get_option( 'corsen_context_settings' )['credit'] );
+
+		// A deliberate opt-in after the migration survives later upgrades.
+		$settings           = get_option( 'corsen_context_settings' );
+		$settings['credit'] = true;
+		update_option( 'corsen_context_settings', $settings );
+		Corsen_Context::instance()->maybe_upgrade_settings();
+		$this->assertTrue( get_option( 'corsen_context_settings' )['credit'] );
+		$this->assertStringContainsString( 'Powered by Corsen Context', ( new Corsen_Context_Llms_Generator() )->generate_llms_txt() );
+
+		$settings['credit'] = false;
+		update_option( 'corsen_context_settings', $settings );
+		delete_transient( 'corsen_context_llms_txt' );
+		$this->assertStringNotContainsString( 'Powered by Corsen Context', ( new Corsen_Context_Llms_Generator() )->generate_llms_txt() );
+	}
+
 	private function mcp_request( array $body, array $headers = array() ): WP_REST_Response {
 		return $this->mcp_raw_request( wp_json_encode( $body ), $headers );
 	}

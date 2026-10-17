@@ -1,5 +1,15 @@
 # Changelog
 
+## WordPress plugin [Unreleased]
+
+- Listing: `Tested up to` raised to 7.1 after running the plugin on
+  WordPress 7.1.3; a Screenshots section and a shorter 1.5.9 upgrade notice
+  in `readme.txt`.
+- The "Powered by Corsen Context" credit line is now opt-in and off by
+  default, and the `X-Powered-By` brand header is gone from plugin responses
+  (plugin directory guideline 10). Existing installs are switched off once;
+  the "Show Credit" checkbox turns the line back on.
+
 ## Security advisory - examples/directus-cms - 2026-09-04
 
 - Between commit 18bad85 (2026-08-30) and commit 10a12e6 (2026-09-03) the
