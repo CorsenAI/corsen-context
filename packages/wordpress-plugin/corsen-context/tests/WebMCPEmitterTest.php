@@ -46,14 +46,75 @@ final class WebMCPEmitterTest extends TestCase {
 
 	public function test_unknown_tool_fails_closed_as_writable(): void {
 		// v1.5.2: a tool missing from the table must NEVER be advertised as
-		// a safe read. Unknown means assume-writable.
+		// a safe read. Unknown means assume-writable and consequential.
 		$this->assertSame(
 			array(
 				'readOnlyHint'         => false,
 				'untrustedContentHint' => true,
+				'consequentialHint'    => true,
 			),
 			Corsen_Context_WebMCP::annotations_for( 'not_a_tool' )
 		);
+		$this->assertSame(
+			array(
+				'readOnlyHint'    => false,
+				'destructiveHint' => true,
+				'idempotentHint'  => false,
+				'openWorldHint'   => false,
+			),
+			Corsen_Context_WebMCP::mcp_annotations_for( 'not_a_tool' )
+		);
+	}
+
+	public function test_expert_tool_is_consequential_on_webmcp_and_non_read_only_on_mcp(): void {
+		// The draft's consequentialHint is what a browser agent uses to ask
+		// its user before running a tool; destructiveHint/idempotentHint are
+		// MCP members and must not leak into the WebMCP dictionary.
+		$this->assertSame(
+			array(
+				'readOnlyHint'         => false,
+				'untrustedContentHint' => true,
+				'consequentialHint'    => true,
+			),
+			Corsen_Context_WebMCP::annotations_for( 'request_expert_call' )
+		);
+		$this->assertSame(
+			array(
+				'readOnlyHint'    => false,
+				'destructiveHint' => false,
+				'idempotentHint'  => false,
+				'openWorldHint'   => false,
+			),
+			Corsen_Context_WebMCP::mcp_annotations_for( 'request_expert_call' )
+		);
+	}
+
+	public function test_mcp_transport_uses_the_mcp_annotation_vocabulary(): void {
+		$server = new Corsen_Context_MCP_Server();
+		$tools  = Corsen_Context_WebMCP::with_annotations( $server->get_tool_definitions(), 'mcp' );
+		$this->assertNotEmpty( $tools );
+		foreach ( $tools as $tool ) {
+			$this->assertSame(
+				array(
+					'readOnlyHint'    => true,
+					'destructiveHint' => false,
+					'idempotentHint'  => true,
+					'openWorldHint'   => false,
+				),
+				$tool['annotations']
+			);
+			$this->assertArrayNotHasKey( 'untrustedContentHint', $tool['annotations'] );
+		}
+	}
+
+	public function test_tools_carry_a_title_on_both_transports(): void {
+		foreach ( array( 'webmcp', 'mcp' ) as $transport ) {
+			$tools = Corsen_Context_WebMCP::with_annotations( ( new Corsen_Context_MCP_Server() )->get_tool_definitions(), $transport );
+			$by_name = array_column( $tools, null, 'name' );
+			$this->assertSame( 'Search site', $by_name['search_site']['title'] );
+			$this->assertSame( 'Read a page', $by_name['get_page_content']['title'] );
+		}
+		$this->assertStringContainsString( 'title: tool.title,', $this->script() );
 	}
 
 	public function test_registers_through_document_with_navigator_alias(): void {
@@ -113,13 +174,21 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringContainsString( 'signal: signal || null', $script );
 	}
 
-	public function test_execute_rejects_mcp_tool_errors_with_the_actionable_text(): void {
+	public function test_execute_returns_tool_errors_as_structured_results(): void {
+		// The WebMCP draft exposes a rejected execute() to the agent only as
+		// a DOMException name, so not_found, invalid_params and the human_only
+		// handoff URL must travel inside the returned result instead.
 		$script = $this->script();
 
 		$this->assertStringContainsString( 'body.result.isError', $script );
 		$this->assertStringContainsString( 'Array.isArray(body.result.content)', $script );
-		$this->assertStringContainsString( '.filter(Boolean)', $script );
-		$this->assertStringContainsString( "throw new Error(errorText || 'Corsen Context: tool execution failed')", $script );
+		$this->assertStringContainsString( 'function failure(code, message, extra)', $script );
+		$this->assertStringContainsString( "error_code: code", $script );
+		$this->assertStringContainsString( "typeof machine.error_code === 'string' ? machine.error_code : 'tool_error'", $script );
+		$this->assertStringContainsString( "error && error.corsenCode ? error.corsenCode : 'transport_error'", $script );
+		$this->assertStringNotContainsString( 'throw new Error(errorText', $script );
+		// Cancellation is the one failure that still rejects.
+		$this->assertStringContainsString( 'if (isAbort(error, signal)) throw error;', $script );
 		$this->assertLessThan( strpos( $script, 'var content = body && body.result' ), strpos( $script, 'body.result.isError' ) );
 	}
 

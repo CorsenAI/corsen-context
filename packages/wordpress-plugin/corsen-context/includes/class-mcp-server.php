@@ -473,13 +473,13 @@ class Corsen_Context_MCP_Server {
 	 * Handle tools/list.
 	 */
 	private function handle_list_tools( $id ): \WP_REST_Response {
-		// Same annotation table the WebMCP bridge emits: SECURITY.md promises
-		// agents can see which tools can write (request_expert_call carries
-		// readOnlyHint:false) and tools/list is the contract judges actually
-		// replay. Unknown tools fail closed as writable via annotations_for().
-		// Audit 2026-09-01: definitions were shipped raw, annotations existed
-		// only in the in-page bridge — a claim the transport did not back.
-		$tools = Corsen_Context_WebMCP::with_annotations( $this->get_tool_definitions() );
+		// Same annotation table the WebMCP bridge emits, rendered in the MCP
+		// vocabulary (readOnlyHint, destructiveHint, idempotentHint,
+		// openWorldHint) plus a title: SECURITY.md promises agents can see
+		// which tools can write (request_expert_call carries
+		// readOnlyHint:false) and tools/list is the contract clients replay.
+		// Unknown tools fail closed as writable via mcp_annotations_for().
+		$tools = Corsen_Context_WebMCP::with_annotations( $this->get_tool_definitions(), 'mcp' );
 		return $this->success_response( $id, array( 'tools' => $tools ) );
 	}
 
@@ -823,6 +823,19 @@ class Corsen_Context_MCP_Server {
 		);
 		if ( isset( $outcome['retry_after'] ) ) {
 			$machine['retry_after'] = (int) $outcome['retry_after'];
+		}
+		// Extra machine-readable fields an extension attaches to its failure
+		// (handoffUrl and policy for human_only, ids for section_not_found)
+		// travel with the error so an agent can act on them.
+		foreach ( $outcome as $key => $value ) {
+			if (
+				! is_string( $key ) ||
+				in_array( $key, array( 'ok', 'error', 'code', 'result', 'protocol_error', 'retry_after' ), true ) ||
+				! ( is_scalar( $value ) || is_array( $value ) )
+			) {
+				continue;
+			}
+			$machine[ $key ] = $value;
 		}
 		$response = $this->success_response(
 			$id,

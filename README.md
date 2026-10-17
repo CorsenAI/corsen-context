@@ -78,10 +78,12 @@ actionable message. A malformed `tools/call` envelope, including a non-object
 
 `readOnlyHint` and `untrustedContentHint` are advisory client metadata, not a
 security barrier. The TypeScript core adds them to WebMCP registrations and
-omits them from its MCP `tools/list`; the WordPress flagship also exposes its
-declared annotations on `tools/list`, including `readOnlyHint: false` for
-`request_expert_call`. Read-only behavior comes from the server implementation
-and content provider.
+omits them from its MCP `tools/list`; the WordPress flagship also exposes
+annotations on `tools/list`, in the MCP vocabulary (`readOnlyHint`,
+`destructiveHint`, `idempotentHint`, `openWorldHint`), including
+`readOnlyHint: false` for `request_expert_call`, which its WebMCP
+registration additionally marks `consequentialHint: true`. Read-only behavior
+comes from the server implementation and content provider.
 
 The generated browser bridge registers each manifest-backed tool through the
 WebMCP API. This is the actual registration path, shortened only to keep the

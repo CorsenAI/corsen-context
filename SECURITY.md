@@ -35,8 +35,10 @@ purchase site data on an agent's own authority.
 
 Tool results can contain text written by site authors, imported from another
 system, or supplied through comments. Consumers must treat that text as
-untrusted data. The WebMCP `readOnlyHint` and `untrustedContentHint` annotations
-are advisory metadata; they do not enforce authorization or neutralize prompt
+untrusted data. The WebMCP `readOnlyHint`, `untrustedContentHint` and
+`consequentialHint` annotations, and their MCP counterparts (`readOnlyHint`,
+`destructiveHint`, `idempotentHint`, `openWorldHint`) on `tools/list`, are
+advisory metadata; they do not enforce authorization or neutralize prompt
 injection.
 
 For non-WordPress integrations, the `ContentProvider` implementation must

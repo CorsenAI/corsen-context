@@ -236,6 +236,10 @@ class Corsen_Context_Control_Center {
 						<div><span class="ccx-badge <?php echo ( $on && ! empty( $settings['webmcp_enabled'] ) ) ? 'ccx-badge--on' : 'ccx-badge--off'; ?>">WebMCP</span></div>
 						<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[webmcp_enabled]" value="1" <?php checked( ! empty( $settings['webmcp_enabled'] ) ); ?> /><?php esc_html_e( 'Register tools inside the page (document.modelContext)', 'corsen-context' ); ?></label>
 						<p class="ccx-desc"><?php esc_html_e( 'Browser-resident agents discover the same tools with zero configuration, on the open page.', 'corsen-context' ); ?></p>
+						<p class="ccx-sec"><?php esc_html_e( 'HTTPS pages only (secure context). Chrome: origin trial from Chrome 149 to 156, or chrome://flags/#enable-webmcp-testing for local tests.', 'corsen-context' ); ?></p>
+						<?php if ( ! Corsen_Context_WebMCP::site_is_secure_context() ) : ?>
+							<p class="ccx-sec"><strong><?php esc_html_e( 'HTTPS required:', 'corsen-context' ); ?></strong> <?php esc_html_e( 'this site is served over http://, so no browser will expose WebMCP on it yet.', 'corsen-context' ); ?></p>
+						<?php endif; ?>
 						<label class="ccx-sec"><?php esc_html_e( 'Chrome origin trial token (optional)', 'corsen-context' ); ?>
 							<input type="text" name="corsen_context_settings[webmcp_origin_trial_token]" class="large-text" value="<?php echo esc_attr( $settings['webmcp_origin_trial_token'] ?? '' ); ?>" />
 						</label>
