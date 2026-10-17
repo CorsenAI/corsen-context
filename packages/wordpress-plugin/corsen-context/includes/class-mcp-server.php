@@ -19,6 +19,12 @@ class Corsen_Context_MCP_Server {
 	private const RESOURCES_PAGE_SIZE = 100;
 
 	/**
+	 * Transport the current request arrived through, for the audit trail:
+	 * 'webmcp' when the in-page bridge says so, otherwise 'mcp'.
+	 */
+	private string $transport = 'mcp';
+
+	/**
 	 * The MCP protocol version this server implements.
 	 *
 	 * The WebMCP bridge reads it here so the header it sends can never drift
@@ -74,7 +80,7 @@ class Corsen_Context_MCP_Server {
 
 		$preflight = Corsen_Context_Security::add_security_headers( new \WP_REST_Response( null, 204 ) );
 		$preflight->header( 'Access-Control-Allow-Methods', 'POST, OPTIONS' );
-		$preflight->header( 'Access-Control-Allow-Headers', 'Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, Authorization' );
+		$preflight->header( 'Access-Control-Allow-Headers', 'Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, X-Corsen-Transport, Authorization' );
 		$preflight->header( 'Vary', 'Origin' );
 		if ( '' !== $origin ) {
 			$preflight->header( 'Access-Control-Allow-Origin', $origin );
@@ -115,6 +121,12 @@ class Corsen_Context_MCP_Server {
 		if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'OPTIONS' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
 			return;
 		}
+		// A disabled endpoint answers nothing here: core's REST loader then
+		// reports the route as absent, as it does for POST.
+		$settings = get_option( 'corsen_context_settings', array() );
+		if ( empty( $settings['enabled'] ) || empty( $settings['mcp_enabled'] ) ) {
+			return;
+		}
 		$path     = (string) wp_parse_url( home_url( '/wp-json/' ), PHP_URL_PATH );
 		$route    = untrailingslashit( $path ) . '/corsen-context/v1/mcp';
 		$uri      = (string) ( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
@@ -151,7 +163,7 @@ class Corsen_Context_MCP_Server {
 			header( 'Access-Control-Allow-Origin: ' . $origin );
 		}
 		header( 'Access-Control-Allow-Methods: POST, OPTIONS' );
-		header( 'Access-Control-Allow-Headers: Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, Authorization' );
+		header( 'Access-Control-Allow-Headers: Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, X-Corsen-Transport, Authorization' );
 		header( 'Access-Control-Max-Age: 86400' );
 		header( 'Vary: Origin' );
 		header( 'X-Content-Type-Options: nosniff' );
@@ -200,7 +212,7 @@ class Corsen_Context_MCP_Server {
 
 		$preflight = Corsen_Context_Security::add_security_headers( new \WP_REST_Response( null, 204 ) );
 		$preflight->header( 'Access-Control-Allow-Methods', 'POST, OPTIONS' );
-		$preflight->header( 'Access-Control-Allow-Headers', 'Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, Authorization' );
+		$preflight->header( 'Access-Control-Allow-Headers', 'Accept, Content-Type, MCP-Protocol-Version, X-MCP-Key, X-Corsen-Transport, Authorization' );
 		$preflight->header( 'Vary', 'Origin' );
 		if ( '' !== $origin ) {
 			$preflight->header( 'Access-Control-Allow-Origin', $origin );
@@ -325,6 +337,7 @@ class Corsen_Context_MCP_Server {
 			return $this->error_response( null, -32600, 'Invalid Request id' );
 		}
 		$method          = sanitize_text_field( $body['method'] );
+		$this->transport = Corsen_Context_Audit::normalize_transport( (string) $request->get_header( 'X-Corsen-Transport' ) );
 		$params          = is_array( $body['params'] ?? null ) ? $body['params'] : array();
 		$id              = $body['id'] ?? null;
 		$is_notification = ! array_key_exists( 'id', $body );
@@ -495,7 +508,7 @@ class Corsen_Context_MCP_Server {
 
 		// One executor for every transport: MCP here, the WebMCP in-page bridge
 		// (through this same REST route) and the WordPress Abilities API.
-		$outcome = $this->execute_tool( $tool_name, $raw_arguments );
+		$outcome = $this->execute_tool( $tool_name, $raw_arguments, $this->transport );
 		if ( empty( $outcome['ok'] ) ) {
 			if ( ! empty( $outcome['protocol_error'] ) ) {
 				return $this->error_response( $id, -32602, (string) $outcome['error'] );
@@ -513,9 +526,10 @@ class Corsen_Context_MCP_Server {
 	 *
 	 * @param string $tool_name     Requested tool name.
 	 * @param mixed  $raw_arguments Raw arguments value from the caller.
+	 * @param string $transport     mcp, webmcp or abilities (audit trail only).
 	 * @return array{ok?:bool,result?:mixed,error?:string,protocol_error?:bool}
 	 */
-	public function execute_tool( string $tool_name, $raw_arguments ): array {
+	public function execute_tool( string $tool_name, $raw_arguments, string $transport = 'mcp' ): array {
 		$start   = hrtime( true );
 		$outcome = $this->run_tool( $tool_name, $raw_arguments );
 		try {
@@ -523,7 +537,8 @@ class Corsen_Context_MCP_Server {
 				$tool_name,
 				is_array( $raw_arguments ) ? $raw_arguments : array(),
 				$outcome,
-				(int) round( ( hrtime( true ) - $start ) / 1000000 )
+				(int) round( ( hrtime( true ) - $start ) / 1000000 ),
+				$transport
 			);
 		} catch ( \Throwable $e ) {
 			// Audit is observational only: a broken log must never change a tool response.

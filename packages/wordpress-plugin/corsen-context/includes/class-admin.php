@@ -310,6 +310,8 @@ class Corsen_Context_Admin {
 		$all_tools                              = Corsen_Context_Tool_Registry::known();
 		$requested_tools                        = array_map( 'sanitize_text_field', (array) ( $input['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS ) );
 		$sanitized['enabled_tools']             = array_values( array_intersect( $all_tools, $requested_tools ) );
+		$excluded_tools                         = array_map( 'sanitize_text_field', (array) ( $input['webmcp_excluded_tools'] ?? array() ) );
+		$sanitized['webmcp_excluded_tools']     = array_values( array_intersect( $all_tools, $excluded_tools ) );
 		$sanitized['audit_enabled']             = ! empty( $input['audit_enabled'] );
 		$sanitized['hide_user_enumeration']     = ! empty( $input['hide_user_enumeration'] );
 		$sanitized['expert_enabled']            = ! empty( $input['expert_enabled'] );
@@ -439,6 +441,14 @@ class Corsen_Context_Admin {
 			esc_html__( 'Content types agents can see:', 'corsen-context' ),
 			esc_html( implode( ', ', (array) $types ) )
 		);
+		$hidden_from_webmcp = array_values( array_intersect( $exposed_tools, Corsen_Context_WebMCP::excluded_tools() ) );
+		if ( ! empty( $hidden_from_webmcp ) ) {
+			printf(
+				'<p style="margin:6px 0;"><strong>%s</strong> %s</p>',
+				esc_html__( 'Hidden from in-page agents (WebMCP), still on MCP:', 'corsen-context' ),
+				esc_html( implode( ', ', $hidden_from_webmcp ) )
+			);
+		}
 		if ( ! empty( $excluded ) ) {
 			printf(
 				'<p style="margin:6px 0;"><strong>%s</strong> %s</p>',
@@ -482,8 +492,10 @@ class Corsen_Context_Admin {
 			'request_expert_call' => __( 'Human-only expert handoff (non-read-only semantics; every schema-valid call is refused before side effects)', 'corsen-context' ),
 		);
 		$enabled  = $settings['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS;
+		$excluded = Corsen_Context_WebMCP::excluded_tools();
 		// Preserve an explicit empty selection when every checkbox is cleared.
 		echo '<input type="hidden" name="corsen_context_settings[enabled_tools][]" value="" />';
+		echo '<input type="hidden" name="corsen_context_settings[webmcp_excluded_tools][]" value="" />';
 		foreach ( $all as $tool => $desc ) {
 			$checked = in_array( $tool, $enabled, true );
 			printf(
@@ -493,8 +505,14 @@ class Corsen_Context_Admin {
 				esc_html( $tool ),
 				esc_html( $desc )
 			);
+			printf(
+				'<label style="display:block;margin:0 0 8px 24px;font-size:12px;"><input type="checkbox" name="corsen_context_settings[webmcp_excluded_tools][]" value="%s" %s /> %s</label>',
+				esc_attr( $tool ),
+				checked( in_array( $tool, $excluded, true ), true, false ),
+				esc_html__( 'Hide from in-page agents (WebMCP); stays available over MCP', 'corsen-context' )
+			);
 		}
-		printf( '<p class="description">%s</p>', esc_html__( 'MCP and WebMCP expose the same selected set. Uncheck all to expose no callable tools.', 'corsen-context' ) );
+		printf( '<p class="description">%s</p>', esc_html__( 'MCP and WebMCP expose the same selected set unless a tool is hidden from in-page agents. Uncheck all to expose no callable tools.', 'corsen-context' ) );
 	}
 
 	public function render_text( array $args ): void {

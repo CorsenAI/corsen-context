@@ -255,10 +255,12 @@ class Corsen_Context_Control_Center {
 				</div>
 
 				<h2><?php esc_html_e( 'Tools agents can call', 'corsen-context' ); ?></h2>
-				<p class="ccx-desc"><?php esc_html_e( 'Same set for MCP, WebMCP and the abilities layer. Content tools are read-only; request_expert_call is a non-read-only semantic boundary that always refuses agent use before side effects. Uncheck all to expose no callable tools.', 'corsen-context' ); ?></p>
+				<p class="ccx-desc"><?php esc_html_e( 'Same set for MCP, WebMCP and the abilities layer, unless a tool is hidden from in-page agents. Content tools are read-only; request_expert_call is a non-read-only semantic boundary that always refuses agent use before side effects. Uncheck all to expose no callable tools.', 'corsen-context' ); ?></p>
 				<input type="hidden" name="corsen_context_settings[enabled_tools][]" value="" />
+				<input type="hidden" name="corsen_context_settings[webmcp_excluded_tools][]" value="" />
 				<div class="ccx-grid">
 					<?php
+					$webmcp_excluded = Corsen_Context_WebMCP::excluded_tools();
 					foreach ( $this->tool_catalog() as $tool => $meta ) :
 						$is_checked = in_array( $tool, $enabled, true );
 						$is_on      = in_array( $tool, $exposed, true );
@@ -278,6 +280,7 @@ class Corsen_Context_Control_Center {
 							<p class="ccx-title"><code><?php echo esc_html( $tool ); ?></code> — <?php echo esc_html( $meta['title'] ); ?></p>
 							<p class="ccx-desc"><?php echo esc_html( $meta['desc'] ); ?></p>
 							<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[enabled_tools][]" value="<?php echo esc_attr( $tool ); ?>" <?php checked( $is_checked ); ?> /><?php esc_html_e( 'Expose this tool', 'corsen-context' ); ?></label>
+							<label class="ccx-sec"><input type="checkbox" name="corsen_context_settings[webmcp_excluded_tools][]" value="<?php echo esc_attr( $tool ); ?>" <?php checked( in_array( $tool, $webmcp_excluded, true ) ); ?> /> <?php esc_html_e( 'Hide from in-page agents (WebMCP); stays available over MCP', 'corsen-context' ); ?></label>
 							<?php if ( 'get_product' === $tool ) : ?>
 								<p class="ccx-sec">
 								<?php
@@ -344,7 +347,7 @@ class Corsen_Context_Control_Center {
 					<div class="ccx-card <?php echo empty( $settings['audit_enabled'] ) ? 'ccx-card--off' : ''; ?>">
 						<div><span class="ccx-badge <?php echo empty( $settings['audit_enabled'] ) ? 'ccx-badge--off' : 'ccx-badge--on'; ?>">audit</span></div>
 						<label class="ccx-switch"><input type="checkbox" name="corsen_context_settings[audit_enabled]" value="1" <?php checked( ! empty( $settings['audit_enabled'] ) ); ?> /><?php esc_html_e( 'Bounded audit log of tool calls', 'corsen-context' ); ?></label>
-						<p class="ccx-desc"><?php esc_html_e( 'Tool name, argument fingerprint (never the arguments themselves), hashed IP, outcome, duration. The table has a hard 500-row cap; entries older than 30 days are pruned when WP-Cron runs, and you can purge them here at any time.', 'corsen-context' ); ?></p>
+						<p class="ccx-desc"><?php esc_html_e( 'Tool name, transport (MCP, in-page WebMCP, Abilities), argument fingerprint (never the arguments themselves), hashed IP, outcome, error code, duration. The table has a hard 500-row cap; entries older than 30 days are pruned when WP-Cron runs, and you can purge them here at any time.', 'corsen-context' ); ?></p>
 					</div>
 				</div>
 
@@ -481,13 +484,44 @@ class Corsen_Context_Control_Center {
 			<?php elseif ( ! Corsen_Context_Audit::available() ) : ?>
 				<p class="ccx-desc"><?php esc_html_e( 'Audit is on. The log table installs itself on the next admin page load.', 'corsen-context' ); ?></p>
 			<?php else : ?>
+				<?php $audit_summary = Corsen_Context_Audit::summary(); ?>
+				<?php if ( ! empty( $audit_summary['transports'] ) ) : ?>
+					<p class="ccx-desc">
+						<strong><?php esc_html_e( 'Calls per transport (retained window):', 'corsen-context' ); ?></strong>
+						<?php
+						$transport_parts = array();
+						foreach ( $audit_summary['transports'] as $transport_name => $transport_calls ) {
+							$transport_parts[] = $transport_name . ' ' . number_format_i18n( $transport_calls );
+						}
+						echo esc_html( implode( ' · ', $transport_parts ) );
+						?>
+					</p>
+					<table class="widefat striped" style="max-width:520px;margin-bottom:12px;">
+						<thead><tr>
+							<th><?php esc_html_e( 'Tool', 'corsen-context' ); ?></th>
+							<th><?php esc_html_e( 'Calls', 'corsen-context' ); ?></th>
+							<th><?php esc_html_e( 'Errors', 'corsen-context' ); ?></th>
+						</tr></thead>
+						<tbody>
+							<?php foreach ( $audit_summary['tools'] as $tool_total ) : ?>
+								<tr>
+									<td><code><?php echo esc_html( $tool_total['tool'] ); ?></code></td>
+									<td><?php echo esc_html( number_format_i18n( $tool_total['calls'] ) ); ?></td>
+									<td><?php echo esc_html( number_format_i18n( $tool_total['errors'] ) ); ?></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				<?php endif; ?>
 				<table class="widefat striped" style="max-width:960px;">
 					<thead><tr>
 						<th><?php esc_html_e( 'When (UTC)', 'corsen-context' ); ?></th>
 						<th><?php esc_html_e( 'Tool', 'corsen-context' ); ?></th>
+						<th><?php esc_html_e( 'Transport', 'corsen-context' ); ?></th>
 						<th><?php esc_html_e( 'Args fingerprint', 'corsen-context' ); ?></th>
 						<th><?php esc_html_e( 'IP hash', 'corsen-context' ); ?></th>
 						<th><?php esc_html_e( 'Outcome', 'corsen-context' ); ?></th>
+						<th><?php esc_html_e( 'Error code', 'corsen-context' ); ?></th>
 						<th><?php esc_html_e( 'ms', 'corsen-context' ); ?></th>
 					</tr></thead>
 					<tbody>
@@ -495,9 +529,11 @@ class Corsen_Context_Control_Center {
 							<tr>
 								<td><?php echo esc_html( $row->occurred_at ); ?></td>
 								<td><code><?php echo esc_html( $row->tool ); ?></code></td>
+								<td><?php echo esc_html( (string) ( $row->transport ?? 'mcp' ) ); ?></td>
 								<td><code><?php echo esc_html( substr( $row->args_fp, 0, 10 ) ); ?></code></td>
 								<td><code><?php echo esc_html( $row->ip_hash ); ?></code></td>
 								<td><?php echo esc_html( $row->status ); ?></td>
+								<td><code><?php echo esc_html( (string) ( $row->error_code ?? '' ) ); ?></code></td>
 								<td><?php echo esc_html( (string) $row->duration_ms ); ?></td>
 							</tr>
 						<?php endforeach; ?>

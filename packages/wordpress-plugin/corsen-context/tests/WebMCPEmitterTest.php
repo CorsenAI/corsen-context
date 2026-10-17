@@ -352,4 +352,49 @@ final class WebMCPEmitterTest extends TestCase {
 		$this->assertStringNotContainsString( 'import ', $bridge );
 		$this->assertStringStartsWith( '/**', $bridge );
 	}
+
+	public function test_excluded_tools_stay_on_mcp_but_leave_the_page(): void {
+		$GLOBALS['corsen_test_options']['corsen_context_settings'] = array(
+			'enabled'               => true,
+			'mcp_enabled'           => true,
+			'webmcp_enabled'        => true,
+			'webmcp_excluded_tools' => array( 'get_sitemap', 'not_a_tool' ),
+		);
+		$this->assertSame( array( 'get_sitemap' ), Corsen_Context_WebMCP::excluded_tools() );
+
+		( new Corsen_Context_WebMCP() )->enqueue();
+		$inline = $GLOBALS['corsen_test_scripts'][ Corsen_Context_WebMCP::HANDLE ]['inline'][0][1];
+		$this->assertStringContainsString( '"search_site"', $inline );
+		$this->assertStringNotContainsString( '"get_sitemap"', $inline );
+
+		$names = array_column( ( new Corsen_Context_MCP_Server() )->get_tool_definitions(), 'name' );
+		$this->assertContains( 'get_sitemap', $names, 'Hiding a tool from the page must not remove it from MCP.' );
+	}
+
+	public function test_mcp_transport_advertises_output_schemas_in_the_wrapped_shape(): void {
+		$tools   = Corsen_Context_WebMCP::with_annotations( ( new Corsen_Context_MCP_Server() )->get_tool_definitions(), 'mcp' );
+		$by_name = array_column( $tools, null, 'name' );
+		// tools/call wraps list results under items, so the schema must too.
+		$this->assertSame( 'object', $by_name['search_site']['outputSchema']['type'] );
+		$this->assertSame( 'array', $by_name['search_site']['outputSchema']['properties']['items']['type'] );
+		$this->assertSame( array( 'items' ), $by_name['search_site']['outputSchema']['required'] );
+		$this->assertSame( 'object', $by_name['list_content']['outputSchema']['type'] );
+		$this->assertArrayHasKey( 'hasMore', $by_name['list_content']['outputSchema']['properties'] );
+
+		foreach ( $this->annotated_tools() as $tool ) {
+			$this->assertArrayNotHasKey( 'outputSchema', $tool, 'The WebMCP dictionary has no outputSchema member.' );
+		}
+	}
+
+	public function test_bridge_labels_its_transport_and_honours_an_output_budget(): void {
+		$bridge = $this->bridge();
+		$this->assertStringContainsString( "'X-Corsen-Transport': 'webmcp'", $bridge );
+		$this->assertStringContainsString( 'config.outputBudget', $bridge );
+		$this->assertStringContainsString( 'out.truncated = true;', $bridge );
+		$this->assertStringContainsString( 'return bound(structured);', $bridge );
+		// Off unless a site opts in through the filter.
+		$this->assertStringContainsString( '"outputBudget":0', $this->config() );
+		$GLOBALS['corsen_test_filters']['corsen_context_webmcp_output_budget'] = static fn() => 1500;
+		$this->assertStringContainsString( '"outputBudget":1500', $this->config() );
+	}
 }
