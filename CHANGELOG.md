@@ -41,6 +41,12 @@
   routine on `init` now returns after the option merge unless the plugin
   version changed, instead of checking the rewrite version and the two cron
   hooks on every request.
+- Internationalisation: the classic settings page, the dashboard widget, the
+  llms.txt section labels, the public "Rules for AI agents" page and the
+  human-only form notice are translatable (text domain `corsen-context`);
+  `load_plugin_textdomain()` is gone, as WordPress.org language packs load
+  automatically since 4.6. `uninstall.php` runs inside a function and visits
+  every site of a multisite network.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 

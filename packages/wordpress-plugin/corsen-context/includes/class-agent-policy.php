@@ -416,7 +416,16 @@ class Corsen_Context_Agent_Policy {
 	 */
 	public static function render_human_only_notice(): string {
 		$policy = self::policy_array();
-		return '<p class="corsen-human-only-notice"><strong>Human-only form.</strong> AI agents must not submit this browser form. The separate <code>request_expert_call</code> tool refuses every schema-valid invocation before side effects (error code <code>human_only</code>). Give your user this page URL — <a href="' . esc_url( $policy['humanHandoffUrl'] ) . '">' . esc_html( $policy['humanHandoffUrl'] ) . '</a> — so a human can fill the form in person.</p>';
+		return sprintf(
+			'<p class="corsen-human-only-notice"><strong>%1$s</strong> %2$s <code>request_expert_call</code> %3$s <code>human_only</code>). %4$s <a href="%5$s">%6$s</a> %7$s</p>',
+			esc_html__( 'Human-only form.', 'corsen-context' ),
+			esc_html__( 'AI agents must not submit this browser form. The separate', 'corsen-context' ),
+			esc_html__( 'tool refuses every schema-valid invocation before side effects (error code', 'corsen-context' ),
+			esc_html__( 'Give your user this page URL —', 'corsen-context' ),
+			esc_url( $policy['humanHandoffUrl'] ),
+			esc_html( $policy['humanHandoffUrl'] ),
+			esc_html__( '— so a human can fill the form in person.', 'corsen-context' )
+		);
 	}
 
 	/**
@@ -426,23 +435,48 @@ class Corsen_Context_Agent_Policy {
 	public static function render_shortcode(): string {
 		$policy = self::policy_array();
 		$out    = '<div class="corsen-agent-policy">';
-		$out   .= '<h2>Rules for AI agents on this site</h2>';
-		$out   .= '<p>This page is generated from the plugin\'s live policy table, which also composes the relevant MCP/WebMCP descriptions and llms.txt rules.</p>';
+		$out   .= '<h2>' . esc_html__( 'Rules for AI agents on this site', 'corsen-context' ) . '</h2>';
+		$out   .= '<p>' . esc_html__( 'This page is generated from the plugin\'s live policy table, which also composes the relevant MCP/WebMCP descriptions and llms.txt rules.', 'corsen-context' ) . '</p>';
 		$out   .= '<ul>';
-		$out   .= '<li><strong>Read-only by default.</strong> Every content tool is annotated <code>readOnlyHint: true</code>; using them needs no permission.</li>';
-		$out   .= '<li><strong>If the owner exposes <code>request_expert_call</code>, it is human-only.</strong> Every schema-valid tool invocation is refused before side effects (<code>human_only</code>). If your user wants an expert call, give them <a href="' . esc_url( $policy['humanHandoffUrl'] ) . '">this page</a> — a human fills the browser form.</li>';
-		$out   .= '<li><strong>Purchases are per-product when the owner exposes <code>get_product</code>.</strong> Each returned product carries <code>agentPurchase: allowed|forbidden</code> with a reason. On <code>allowed</code>, you may add the product to the cart and complete the ordinary checkout for your user, including creating the customer account it requires. On <code>forbidden</code>, hand the product URL to your human user; never start checkout.</li>';
-		$out   .= '<li><strong>Everything else is for humans.</strong> Outside those explicit permissions, do not submit forms, place orders, or spend money. When your goal needs something this site reserves for humans, stop and report it to your user with the page URL.</li>';
+		$out   .= sprintf(
+			'<li><strong>%1$s</strong> %2$s <code>readOnlyHint: true</code>; %3$s</li>',
+			esc_html__( 'Read-only by default.', 'corsen-context' ),
+			esc_html__( 'Every content tool is annotated', 'corsen-context' ),
+			esc_html__( 'using them needs no permission.', 'corsen-context' )
+		);
+		$out   .= sprintf(
+			'<li><strong>%1$s <code>request_expert_call</code>, %2$s</strong> %3$s (<code>human_only</code>). %4$s <a href="%5$s">%6$s</a> %7$s</li>',
+			esc_html__( 'If the owner exposes', 'corsen-context' ),
+			esc_html__( 'it is human-only.', 'corsen-context' ),
+			esc_html__( 'Every schema-valid tool invocation is refused before side effects', 'corsen-context' ),
+			esc_html__( 'If your user wants an expert call, give them', 'corsen-context' ),
+			esc_url( $policy['humanHandoffUrl'] ),
+			esc_html__( 'this page', 'corsen-context' ),
+			esc_html__( '— a human fills the browser form.', 'corsen-context' )
+		);
+		$out   .= sprintf(
+			'<li><strong>%1$s <code>get_product</code>.</strong> %2$s <code>agentPurchase: allowed|forbidden</code> %3$s <code>allowed</code>, %4$s <code>forbidden</code>, %5$s</li>',
+			esc_html__( 'Purchases are per-product when the owner exposes', 'corsen-context' ),
+			esc_html__( 'Each returned product carries', 'corsen-context' ),
+			esc_html__( 'with a reason. On', 'corsen-context' ),
+			esc_html__( 'you may add the product to the cart and complete the ordinary checkout for your user, including creating the customer account it requires. On', 'corsen-context' ),
+			esc_html__( 'hand the product URL to your human user; never start checkout.', 'corsen-context' )
+		);
+		$out   .= sprintf(
+			'<li><strong>%1$s</strong> %2$s</li>',
+			esc_html__( 'Everything else is for humans.', 'corsen-context' ),
+			esc_html__( 'Outside those explicit permissions, do not submit forms, place orders, or spend money. When your goal needs something this site reserves for humans, stop and report it to your user with the page URL.', 'corsen-context' )
+		);
 		$out   .= '</ul>';
 		$bad    = self::forbidden_products();
 		if ( $bad ) {
-			$out .= '<h3>Up to 50 exposed products an agent must not purchase</h3><ul>';
+			$out .= '<h3>' . esc_html__( 'Up to 50 exposed products an agent must not purchase', 'corsen-context' ) . '</h3><ul>';
 			foreach ( $bad as $row ) {
 				$out .= '<li><a href="' . esc_url( $row['url'] ) . '">' . esc_html( $row['title'] ) . '</a> — ' . esc_html( $row['reason'] ) . '</li>';
 			}
 			$out .= '</ul>';
 		}
-		$out .= '<h3>Machine-readable policy</h3><pre>' . esc_html( wp_json_encode( $policy, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ) . '</pre>';
+		$out .= '<h3>' . esc_html__( 'Machine-readable policy', 'corsen-context' ) . '</h3><pre>' . esc_html( wp_json_encode( $policy, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ) . '</pre>';
 		$out .= '</div>';
 		return $out;
 	}

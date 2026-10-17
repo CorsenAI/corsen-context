@@ -512,7 +512,7 @@ class Corsen_Context_Control_Center {
 			$expert_pending = ( $expert_counts instanceof \stdClass && isset( $expert_counts->private ) ) ? (int) $expert_counts->private : 0;
 			?>
 			<?php if ( $expert_pending > 0 ) : ?>
-				<p><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_expert' ), 'corsen_ccx_purge_expert' ) ); ?>" onclick="return confirm('<?php echo esc_js( sprintf( 'Permanently delete %d expert request(s)?', $expert_pending ) ); ?>');">Purge expert requests (<?php echo (int) $expert_pending; ?>)</a></p>
+				<p><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=corsen_ccx_purge_expert' ), 'corsen_ccx_purge_expert' ) ); ?>" onclick="return confirm('<?php echo esc_js( sprintf( /* translators: %d: number of stored expert requests */ __( 'Permanently delete %d expert request(s)?', 'corsen-context' ), $expert_pending ) ); ?>');"><?php echo esc_html( sprintf( /* translators: %d: number of stored expert requests */ __( 'Purge expert requests (%d)', 'corsen-context' ), $expert_pending ) ); ?></a></p>
 			<?php endif; ?>
 		</div>
 		<?php

@@ -391,9 +391,9 @@ class Corsen_Context_Llms_Generator {
 	 */
 	private function get_type_label( string $post_type ): string {
 		$labels = array(
-			'page'    => 'Main Pages',
-			'post'    => 'Blog & Content',
-			'product' => 'Products / Services',
+			'page'    => __( 'Main Pages', 'corsen-context' ),
+			'post'    => __( 'Blog & Content', 'corsen-context' ),
+			'product' => __( 'Products / Services', 'corsen-context' ),
 		);
 
 		if ( isset( $labels[ $post_type ] ) ) {
