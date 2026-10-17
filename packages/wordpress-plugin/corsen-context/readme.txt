@@ -1,15 +1,15 @@
 === Corsen Context ===
 Contributors: corsenai
 Donate link: https://corsen.ai
-Tags: ai, mcp, llms-txt, model-context-protocol, ai-native
+Tags: ai, mcp, webmcp, llms-txt, ai-agents
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.5.16
+Stable tag: 1.5.17
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Publish selected public WordPress content through llms.txt and an MCP-style JSON-RPC endpoint, with owner-controlled tool extensions.
+Owner-controlled AI access to your public content: llms.txt, a read-only MCP endpoint, and opt-in WebMCP tools for agents in the browser.
 
 == Description ==
 
@@ -17,7 +17,7 @@ Publish selected public WordPress content through llms.txt and an MCP-style JSON
 
 = What it does =
 
-The plugin provides three separate surfaces:
+The plugin provides three separate surfaces, with one implementation behind all of them:
 
 1. **Static Layer** — Generates `/llms.txt` with a structured overview of selected public content. An optional, bounded `/llms-full.txt` export can be enabled in settings.
 
@@ -25,9 +25,20 @@ The plugin provides three separate surfaces:
 
 3. **In-Page Layer (opt-in)** — Registers the enabled tools through WebMCP `document.modelContext`, including explicit per-tool annotations. Serving the bridge does not enable WebMCP in every browser: a compatible browser/client and, where applicable, current trial enrollment or a development flag are also required.
 
+= WebMCP: your tools inside the browser =
+
+WebMCP is the draft browser API (`document.modelContext`) through which a page offers tools to an AI agent running in the browser: Chrome with WebMCP enabled, or an agent client with built-in support such as ChatGPT's in-app browser. With Corsen Context, your WordPress site offers in the page the same read-only tools it already serves over MCP: `search_site`, `get_page_content`, `list_content`, `get_sitemap`, plus any extension tool you enable.
+
+* **Nothing to code** - the plugin generates the registration script; every tool call goes back to your site's own MCP endpoint, so the browser never reimplements a tool.
+* **Annotated and bounded** - each tool carries `readOnlyHint` and `untrustedContentHint` annotations; the bridge stays same-origin, sends no cookies, visitor credentials or API key, and refuses to register inside frames.
+* **Opt-in** - off until you enable it under Settings > Corsen Context. An optional origin-trial token field emits Chrome's first-party meta tag for public deployments.
+
+To try it: enable WebMCP in Settings > Corsen Context; open the site as a top-level page in a browser that exposes the API (Chrome 149 or newer with `chrome://flags/#enable-webmcp-testing`, or an agent client with built-in support); check `typeof document.modelContext === 'object'` in DevTools; then ask the agent to search the site and read one page. WebMCP is experimental and browser support changes; the [browser setup guide](https://github.com/CorsenAI/corsen-context/blob/main/docs/WEBMCP-BROWSER-SETUP.md) tracks the current paths.
+
 = Key Features =
 
-* **Default surfaces** — `/llms.txt` and the public read-only endpoint are enabled; the heavier `/llms-full.txt` export and WebMCP bridge are opt-in.
+* **Three surfaces, one contract** — static `/llms.txt`, a read-only MCP endpoint, and opt-in WebMCP in-page tools expose the same owner-selected content; the heavier `/llms-full.txt` export and the WebMCP bridge are opt-in.
+* **WebMCP bridge** — registers the enabled tools through `document.modelContext` with per-tool annotations, same-origin and credential-free; optional origin-trial token setting.
 * **MCP 2025-11-25 target** — Supports `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, and `notifications/initialized`. The endpoint returns JSON responses and does not provide server-sent event streaming.
 * **4 core read-only tools** — `search_site`, `get_page_content`, `list_content`, `get_sitemap`; every other surface tool is an opt-in extension, off by default.
 * **SEO integration** — Reads Yoast SEO and Rank Math metadata for better descriptions.
@@ -78,10 +89,10 @@ Check the version displayed by WordPress.org before installation. A stable versi
 
 = Manual release installation =
 
-1. Obtain the GitHub release asset for version 1.5.16, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.16`.
+1. Obtain the GitHub release asset for version 1.5.17, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.17`.
 2. The ZIP must contain one top-level `corsen-context` folder with `corsen-context.php`, `includes/`, `uninstall.php`, and `readme.txt`; do not upload the monorepo ZIP.
 3. Go to Plugins > Add New > Upload Plugin, upload that plugin ZIP, and activate it.
-4. Confirm version 1.5.16 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
+4. Confirm version 1.5.17 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
 
 = After Activation =
 
@@ -96,6 +107,10 @@ With the default settings, activation publishes:
 **Important:** Do not construct the MCP endpoint by appending `/wp-json/`. WordPress commonly returns `https://yoursite.com/wp-json/corsen-context/v1/mcp`, but Plain permalinks can return `https://yoursite.com/?rest_route=/corsen-context/v1/mcp`, and a site can filter the REST prefix. Use the URL displayed by the plugin or published in `robots.txt`, the HTML `<link rel="mcp">`, or the generated `/llms.txt` when MCP is enabled. If the separate `/llms.txt` path is unavailable, review the site's rewrite and permalink configuration.
 
 == Frequently Asked Questions ==
+
+= What is WebMCP, and how is it different from MCP? =
+
+MCP (Model Context Protocol) lets an AI client outside the page call your site's tools over HTTP. WebMCP is the browser-side counterpart: the page registers tools with `document.modelContext`, and an agent running inside the browser calls them. Corsen Context serves the same read-only tools on both; WebMCP adds no write access and no new data.
 
 = What is MCP? =
 
@@ -151,6 +166,10 @@ An origin-trial token is delivered to browsers and is not an MCP credential. Suc
 Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit helps grow the open-source ecosystem and we appreciate keeping it enabled.
 
 == Changelog ==
+
+= 1.5.17 - 2026-10-17 =
+* Fix: the `/llms.txt` and `/llms-full.txt` rewrite rules are registered only while the corresponding surface is enabled, stale rules are dropped from the generated rule set, and the rules are refreshed when the setting changes. A disabled `/llms.txt` previously kept owning the route and could answer 404 in place of another plugin's `llms.txt`. Reported with a fix by suhakaralar (#10, #11).
+* Readme and plugin description now present WebMCP as one of the three surfaces (static `llms.txt`, MCP endpoint, in-page WebMCP tools) with setup and verification steps; tags updated.
 
 = 1.5.16 - 2026-09-03 =
 * Agent conduct policy states what an agent may do, not only what it must not: for a product whose `agentPurchase` is `allowed`, an agent acting for its user may complete the store's ordinary checkout, including creating the customer account it requires; everything outside those explicit per-product permissions stays human-only, and the agent is told to stop and report the page URL to its user. The same sentence is rendered in `llms.txt`, the `[corsen_agent_policy]` page, the machine-readable policy JSON, the `get_product` description, and the default per-product reason.
@@ -313,6 +332,9 @@ Yes. Uncheck "Show Credit" in Settings > Corsen Context. However, the credit hel
 * Clean uninstall (removes all options and transients)
 
 == Upgrade Notice ==
+
+= 1.5.17 =
+Fixes the `/llms.txt` rewrite rule staying registered while the feature is disabled, which could block another plugin's `llms.txt`. The readme now documents WebMCP setup.
 
 = 1.5.16 =
 The agent conduct policy now spells out the allowed purchase path (cart, checkout, account creation) next to the human-only rules, so a well-behaved agent completes what the owner permits and hands the rest to a person.
