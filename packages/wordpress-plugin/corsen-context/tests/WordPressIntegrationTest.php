@@ -75,7 +75,9 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 			array(
 				'post_title'   => 'Hello world!',
 				'post_status'  => 'publish',
-				'post_content' => 'A human-owned checklist (in most themes). Edit or delete it, then start writing!',
+				// The factory generates an excerpt when none is given; the description comes from it.
+				'post_excerpt' => 'A human-owned checklist (in most themes). Edit or delete it, then start writing!',
+				'post_content' => 'Body text.',
 			)
 		);
 
