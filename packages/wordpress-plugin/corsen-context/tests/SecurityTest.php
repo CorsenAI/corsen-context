@@ -30,10 +30,23 @@ final class SecurityTest extends TestCase {
 		$this->assertFalse( Corsen_Context_Security::validate_origin( 'https://user@example.com' ) );
 	}
 
-	public function test_shared_cache_is_disabled_when_cookies_are_present(): void {
+	public function test_shared_cache_survives_non_wordpress_cookies_but_not_session_state(): void {
 		$this->assertTrue( Corsen_Context_Security::is_shared_cache_safe() );
-		$_COOKIE['membership'] = 'member';
-		$this->assertFalse( Corsen_Context_Security::is_shared_cache_safe() );
+		$_COOKIE = array(
+			'cookie_consent' => '1',
+			'__cf_bm'        => 'x',
+			'_ga'            => 'GA1',
+		);
+		$this->assertTrue( Corsen_Context_Security::is_shared_cache_safe(), 'Consent, analytics and CDN cookies must not disable shared caching.' );
+
+		foreach ( array( 'wordpress_logged_in_abc', 'wordpress_sec_abc', 'wp-postpass_abc', 'comment_author_abc' ) as $state_cookie ) {
+			$_COOKIE = array( $state_cookie => 'x' );
+			$this->assertFalse( Corsen_Context_Security::is_shared_cache_safe(), $state_cookie . ' carries WordPress visitor state.' );
+		}
+
+		$_COOKIE = array();
+		$GLOBALS['corsen_test_filters']['corsen_context_shared_cache_safe'] = static fn() => false;
+		$this->assertFalse( Corsen_Context_Security::is_shared_cache_safe(), 'A site owner can veto shared caching.' );
 	}
 
 	public function test_extension_urls_require_exact_origin_and_normalized_exclusions(): void {

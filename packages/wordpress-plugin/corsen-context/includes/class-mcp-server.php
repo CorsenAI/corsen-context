@@ -878,11 +878,13 @@ class Corsen_Context_MCP_Server {
 			}
 			$posts      = get_posts(
 				array(
-					'post_type'      => $pt,
-					'post_status'    => 'publish',
-					'has_password'   => false,
-					'posts_per_page' => $remaining,
-					'no_found_rows'  => true,
+					'post_type'              => $pt,
+					'post_status'            => 'publish',
+					'has_password'           => false,
+					'posts_per_page'         => $remaining,
+					'no_found_rows'          => true,
+					'update_post_term_cache' => false,
+					'update_post_meta_cache' => self::wants_post_meta_cache(),
 				)
 			);
 			$remaining -= count( $posts );
@@ -958,6 +960,16 @@ class Corsen_Context_MCP_Server {
 	}
 
 	// --- Helpers ---
+
+	/**
+	 * Whether list queries should prime the post meta cache. Post meta is only
+	 * read when an SEO plugin supplies titles and descriptions (Yoast SEO,
+	 * Rank Math); otherwise priming it for hundreds of rows is wasted queries
+	 * and memory. Terms are never read on the list paths.
+	 */
+	public static function wants_post_meta_cache(): bool {
+		return function_exists( 'YoastSEO' ) || class_exists( 'WPSEO_Meta' ) || class_exists( 'RankMath' );
+	}
 
 	/**
 	 * Get allowed post types from settings. Only these are exposed via MCP.
@@ -1176,12 +1188,14 @@ class Corsen_Context_MCP_Server {
 
 		$posts = get_posts(
 			array(
-				'post_type'      => $allowed,
-				'post_status'    => 'publish',
-				'has_password'   => false,
-				's'              => $query,
-				'posts_per_page' => $this->get_max_pages(),
-				'no_found_rows'  => true,
+				'post_type'              => $allowed,
+				'post_status'            => 'publish',
+				'has_password'           => false,
+				's'                      => $query,
+				'posts_per_page'         => $this->get_max_pages(),
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => self::wants_post_meta_cache(),
 			)
 		);
 
@@ -1268,11 +1282,13 @@ class Corsen_Context_MCP_Server {
 
 		$query = new \WP_Query(
 			array(
-				'post_type'      => $type,
-				'post_status'    => 'publish',
-				'has_password'   => false,
-				'posts_per_page' => $this->get_max_pages(),
-				'no_found_rows'  => true,
+				'post_type'              => $type,
+				'post_status'            => 'publish',
+				'has_password'           => false,
+				'posts_per_page'         => $this->get_max_pages(),
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => self::wants_post_meta_cache(),
 			)
 		);
 
@@ -1330,11 +1346,13 @@ class Corsen_Context_MCP_Server {
 			}
 			$posts      = get_posts(
 				array(
-					'post_type'      => $pt,
-					'post_status'    => 'publish',
-					'has_password'   => false,
-					'posts_per_page' => $remaining,
-					'no_found_rows'  => true,
+					'post_type'              => $pt,
+					'post_status'            => 'publish',
+					'has_password'           => false,
+					'posts_per_page'         => $remaining,
+					'no_found_rows'          => true,
+					'update_post_term_cache' => false,
+					'update_post_meta_cache' => self::wants_post_meta_cache(),
 				)
 			);
 			$remaining -= count( $posts );

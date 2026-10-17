@@ -381,7 +381,10 @@ if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $h ): bool { return true; }
 }
 if ( ! function_exists( 'get_posts' ) ) {
-	function get_posts( array $args = array() ): array { return $GLOBALS['corsen_test_posts'] ?? array(); }
+	function get_posts( array $args = array() ): array {
+		$GLOBALS['corsen_test_query_args'][] = $args;
+		return $GLOBALS['corsen_test_posts'] ?? array();
+	}
 }
 if ( ! function_exists( 'get_permalink' ) ) {
 	function get_permalink( $post = null ): string {
@@ -502,7 +505,7 @@ if ( ! class_exists( 'WP_Query' ) ) {
 		/** @var array<int,mixed> */
 		public $posts = array();
 		public function __construct( $args = array() ) {
-			unset( $args );
+			$GLOBALS['corsen_test_query_args'][] = $args;
 			$this->found_posts = (int) ( $GLOBALS['corsen_test_found_posts'] ?? 0 );
 			$this->posts       = $GLOBALS['corsen_test_posts'] ?? array();
 		}

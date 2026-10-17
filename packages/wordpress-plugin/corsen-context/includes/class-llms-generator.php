@@ -230,13 +230,15 @@ class Corsen_Context_Llms_Generator {
 	private function get_published_posts( string $post_type, array $exclude, int $limit ): array {
 		$query = new \WP_Query(
 			array(
-				'post_type'      => $post_type,
-				'post_status'    => 'publish',
-				'has_password'   => false,
-				'posts_per_page' => max( 1, $limit ),
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'no_found_rows'  => true,
+				'post_type'              => $post_type,
+				'post_status'            => 'publish',
+				'has_password'           => false,
+				'posts_per_page'         => max( 1, $limit ),
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => Corsen_Context_MCP_Server::wants_post_meta_cache(),
 			)
 		);
 

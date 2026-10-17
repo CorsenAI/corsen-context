@@ -216,13 +216,30 @@ class Corsen_Context_Security {
 	}
 
 	/**
+	 * Cookie name prefixes that carry WordPress visitor state: an authenticated
+	 * session, a password-protected post that was unlocked, a comment author
+	 * identity. A request carrying one of them may be shown different content.
+	 */
+	private const STATE_COOKIE_PREFIXES = array(
+		'wordpress_',
+		'wordpressuser_',
+		'wordpresspass_',
+		'wp-postpass_',
+		'comment_author_',
+	);
+
+	/**
 	 * Whether a response can safely be stored in a shared cache.
 	 *
 	 * WordPress filters, shortcodes, dynamic blocks and membership plugins may
-	 * vary output by the current user or by request cookies. Never let such a
-	 * request populate a cache that can later be served to another visitor.
+	 * vary output by the current user. Never let such a request populate a
+	 * cache that can later be served to another visitor. Consent banners,
+	 * analytics and CDN bot-management cookies do not change what an anonymous
+	 * visitor is shown, so they do not disable shared caching (audit
+	 * 2026-10-17: with `empty( $_COOKIE )` nearly every human visitor
+	 * regenerated llms.txt on each request and got `private, no-store`).
 	 *
-	 * @return bool True when the current request is anonymous and cookie-free.
+	 * @return bool True when the current request is anonymous and carries no WordPress state cookie.
 	 */
 	public static function is_shared_cache_safe(): bool {
 
@@ -232,8 +249,16 @@ class Corsen_Context_Security {
 		if ( function_exists( 'has_filter' ) && false !== has_filter( 'corsen_context_can_expose_post' ) ) {
 			return false;
 		}
+		foreach ( array_keys( $_COOKIE ) as $cookie_name ) {
+			foreach ( self::STATE_COOKIE_PREFIXES as $prefix ) {
+				if ( 0 === strpos( (string) $cookie_name, $prefix ) ) {
+					return false;
+				}
+			}
+		}
 
-		return empty( $_COOKIE );
+		/** Filter whether the current anonymous request may populate the shared caches. */
+		return (bool) apply_filters( 'corsen_context_shared_cache_safe', true );
 	}
 
 	/**
