@@ -253,9 +253,15 @@ class Corsen_Context_Audit {
 			return false;
 		}
 		if ( null === $exists || false === $exists ) {
+			// A probe query rather than SHOW TABLES: it also sees temporary tables
+			// (the WordPress test suite creates every table as TEMPORARY) and
+			// hosts that restrict SHOW TABLES.
+			$suppress = $wpdb->suppress_errors( true );
 			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Existence probe on prefix-derived table name.
-			$exists = ( self::table_name() === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', self::table_name() ) ) );
+			$wpdb->get_var( 'SELECT 1 FROM ' . self::table_name() . ' LIMIT 1' );
 			// phpcs:enable
+			$exists = ( '' === (string) $wpdb->last_error );
+			$wpdb->suppress_errors( $suppress );
 		}
 		return $exists;
 	}
