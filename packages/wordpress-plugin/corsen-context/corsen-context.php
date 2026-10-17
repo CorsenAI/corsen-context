@@ -240,7 +240,14 @@ final class Corsen_Context {
 		if ( $settings !== $current ) {
 			update_option( 'corsen_context_settings', $settings );
 		}
+		// Everything below runs once per plugin version. The option reads above
+		// come from the options cache on every request; the rewrite flush and
+		// the two cron lookups must not.
 		$rewrite_version = (string) get_option( 'corsen_context_rewrite_version', '' );
+		$db_version      = (string) get_option( 'corsen_context_db_version', '' );
+		if ( CORSEN_CONTEXT_VERSION === $rewrite_version && CORSEN_CONTEXT_VERSION === $db_version ) {
+			return;
+		}
 		if ( CORSEN_CONTEXT_VERSION !== $rewrite_version ) {
 			$this->register_rewrite_rules();
 			flush_rewrite_rules( false );

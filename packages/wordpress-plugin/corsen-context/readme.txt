@@ -126,7 +126,7 @@ The plugin limits output to selected public post types and rejects draft, pendin
 
 = Does this slow down my site? =
 
-When MCP is enabled, normal pages receive a small discovery link. When WebMCP is also enabled, the plugin emits an origin-trial meta tag if configured, a short inline configuration with the tool definitions, and one deferred script file that browsers cache. Generated metadata may use bounded WordPress transients for anonymous, cookie-free requests. Rendered page content is not placed in the shared MCP cache, and `/llms-full.txt` uses item, byte, and generation-lock limits. Measure representative pages on your own hosting rather than assuming zero impact.
+When MCP is enabled, normal pages receive a small discovery link. When WebMCP is also enabled, the plugin emits an origin-trial meta tag if configured, a short inline configuration with the tool definitions, and one deferred script file that browsers cache. Generated metadata may use bounded WordPress transients for anonymous requests that carry no WordPress session cookie (consent, analytics or CDN cookies do not disable that cache). Rendered page content is not placed in the shared MCP cache, and `/llms-full.txt` uses item, byte, and generation-lock limits. Measure representative pages on your own hosting rather than assuming zero impact.
 
 = Does it work with page builders? =
 

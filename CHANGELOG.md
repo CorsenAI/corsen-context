@@ -31,6 +31,16 @@
   bracket is always escaped), and the file follows the llmstxt.org order: H1,
   the site tagline as the single summary blockquote, then the About section
   that opens with the agent policy pointer.
+- Caching and queries: only WordPress visitor-state cookies (`wordpress_*`,
+  `wp-postpass_*`, `comment_author_*`) disable the shared llms.txt,
+  llms-full.txt and tool caches; consent, analytics and CDN cookies no longer
+  force a regeneration per request. A `corsen_context_shared_cache_safe`
+  filter lets a site veto shared caching. The list, search, sitemap and
+  resources queries stop priming the term cache and prime the post meta
+  cache only when Yoast SEO or Rank Math is active. The settings upgrade
+  routine on `init` now returns after the option merge unless the plugin
+  version changed, instead of checking the rewrite version and the two cron
+  hooks on every request.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 
