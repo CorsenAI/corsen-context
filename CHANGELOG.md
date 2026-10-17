@@ -9,6 +9,17 @@
   default, and the `X-Powered-By` brand header is gone from plugin responses
   (plugin directory guideline 10). Existing installs are switched off once;
   the "Show Credit" checkbox turns the line back on.
+- WebMCP alignment with the Community Group draft and Chrome's imperative
+  API: tool errors are returned to the in-page agent as structured results
+  (`error_code`, message, handoff URL) instead of a rejection the browser
+  reduces to a bare `OperationError`; the human-only expert tool carries
+  `consequentialHint: true` and no MCP-only members; MCP `tools/list` uses the
+  MCP vocabulary (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+  `openWorldHint`); every tool has a `title`; the `get_product` description
+  fits Chrome's 500-character budget; the settings page and Control Center
+  say that WebMCP needs HTTPS and name the Chrome 149 to 156 origin trial.
+  Tool errors on MCP now also carry the extension's extra fields
+  (`handoffUrl`, `policy`, `ids`) in `structuredContent`.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 

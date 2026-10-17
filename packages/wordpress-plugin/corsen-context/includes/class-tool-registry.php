@@ -54,6 +54,27 @@ class Corsen_Context_Tool_Registry {
 	}
 
 	/**
+	 * Human titles (WebMCP `title`, MCP `title`): what an agent UI shows next
+	 * to the machine name. Kept in sync with the Control Center cards.
+	 *
+	 * @param string $name Tool name.
+	 */
+	public static function title( string $name ): string {
+		$titles = array(
+			'search_site'         => 'Search site',
+			'get_page_content'    => 'Read a page',
+			'list_content'        => 'List content',
+			'get_sitemap'         => 'Sitemap',
+			'get_product'         => 'Get product (WooCommerce)',
+			'get_sections'        => 'Sections reader',
+			'get_structured_data' => 'Structured data (JSON-LD)',
+			'check_agent_access'  => 'Bot User-Agent edge self-test',
+			'request_expert_call' => 'Human-only expert handoff',
+		);
+		return $titles[ $name ] ?? ucwords( str_replace( '_', ' ', $name ) );
+	}
+
+	/**
 	 * Every tool name the plugin knows about (also the sanitize whitelist).
 	 *
 	 * @return string[]

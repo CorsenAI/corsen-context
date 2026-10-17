@@ -18,6 +18,10 @@ causes visible tool calls. Record the client name and date with the result.
 
 ## Chrome 149 or newer
 
+The public Chrome origin trial was approved for Chrome 149 to 156 inclusive
+(blink-dev Intent to Experiment). The API is exposed in secure contexts only,
+so an `http://` site never sees `document.modelContext`.
+
 For local testing, Chrome documents this path:
 
 1. open `chrome://flags/#enable-webmcp-testing`;

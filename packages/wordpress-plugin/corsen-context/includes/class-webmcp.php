@@ -22,11 +22,16 @@ defined( 'ABSPATH' ) || exit;
 class Corsen_Context_WebMCP {
 
 	/**
+	 * WebMCP annotations, in the Community Group draft's ToolAnnotations
+	 * vocabulary (readOnlyHint, untrustedContentHint, consequentialHint,
+	 * debugging).
+	 *
 	 * Read tools return untrusted data: post bodies come from authors,
 	 * comments and imports, and a consuming agent must treat that output as
 	 * data rather than as instructions. The human-only handoff tool
-	 * (request_expert_call) is marked non-readonly because its requested
-	 * real-world action would have side effects; execution always refuses it.
+	 * (request_expert_call) is non-read-only and consequential: the requested
+	 * real-world action would have side effects, so a browser agent should
+	 * confirm with its user first, even though execution always refuses it.
 	 *
 	 * The four core tools are kept in sync with tools.manifest.json by
 	 * ToolManifestParityTest; the extension entries below are WP-runtime only
@@ -67,41 +72,101 @@ class Corsen_Context_WebMCP {
 		),
 		'request_expert_call' => array(
 			'readOnlyHint'         => false,
-			'destructiveHint'      => false,
-			'idempotentHint'       => false,
 			'untrustedContentHint' => true,
+			'consequentialHint'    => true,
 		),
 	);
 
 	/**
-	 * Annotations for a tool. Unknown tools fall back to the safe assumption
-	 * that they can write: a future tool missing from the table must never be
-	 * advertised as a read.
+	 * A tool missing from the table is assumed to be a consequential write:
+	 * a future tool must never be advertised as a safe read by omission.
+	 */
+	private const UNKNOWN_ANNOTATIONS = array(
+		'readOnlyHint'         => false,
+		'untrustedContentHint' => true,
+		'consequentialHint'    => true,
+	);
+
+	/**
+	 * MCP ToolAnnotations (protocol 2025-11-25: readOnlyHint, destructiveHint,
+	 * idempotentHint, openWorldHint). Every tool only reads this site, so
+	 * openWorldHint is false. The human-only tool is a non-read-only,
+	 * non-idempotent request that performs no destructive update because it
+	 * never executes.
+	 */
+	private const MCP_ANNOTATIONS_READ = array(
+		'readOnlyHint'    => true,
+		'destructiveHint' => false,
+		'idempotentHint'  => true,
+		'openWorldHint'   => false,
+	);
+
+	private const MCP_ANNOTATIONS_REQUEST = array(
+		'readOnlyHint'    => false,
+		'destructiveHint' => false,
+		'idempotentHint'  => false,
+		'openWorldHint'   => false,
+	);
+
+	private const MCP_ANNOTATIONS_UNKNOWN = array(
+		'readOnlyHint'    => false,
+		'destructiveHint' => true,
+		'idempotentHint'  => false,
+		'openWorldHint'   => false,
+	);
+
+	/**
+	 * WebMCP annotations for a tool. Unknown tools fall back to the safe
+	 * assumption that they can write and have consequences.
 	 *
 	 * @param string $name Tool name.
 	 * @return array<string,bool>
 	 */
 	public static function annotations_for( string $name ): array {
-		return self::ANNOTATIONS[ $name ] ?? array(
-			'readOnlyHint'         => false,
-			'untrustedContentHint' => true,
-		);
+		return self::ANNOTATIONS[ $name ] ?? self::UNKNOWN_ANNOTATIONS;
 	}
 
 	/**
-	 * Attach WebMCP annotations to MCP tool definitions.
+	 * MCP annotations for a tool, derived from the same table.
 	 *
-	 * @param array<int,array<string,mixed>> $tools Tool definitions.
+	 * @param string $name Tool name.
+	 * @return array<string,bool>
+	 */
+	public static function mcp_annotations_for( string $name ): array {
+		if ( ! isset( self::ANNOTATIONS[ $name ] ) ) {
+			return self::MCP_ANNOTATIONS_UNKNOWN;
+		}
+		return self::ANNOTATIONS[ $name ]['readOnlyHint'] ? self::MCP_ANNOTATIONS_READ : self::MCP_ANNOTATIONS_REQUEST;
+	}
+
+	/**
+	 * Attach a human title and the transport's annotation vocabulary to MCP
+	 * tool definitions.
+	 *
+	 * @param array<int,array<string,mixed>> $tools     Tool definitions.
+	 * @param string                         $transport 'webmcp' (default) or 'mcp'.
 	 * @return array<int,array<string,mixed>>
 	 */
-	public static function with_annotations( array $tools ): array {
+	public static function with_annotations( array $tools, string $transport = 'webmcp' ): array {
 		return array_map(
-			static function ( array $tool ): array {
-				$tool['annotations'] = self::annotations_for( (string) $tool['name'] );
+			static function ( array $tool ) use ( $transport ): array {
+				$name                = (string) $tool['name'];
+				$tool['title']       = Corsen_Context_Tool_Registry::title( $name );
+				$tool['annotations'] = 'mcp' === $transport
+					? self::mcp_annotations_for( $name )
+					: self::annotations_for( $name );
 				return $tool;
 			},
 			$tools
 		);
+	}
+
+	/**
+	 * Whether the site's front end is served over HTTPS. WebMCP is exposed in
+	 * secure contexts only, so an http:// site never sees the API.
+	 */
+	public static function site_is_secure_context(): bool {
+		return 0 === stripos( (string) home_url( '/' ), 'https://' );
 	}
 
 	/**
@@ -116,10 +181,15 @@ class Corsen_Context_WebMCP {
 	 *   logged-in session.
 	 * - Every forwarded call carries the MCP-Protocol-Version header, which
 	 *   the endpoint requires on every request after initialize.
-	 * - Chrome 153+ passes an AbortSignal as execute's second argument. Each
-	 *   caller can stop waiting for the shared handshake, and its tool fetch
-	 *   receives that signal. The handshake has an independent timeout so one
-	 *   cancellation cannot fail every concurrent execution.
+	 * - execute() receives { signal } as its second argument (an AbortSignal
+	 *   in the draft and in Chrome's imperative API). Each caller can stop
+	 *   waiting for the shared handshake, and its tool fetch receives that
+	 *   signal. The handshake has an independent timeout so one cancellation
+	 *   cannot fail every concurrent execution.
+	 * - A tool error is returned as a structured result, not thrown: the
+	 *   draft surfaces a rejected execute() to the agent only as a bare
+	 *   DOMException name, which would erase not_found, invalid_params and
+	 *   the human_only handoff URL. Only cancellation still rejects.
 	 * - Definitions are encoded with JSON_HEX_TAG, so a hostile post title
 	 *   cannot close the script block and become markup.
 	 *
@@ -159,13 +229,34 @@ class Corsen_Context_WebMCP {
   if (endpointUrl.origin !== window.location.origin) return;
   endpoint = endpointUrl.href;
 
-  // Chrome 150 moved the getter to document and kept navigator as a
-  // deprecated alias; support both while the origin trial runs.
+  // The draft exposes document.modelContext; navigator.modelContext is the
+  // earlier name that some clients still implement. Prefer the current one.
   var mc = document.modelContext || navigator.modelContext;
   if (!mc || typeof mc.registerTool !== 'function') return;
 
   var nextRequestId = 1;
   var initializationPromise = null;
+
+  // Structured failure returned to the agent in place of a rejection.
+  function failure(code, message, extra) {
+    var out = { ok: false, error_code: code, message: message };
+    if (extra && typeof extra === 'object') {
+      for (var key in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, key) && !(key in out)) out[key] = extra[key];
+      }
+    }
+    return out;
+  }
+
+  function rpcError(message, code) {
+    var error = new Error(message);
+    error.corsenCode = code;
+    return error;
+  }
+
+  function isAbort(error, signal) {
+    return !!((signal && signal.aborted) || (error && error.name === 'AbortError'));
+  }
 
   function request(body, signal, isNotification) {
     var headers = {
@@ -186,17 +277,17 @@ class Corsen_Context_WebMCP {
       .then(function (res) {
         if (isNotification) {
           if (res.status !== 202) {
-            throw new Error('Corsen Context: MCP notification returned ' + res.status);
+            throw rpcError('Corsen Context: MCP notification returned ' + res.status, 'transport_error');
           }
           return null;
         }
-        if (!res.ok) throw new Error('Corsen Context: MCP endpoint returned ' + res.status);
+        if (!res.ok) throw rpcError('Corsen Context: MCP endpoint returned ' + res.status, 'transport_error');
         return res.json();
       })
       .then(function (responseBody) {
         if (isNotification) return null;
         if (responseBody && responseBody.error) {
-          throw new Error(responseBody.error.message || 'MCP error');
+          throw rpcError(responseBody.error.message || 'MCP error', 'protocol_error');
         }
         return responseBody;
       });
@@ -221,7 +312,7 @@ class Corsen_Context_WebMCP {
       .then(function (body) {
         var negotiated = body && body.result && body.result.protocolVersion;
         if (negotiated !== protocolVersion) {
-          throw new Error('Corsen Context: unsupported negotiated MCP version');
+          throw rpcError('Corsen Context: unsupported negotiated MCP version', 'protocol_error');
         }
         return request({
           jsonrpc: '2.0',
@@ -283,7 +374,15 @@ class Corsen_Context_WebMCP {
             .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
             .filter(Boolean)
             .join('\\n');
-          throw new Error(errorText || 'Corsen Context: tool execution failed');
+          var machine = body.result.structuredContent;
+          if (machine && typeof machine === 'object') {
+            return failure(
+              typeof machine.error_code === 'string' ? machine.error_code : 'tool_error',
+              typeof machine.message === 'string' ? machine.message : (errorText || 'Corsen Context: tool execution failed'),
+              machine
+            );
+          }
+          return failure('tool_error', errorText || 'Corsen Context: tool execution failed');
         }
         var structured = body && body.result && body.result.structuredContent;
         if (structured && typeof structured === 'object') return structured;
@@ -292,6 +391,13 @@ class Corsen_Context_WebMCP {
         return content
           .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
           .join('\\n');
+      })
+      .catch(function (error) {
+        if (isAbort(error, signal)) throw error;
+        return failure(
+          error && error.corsenCode ? error.corsenCode : 'transport_error',
+          (error && error.message) || 'Corsen Context: MCP request failed'
+        );
       });
   }
 
@@ -299,6 +405,7 @@ class Corsen_Context_WebMCP {
     try {
       Promise.resolve(mc.registerTool({
         name: tool.name,
+        title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
         annotations: tool.annotations,
@@ -338,9 +445,9 @@ JS;
 	}
 
 	/**
-	 * Chrome exposes WebMCP during the origin trial only when the page
-	 * serves a per-origin token; agents with built-in WebMCP support
-	 * need none. Sanitised to token charset on read as well as on save.
+	 * Chrome exposes WebMCP during the origin trial (Chrome 149 to 156) only
+	 * when the page serves a per-origin token; agents with built-in WebMCP
+	 * support need none. Sanitised to token charset on read as well as on save.
 	 */
 	public static function origin_trial_token(): string {
 		$settings = get_option( 'corsen_context_settings', array() );

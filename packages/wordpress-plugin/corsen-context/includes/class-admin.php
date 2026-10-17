@@ -96,6 +96,10 @@ class Corsen_Context_Admin {
 				'label' => 'Generate the bounded full-content export (disabled by default)',
 			)
 		);
+		$webmcp_description = 'Browsers expose WebMCP on HTTPS pages only (secure context). Chrome ships it as an origin trial from Chrome 149 to 156 and behind chrome://flags/#enable-webmcp-testing for local tests.';
+		if ( ! Corsen_Context_WebMCP::site_is_secure_context() ) {
+			$webmcp_description .= ' This site\'s address starts with http://, so no browser will expose the API on it until it is served over HTTPS.';
+		}
 		add_settings_field(
 			'webmcp_enabled',
 			'Enable WebMCP',
@@ -103,8 +107,9 @@ class Corsen_Context_Admin {
 			'corsen-context',
 			'corsen_context_general',
 			array(
-				'field' => 'webmcp_enabled',
-				'label' => 'Register the MCP tools with AI agents running inside the page (document.modelContext)',
+				'field'       => 'webmcp_enabled',
+				'label'       => 'Register the MCP tools with AI agents running inside the page (document.modelContext)',
+				'description' => $webmcp_description,
 			)
 		);
 		add_settings_field(
@@ -346,6 +351,9 @@ class Corsen_Context_Admin {
 			checked( $checked, true, false ),
 			esc_html( $args['label'] ?? '' )
 		);
+		if ( ! empty( $args['description'] ) ) {
+			printf( '<p class="description">%s</p>', esc_html( $args['description'] ) );
+		}
 	}
 
 	/**
