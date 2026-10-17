@@ -27,8 +27,8 @@ class Corsen_Context_Admin {
 
 	public function add_menu(): void {
 		add_options_page(
-			'Corsen Context',
-			'Corsen Context',
+			__( 'Corsen Context', 'corsen-context' ),
+			__( 'Corsen Context', 'corsen-context' ),
 			'manage_options',
 			'corsen-context',
 			array( $this, 'render_settings_page' )
@@ -47,104 +47,104 @@ class Corsen_Context_Admin {
 
 		add_settings_section(
 			'corsen_context_general',
-			'General Settings',
+			__( 'General Settings', 'corsen-context' ),
 			null,
 			'corsen-context'
 		);
 
 		add_settings_field(
 			'enabled',
-			'Enable Corsen Context',
+			__( 'Enable Corsen Context', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_general',
 			array(
 				'field' => 'enabled',
-				'label' => 'Enable the public context layer',
+				'label' => __( 'Enable the public context layer', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'mcp_enabled',
-			'Enable MCP Server',
+			__( 'Enable MCP Server', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_general',
 			array(
 				'field' => 'mcp_enabled',
-				'label' => 'Expose MCP endpoint for AI agents',
+				'label' => __( 'Expose MCP endpoint for AI agents', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'llms_txt_enabled',
-			'Enable llms.txt',
+			__( 'Enable llms.txt', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_general',
 			array(
 				'field' => 'llms_txt_enabled',
-				'label' => 'Generate and serve /llms.txt',
+				'label' => __( 'Generate and serve /llms.txt', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'llms_full_enabled',
-			'Enable llms-full.txt',
+			__( 'Enable llms-full.txt', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_general',
 			array(
 				'field' => 'llms_full_enabled',
-				'label' => 'Generate the bounded full-content export (disabled by default)',
+				'label' => __( 'Generate the bounded full-content export (disabled by default)', 'corsen-context' ),
 			)
 		);
-		$webmcp_description = 'Browsers expose WebMCP on HTTPS pages only (secure context). Chrome ships it as an origin trial from Chrome 149 to 156 and behind chrome://flags/#enable-webmcp-testing for local tests.';
+		$webmcp_description = __( 'Browsers expose WebMCP on HTTPS pages only (secure context). Chrome ships it as an origin trial from Chrome 149 to 156 and behind chrome://flags/#enable-webmcp-testing for local tests.', 'corsen-context' );
 		if ( ! Corsen_Context_WebMCP::site_is_secure_context() ) {
-			$webmcp_description .= ' This site\'s address starts with http://, so no browser will expose the API on it until it is served over HTTPS.';
+			$webmcp_description .= ' ' . __( 'This site\'s address starts with http://, so no browser will expose the API on it until it is served over HTTPS.', 'corsen-context' );
 		}
 		add_settings_field(
 			'webmcp_enabled',
-			'Enable WebMCP',
+			__( 'Enable WebMCP', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_general',
 			array(
 				'field'       => 'webmcp_enabled',
-				'label'       => 'Register the MCP tools with AI agents running inside the page (document.modelContext)',
+				'label'       => __( 'Register the MCP tools with AI agents running inside the page (document.modelContext)', 'corsen-context' ),
 				'description' => $webmcp_description,
 			)
 		);
 		add_settings_field(
 			'webmcp_origin_trial_token',
-			'Chrome Origin Trial Token',
+			__( 'Chrome Origin Trial Token', 'corsen-context' ),
 			array( $this, 'render_text' ),
 			'corsen-context',
 			'corsen_context_general',
 			array(
 				'field'       => 'webmcp_origin_trial_token',
-				'description' => 'Optional. Chrome only exposes WebMCP during the origin trial when the page serves this token; agents with built-in WebMCP support need none. Register your origin at developer.chrome.com/origintrials.',
+				'description' => __( 'Optional. Chrome only exposes WebMCP during the origin trial when the page serves this token; agents with built-in WebMCP support need none. Register your origin at developer.chrome.com/origintrials.', 'corsen-context' ),
 			)
 		);
 		add_settings_section(
 			'corsen_context_content',
-			'Content Settings',
+			__( 'Content Settings', 'corsen-context' ),
 			null,
 			'corsen-context'
 		);
 
-		add_settings_field( 'post_types', 'Post Types', array( $this, 'render_post_types' ), 'corsen-context', 'corsen_context_content' );
+		add_settings_field( 'post_types', __( 'Post Types', 'corsen-context' ), array( $this, 'render_post_types' ), 'corsen-context', 'corsen_context_content' );
 		add_settings_field(
 			'exclude_paths',
-			'Exclude Paths',
+			__( 'Exclude Paths', 'corsen-context' ),
 			array( $this, 'render_textarea' ),
 			'corsen-context',
 			'corsen_context_content',
 			array(
 				'field'       => 'exclude_paths',
-				'description' => 'One path per line (e.g., /admin, /cart)',
+				'description' => __( 'One path per line (e.g., /admin, /cart)', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'max_pages',
-			'Max Total Items',
+			__( 'Max Total Items', 'corsen-context' ),
 			array( $this, 'render_number' ),
 			'corsen-context',
 			'corsen_context_content',
@@ -152,12 +152,12 @@ class Corsen_Context_Admin {
 				'field'       => 'max_pages',
 				'min'         => 10,
 				'max'         => 5000,
-				'description' => 'Absolute cap shared across all selected post types.',
+				'description' => __( 'Absolute cap shared across all selected post types.', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'max_output_bytes',
-			'llms-full.txt Max Bytes',
+			__( 'llms-full.txt Max Bytes', 'corsen-context' ),
 			array( $this, 'render_number' ),
 			'corsen-context',
 			'corsen_context_content',
@@ -165,18 +165,18 @@ class Corsen_Context_Admin {
 				'field'       => 'max_output_bytes',
 				'min'         => 65536,
 				'max'         => 10485760,
-				'description' => 'Hard output limit between 64 KB and 10 MB.',
+				'description' => __( 'Hard output limit between 64 KB and 10 MB.', 'corsen-context' ),
 			)
 		);
 		add_settings_section(
 			'corsen_context_tools',
-			'Agent Tools',
+			__( 'Agent Tools', 'corsen-context' ),
 			array( $this, 'render_tools_intro' ),
 			'corsen-context'
 		);
 		add_settings_field(
 			'enabled_tools',
-			'Exposed Tools',
+			__( 'Exposed Tools', 'corsen-context' ),
 			array( $this, 'render_enabled_tools' ),
 			'corsen-context',
 			'corsen_context_tools'
@@ -184,54 +184,54 @@ class Corsen_Context_Admin {
 
 		add_settings_section(
 			'corsen_context_experts',
-			'Expert Requests & Audit',
+			__( 'Expert Requests & Audit', 'corsen-context' ),
 			array( $this, 'render_experts_intro' ),
 			'corsen-context'
 		);
 		add_settings_field(
 			'expert_enabled',
-			'Human-only Expert Handoff',
+			__( 'Human-only Expert Handoff', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_experts',
 			array(
 				'field' => 'expert_enabled',
-				'label' => 'Expose request_expert_call as a hard-refusal boundary with a human handoff URL (also requires the tool checkbox above)',
+				'label' => __( 'Expose request_expert_call as a hard-refusal boundary with a human handoff URL (also requires the tool checkbox above)', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'expert_handoff_url',
-			'Human Handoff Page',
+			__( 'Human Handoff Page', 'corsen-context' ),
 			array( $this, 'render_text' ),
 			'corsen-context',
 			'corsen_context_experts',
 			array(
 				'field'       => 'expert_handoff_url',
-				'description' => 'Required to expose request_expert_call. Enter a full URL on this site where a human can complete the visible form.',
+				'description' => __( 'Required to expose request_expert_call. Enter a full URL on this site where a human can complete the visible form.', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'audit_enabled',
-			'Audit Log',
+			__( 'Audit Log', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_experts',
 			array(
 				'field' => 'audit_enabled',
-				'label' => 'Record tool calls in a local table with a hard 500-row cap; WP-Cron prunes entries older than 30 days, and no raw arguments or IPs are stored',
+				'label' => __( 'Record tool calls in a local table with a hard 500-row cap; WP-Cron prunes entries older than 30 days, and no raw arguments or IPs are stored', 'corsen-context' ),
 			)
 		);
 
 		add_settings_section(
 			'corsen_context_security',
-			'Security Settings',
+			__( 'Security Settings', 'corsen-context' ),
 			null,
 			'corsen-context'
 		);
 
 		add_settings_field(
 			'rate_limit',
-			'Rate Limit (req/min)',
+			__( 'Rate Limit (req/min)', 'corsen-context' ),
 			array( $this, 'render_number' ),
 			'corsen-context',
 			'corsen_context_security',
@@ -243,40 +243,40 @@ class Corsen_Context_Admin {
 		);
 		add_settings_field(
 			'hide_user_enumeration',
-			'Hide User Enumeration',
+			__( 'Hide User Enumeration', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_security',
 			array(
 				'field' => 'hide_user_enumeration',
-				'label' => 'Block anonymous reads of /wp/v2/users (author logins). Logged-in requests keep working.',
+				'label' => __( 'Block anonymous reads of /wp/v2/users (author logins). Logged-in requests keep working.', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'credit',
-			'Show Credit',
+			__( 'Show Credit', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_security',
 			array(
 				'field' => 'credit',
-				'label' => 'Add a "Powered by Corsen Context" line to llms.txt and llms-full.txt (off by default)',
+				'label' => __( 'Add a "Powered by Corsen Context" line to llms.txt and llms-full.txt (off by default)', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'include_author',
-			'Include Author Names',
+			__( 'Include Author Names', 'corsen-context' ),
 			array( $this, 'render_checkbox' ),
 			'corsen-context',
 			'corsen_context_security',
 			array(
 				'field' => 'include_author',
-				'label' => 'Expose post author display names in MCP metadata',
+				'label' => __( 'Expose post author display names in MCP metadata', 'corsen-context' ),
 			)
 		);
 		add_settings_field(
 			'cache_ttl',
-			'Cache TTL (seconds)',
+			__( 'Cache TTL (seconds)', 'corsen-context' ),
 			array( $this, 'render_number' ),
 			'corsen-context',
 			'corsen_context_security',
@@ -379,17 +379,21 @@ class Corsen_Context_Admin {
 		);
 
 		echo '<div style="background:#fff;border:1px solid #dcdcde;border-left:4px solid #00844a;padding:12px 16px;margin:16px 0;">';
-		echo '<h2 style="margin-top:0;font-size:15px;">Agent Access &mdash; what agents can see and do</h2>';
+		printf( '<h2 style="margin-top:0;font-size:15px;">%s</h2>', esc_html__( 'Agent Access — what agents can see and do', 'corsen-context' ) );
 
 		if ( ! $on ) {
-			echo '<p><strong>Corsen Context is off.</strong> No agent can reach content through Corsen Context tools.</p></div>';
+			printf(
+				'<p><strong>%s</strong> %s</p></div>',
+				esc_html__( 'Corsen Context is off.', 'corsen-context' ),
+				esc_html__( 'No agent can reach content through Corsen Context tools.', 'corsen-context' )
+			);
 			return;
 		}
 
 		$rows = array(
-			array( 'MCP endpoint (agents outside the browser)', $mcp ),
-			array( 'WebMCP (agents inside the page)', $webmcp ),
-			array( 'llms.txt discovery', $llms ),
+			array( __( 'MCP endpoint (agents outside the browser)', 'corsen-context' ), $mcp ),
+			array( __( 'WebMCP (agents inside the page)', 'corsen-context' ), $webmcp ),
+			array( __( 'llms.txt discovery', 'corsen-context' ), $llms ),
 		);
 		echo '<table class="widefat striped" style="margin-bottom:10px;"><tbody>';
 		foreach ( $rows as $row ) {
@@ -397,7 +401,7 @@ class Corsen_Context_Admin {
 				'<tr><td style="width:240px;">%s</td><td style="color:%s;font-weight:600;">%s</td></tr>',
 				esc_html( $row[0] ),
 				esc_attr( $row[1] ? '#00844a' : '#8a8a8a' ),
-				esc_html( $row[1] ? 'On' : 'Off' )
+				$row[1] ? esc_html__( 'On', 'corsen-context' ) : esc_html__( 'Off', 'corsen-context' )
 			);
 		}
 		echo '</tbody></table>';
@@ -411,51 +415,71 @@ class Corsen_Context_Admin {
 				}
 			)
 		);
-		echo in_array( 'request_expert_call', $exposed_tools, true )
-			? '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read selected public content and discover that expert intake is human-only. A schema-valid expert call is refused with <code>human_only</code> and a handoff URL before any side effect.</p>'
-			: '<p style="margin:6px 0;"><strong>Through these tools, agents can:</strong> read only. They look up and read your selected published content. These tools cannot create, edit, delete, purchase, submit, or click &mdash; every exposed tool is marked read-only and untrusted-content.</p>';
+		if ( in_array( 'request_expert_call', $exposed_tools, true ) ) {
+			printf(
+				'<p style="margin:6px 0;"><strong>%s</strong> %s <code>human_only</code> %s</p>',
+				esc_html__( 'Through these tools, agents can:', 'corsen-context' ),
+				esc_html__( 'read selected public content and discover that expert intake is human-only. A schema-valid expert call is refused with', 'corsen-context' ),
+				esc_html__( 'and a handoff URL before any side effect.', 'corsen-context' )
+			);
+		} else {
+			printf(
+				'<p style="margin:6px 0;"><strong>%s</strong> %s</p>',
+				esc_html__( 'Through these tools, agents can:', 'corsen-context' ),
+				esc_html__( 'read only. They look up and read your selected published content. These tools cannot create, edit, delete, purchase, submit, or click — every exposed tool is marked read-only and untrusted-content.', 'corsen-context' )
+			);
+		}
 		printf(
-			'<p style="margin:6px 0;"><strong>Tools exposed:</strong> %s</p>',
-			esc_html( empty( $exposed_tools ) ? 'None' : implode( ', ', $exposed_tools ) )
+			'<p style="margin:6px 0;"><strong>%s</strong> %s</p>',
+			esc_html__( 'Tools exposed:', 'corsen-context' ),
+			esc_html( empty( $exposed_tools ) ? __( 'None', 'corsen-context' ) : implode( ', ', $exposed_tools ) )
 		);
 		printf(
-			'<p style="margin:6px 0;"><strong>Content types agents can see:</strong> %s</p>',
+			'<p style="margin:6px 0;"><strong>%s</strong> %s</p>',
+			esc_html__( 'Content types agents can see:', 'corsen-context' ),
 			esc_html( implode( ', ', (array) $types ) )
 		);
 		if ( ! empty( $excluded ) ) {
 			printf(
-				'<p style="margin:6px 0;"><strong>Paths hidden from Corsen Context tools:</strong> %s</p>',
+				'<p style="margin:6px 0;"><strong>%s</strong> %s</p>',
+				esc_html__( 'Paths hidden from Corsen Context tools:', 'corsen-context' ),
 				esc_html( implode( ', ', $excluded ) )
 			);
 		}
 
-		echo '<p class="description" style="margin:6px 0 0;">Change any of these below, then Save.</p>';
+		printf( '<p class="description" style="margin:6px 0 0;">%s</p>', esc_html__( 'Change any of these below, then Save.', 'corsen-context' ) );
 		echo '</div>';
 	}
 
 	/** Intro copy for the Agent Tools section. */
 	public function render_tools_intro(): void {
-		echo '<p>Choose exactly which Corsen Context tools agents may call. The content tools are <strong>read-only</strong>. <code>request_expert_call</code> represents a non-read-only action but always refuses agent execution with <code>human_only</code> and a page URL, before storage, email or throttling.</p>';
+		printf(
+			'<p>%s <strong>%s</strong>. <code>request_expert_call</code> %s <code>human_only</code> %s</p>',
+			esc_html__( 'Choose exactly which Corsen Context tools agents may call. The content tools are', 'corsen-context' ),
+			esc_html__( 'read-only', 'corsen-context' ),
+			esc_html__( 'represents a non-read-only action but always refuses agent execution with', 'corsen-context' ),
+			esc_html__( 'and a page URL, before storage, email or throttling.', 'corsen-context' )
+		);
 	}
 
 	/** Intro copy for the Expert Requests & Audit section. */
 	public function render_experts_intro(): void {
-		echo '<p>Owner-controlled extras: an optional human-only handoff boundary and a bounded local audit log of tool calls. Both are off until you switch them on.</p>';
+		printf( '<p>%s</p>', esc_html__( 'Owner-controlled extras: an optional human-only handoff boundary and a bounded local audit log of tool calls. Both are off until you switch them on.', 'corsen-context' ) );
 	}
 
 	/** Per-tool checkboxes bound to the enabled_tools setting. */
 	public function render_enabled_tools(): void {
 		$settings = get_option( 'corsen_context_settings', array() );
 		$all      = array(
-			'search_site'         => 'Search content by keyword',
-			'get_page_content'    => 'Read one page as clean markdown',
-			'list_content'        => 'List content by type, with pagination',
-			'get_sitemap'         => 'Return the structured sitemap',
-			'get_product'         => 'Read one product with live price and stock (requires WooCommerce)',
-			'get_sections'        => 'Read a page as a bounded outline plus one section at a time (token-safe on large pages)',
-			'get_structured_data' => 'Read a page\'s JSON-LD typed data (products, recipes, FAQs) exactly as the site publishes it',
-			'check_agent_access'  => 'Read the owner\'s latest same-site surface check using representative bot User-Agent strings (not a full external-agent test)',
-			'request_expert_call' => 'Human-only expert handoff (non-read-only semantics; every schema-valid call is refused before side effects)',
+			'search_site'         => __( 'Search content by keyword', 'corsen-context' ),
+			'get_page_content'    => __( 'Read one page as clean markdown', 'corsen-context' ),
+			'list_content'        => __( 'List content by type, with pagination', 'corsen-context' ),
+			'get_sitemap'         => __( 'Return the structured sitemap', 'corsen-context' ),
+			'get_product'         => __( 'Read one product with live price and stock (requires WooCommerce)', 'corsen-context' ),
+			'get_sections'        => __( 'Read a page as a bounded outline plus one section at a time (token-safe on large pages)', 'corsen-context' ),
+			'get_structured_data' => __( 'Read a page\'s JSON-LD typed data (products, recipes, FAQs) exactly as the site publishes it', 'corsen-context' ),
+			'check_agent_access'  => __( 'Read the owner\'s latest same-site surface check using representative bot User-Agent strings (not a full external-agent test)', 'corsen-context' ),
+			'request_expert_call' => __( 'Human-only expert handoff (non-read-only semantics; every schema-valid call is refused before side effects)', 'corsen-context' ),
 		);
 		$enabled  = $settings['enabled_tools'] ?? Corsen_Context_Tool_Registry::CORE_TOOLS;
 		// Preserve an explicit empty selection when every checkbox is cleared.
@@ -470,7 +494,7 @@ class Corsen_Context_Admin {
 				esc_html( $desc )
 			);
 		}
-		echo '<p class="description">MCP and WebMCP expose the same selected set. Uncheck all to expose no callable tools.</p>';
+		printf( '<p class="description">%s</p>', esc_html__( 'MCP and WebMCP expose the same selected set. Uncheck all to expose no callable tools.', 'corsen-context' ) );
 	}
 
 	public function render_text( array $args ): void {
@@ -546,18 +570,18 @@ class Corsen_Context_Admin {
 		$llms_full_enabled = ! empty( $settings['enabled'] ) && ! empty( $settings['llms_txt_enabled'] ) && ! empty( $settings['llms_full_enabled'] );
 		?>
 		<div class="wrap">
-			<h1>Corsen Context Settings</h1>
-			<p>Publish selected public WordPress content through MCP and llms.txt.</p>
+			<h1><?php esc_html_e( 'Corsen Context Settings', 'corsen-context' ); ?></h1>
+			<p><?php esc_html_e( 'Publish selected public WordPress content through MCP and llms.txt.', 'corsen-context' ); ?></p>
 
 			<div style="background:#f0f7ff;border-left:4px solid #2271b1;padding:12px 16px;margin:16px 0;">
-				<strong>Quick Links:</strong>
-				<a href="<?php echo esc_url( $site_url . '/llms.txt' ); ?>" target="_blank">View llms.txt</a> |
+				<strong><?php esc_html_e( 'Quick Links:', 'corsen-context' ); ?></strong>
+				<a href="<?php echo esc_url( $site_url . '/llms.txt' ); ?>" target="_blank"><?php esc_html_e( 'View llms.txt', 'corsen-context' ); ?></a> |
 				<?php if ( $llms_full_enabled ) : ?>
-					<a href="<?php echo esc_url( $site_url . '/llms-full.txt' ); ?>" target="_blank">View llms-full.txt</a> |
+					<a href="<?php echo esc_url( $site_url . '/llms-full.txt' ); ?>" target="_blank"><?php esc_html_e( 'View llms-full.txt', 'corsen-context' ); ?></a> |
 				<?php else : ?>
-					<span>llms-full.txt disabled</span> |
+					<span><?php esc_html_e( 'llms-full.txt disabled', 'corsen-context' ); ?></span> |
 				<?php endif; ?>
-				<strong>MCP:</strong> <code><?php echo esc_html( Corsen_Context_MCP_Server::endpoint_url() ); ?></code>
+				<strong><?php esc_html_e( 'MCP:', 'corsen-context' ); ?></strong> <code><?php echo esc_html( Corsen_Context_MCP_Server::endpoint_url() ); ?></code>
 			</div>
 
 			<?php $this->render_access_panel( $settings ); ?>
@@ -571,8 +595,15 @@ class Corsen_Context_Admin {
 			</form>
 
 			<p style="color:#666;font-size:12px;">
-				Powered by Corsen Context v<?php echo esc_html( CORSEN_CONTEXT_VERSION ); ?> &bull;
-				Built by <a href="https://corsen.ai" target="_blank">Corsen AI</a> &bull;
+				<?php
+				printf(
+					/* translators: %s: plugin version */
+					esc_html__( 'Powered by Corsen Context v%s', 'corsen-context' ),
+					esc_html( CORSEN_CONTEXT_VERSION )
+				);
+				?>
+				&bull;
+				<?php esc_html_e( 'Built by', 'corsen-context' ); ?> <a href="https://corsen.ai" target="_blank">Corsen AI</a> &bull;
 				<a href="https://github.com/CorsenAI/corsen-context" target="_blank">GitHub</a>
 			</p>
 		</div>

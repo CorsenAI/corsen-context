@@ -92,9 +92,6 @@ final class Corsen_Context {
 
 		add_action( 'init', array( $this, 'maybe_upgrade_settings' ), 5 );
 
-		// Load translations for the declared text domain.
-		add_action( 'init', array( $this, 'load_textdomain' ) );
-
 		// Rewrite rules for /llms.txt and /llms-full.txt.
 		add_action( 'init', array( $this, 'register_rewrite_rules' ) );
 		add_filter( 'rewrite_rules_array', array( $this, 'filter_disabled_llms_rewrite_rules' ) );
@@ -170,17 +167,6 @@ final class Corsen_Context {
 		// Activation / deactivation.
 		register_activation_hook( CORSEN_CONTEXT_PLUGIN_FILE, array( $this, 'activate' ) );
 		register_deactivation_hook( CORSEN_CONTEXT_PLUGIN_FILE, array( $this, 'deactivate' ) );
-	}
-
-	/**
-	 * Load the plugin text domain for translations.
-	 */
-	public function load_textdomain(): void {
-		load_plugin_textdomain(
-			'corsen-context',
-			false,
-			dirname( plugin_basename( CORSEN_CONTEXT_PLUGIN_FILE ) ) . '/languages'
-		);
 	}
 
 	/**
@@ -500,7 +486,7 @@ final class Corsen_Context {
 		}
 		wp_add_dashboard_widget(
 			'corsen_context_status',
-			'AI Context Status (Corsen Context)',
+			__( 'AI Context Status (Corsen Context)', 'corsen-context' ),
 			array( $this, 'render_dashboard_widget' )
 		);
 	}
@@ -522,23 +508,24 @@ final class Corsen_Context {
 		}
 
 		echo '<div class="corsen-context-widget">';
-		printf( '<p><strong>Status:</strong> %s</p>', $enabled ? 'Active' : 'Inactive' );
-		printf( '<p><strong>MCP Server:</strong> %s</p>', $mcp ? 'Enabled' : 'Disabled' );
-		printf( '<p><strong>llms.txt:</strong> %s</p>', $llms ? 'Enabled' : 'Disabled' );
-		printf( '<p><strong>Pages indexed:</strong> %d</p>', intval( $count ) );
+		printf( '<p><strong>%s</strong> %s</p>', esc_html__( 'Status:', 'corsen-context' ), $enabled ? esc_html__( 'Active', 'corsen-context' ) : esc_html__( 'Inactive', 'corsen-context' ) );
+		printf( '<p><strong>%s</strong> %s</p>', esc_html__( 'MCP Server:', 'corsen-context' ), $mcp ? esc_html__( 'Enabled', 'corsen-context' ) : esc_html__( 'Disabled', 'corsen-context' ) );
+		printf( '<p><strong>%s</strong> %s</p>', esc_html__( 'llms.txt:', 'corsen-context' ), $llms ? esc_html__( 'Enabled', 'corsen-context' ) : esc_html__( 'Disabled', 'corsen-context' ) );
+		printf( '<p><strong>%s</strong> %d</p>', esc_html__( 'Pages indexed:', 'corsen-context' ), intval( $count ) );
 
 		if ( $llms ) {
-			printf( '<p><a href="%s/llms.txt" target="_blank">View llms.txt</a></p>', esc_url( $site_url ) );
+			printf( '<p><a href="%s/llms.txt" target="_blank">%s</a></p>', esc_url( $site_url ), esc_html__( 'View llms.txt', 'corsen-context' ) );
 		}
 
 		if ( $mcp ) {
 			printf(
-				'<p><strong>MCP endpoint:</strong> <code>%s</code></p>',
+				'<p><strong>%s</strong> <code>%s</code></p>',
+				esc_html__( 'MCP endpoint:', 'corsen-context' ),
 				esc_html( Corsen_Context_MCP_Server::endpoint_url() )
 			);
 		}
 
-		echo '<p style="color:#666;font-size:11px;">Powered by Corsen Context &bull; Corsen AI</p>';
+		printf( '<p style="color:#666;font-size:11px;">%s</p>', esc_html__( 'Powered by Corsen Context • Corsen AI', 'corsen-context' ) );
 		echo '</div>';
 	}
 
