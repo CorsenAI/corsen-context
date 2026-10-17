@@ -47,6 +47,17 @@
   `load_plugin_textdomain()` is gone, as WordPress.org language packs load
   automatically since 4.6. `uninstall.php` runs inside a function and visits
   every site of a multisite network.
+- Governance: the audit log records the transport of every call (`mcp`,
+  `webmcp` through the bridge's `X-Corsen-Transport` header, `abilities`)
+  and the error code, with per-transport and per-tool totals in the Control
+  Center (schema version 2, upgraded in place). Any tool can be hidden from
+  in-page (WebMCP) agents while staying on MCP (`webmcp_excluded_tools`
+  setting, `corsen_context_webmcp_excluded_tools` filter). MCP `tools/list`
+  advertises `outputSchema` in the shape `structuredContent` actually uses.
+  The OPTIONS preflight is only answered while MCP is enabled. An optional
+  `corsen_context_webmcp_output_budget` filter makes the bridge trim a page
+  result's markdown to a character budget and say so (`truncated`, pointer
+  to `get_sections`) instead of letting a client cut it silently.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 

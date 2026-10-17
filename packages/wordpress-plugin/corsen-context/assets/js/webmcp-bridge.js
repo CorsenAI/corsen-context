@@ -20,6 +20,7 @@
   var tools = Array.isArray(config.tools) ? config.tools : [];
   var endpoint = config.endpoint;
   var protocolVersion = config.protocolVersion;
+  var outputBudget = typeof config.outputBudget === 'number' && config.outputBudget > 0 ? config.outputBudget : 0;
   if (tools.length === 0 || typeof protocolVersion !== 'string') return;
 
   // Top-level documents only: the Permissions Policy 'tools' feature defaults
@@ -72,10 +73,30 @@
     return !!((signal && signal.aborted) || (error && error.name === 'AbortError'));
   }
 
+  // Optional owner-set budget: trim a page result's markdown to fit and say
+  // so, instead of letting a client cut the output silently.
+  function bound(result) {
+    if (!outputBudget || !result || typeof result !== 'object' || typeof result.markdown !== 'string') return result;
+    var size = JSON.stringify(result).length;
+    if (size <= outputBudget) return result;
+    var keep = Math.max(0, outputBudget - (size - result.markdown.length) - 200);
+    var out = {};
+    for (var key in result) {
+      if (Object.prototype.hasOwnProperty.call(result, key)) out[key] = result[key];
+    }
+    out.markdown = result.markdown.slice(0, keep);
+    out.truncated = true;
+    out.hint = 'Output trimmed to the in-page budget. Call get_sections with this url for the outline, then one section at a time.';
+    return out;
+  }
+
   function request(body, signal, isNotification) {
+    // The endpoint records which transport a call came through; the header
+    // changes nothing else and the response is the same as for any client.
     var headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream'
+      'Accept': 'application/json, text/event-stream',
+      'X-Corsen-Transport': 'webmcp'
     };
     if (body.method !== 'initialize') {
       headers['MCP-Protocol-Version'] = protocolVersion;
@@ -203,7 +224,7 @@
           return failure('tool_error', errorText || 'Corsen Context: tool execution failed');
         }
         var structured = body && body.result && body.result.structuredContent;
-        if (structured && typeof structured === 'object') return structured;
+        if (structured && typeof structured === 'object') return bound(structured);
         var content = body && body.result && body.result.content;
         if (!Array.isArray(content)) return '';
         return content

@@ -150,15 +150,73 @@ class Corsen_Context_WebMCP {
 	public static function with_annotations( array $tools, string $transport = 'webmcp' ): array {
 		return array_map(
 			static function ( array $tool ) use ( $transport ): array {
-				$name                = (string) $tool['name'];
-				$tool['title']       = Corsen_Context_Tool_Registry::title( $name );
-				$tool['annotations'] = 'mcp' === $transport
-					? self::mcp_annotations_for( $name )
-					: self::annotations_for( $name );
+				$name          = (string) $tool['name'];
+				$tool['title'] = Corsen_Context_Tool_Registry::title( $name );
+				if ( 'mcp' === $transport ) {
+					$tool['annotations'] = self::mcp_annotations_for( $name );
+					$output_schema       = self::mcp_output_schema( $name );
+					if ( array() !== $output_schema ) {
+						$tool['outputSchema'] = $output_schema;
+					}
+				} else {
+					$tool['annotations'] = self::annotations_for( $name );
+				}
 				return $tool;
 			},
 			$tools
 		);
+	}
+
+	/**
+	 * MCP outputSchema for a tool: the Abilities output contract, wrapped the
+	 * way tools/call wraps structuredContent (lists under `items`), because
+	 * the protocol requires structuredContent to validate against it.
+	 *
+	 * @param string $name Tool name.
+	 * @return array<string,mixed> Empty when the tool declares no contract.
+	 */
+	public static function mcp_output_schema( string $name ): array {
+		$schema = Corsen_Context_Abilities::output_schema( $name );
+		if ( array() === $schema ) {
+			return array();
+		}
+		if ( 'array' === ( $schema['type'] ?? '' ) ) {
+			return array(
+				'type'       => 'object',
+				'properties' => array( 'items' => $schema ),
+				'required'   => array( 'items' ),
+			);
+		}
+		return $schema;
+	}
+
+	/**
+	 * Tools the owner keeps off the in-page bridge while they stay on MCP
+	 * (Control Center per-tool checkbox, or the
+	 * corsen_context_webmcp_excluded_tools filter).
+	 *
+	 * @return string[]
+	 */
+	public static function excluded_tools(): array {
+		$settings = get_option( 'corsen_context_settings', array() );
+		$stored   = isset( $settings['webmcp_excluded_tools'] ) && is_array( $settings['webmcp_excluded_tools'] )
+			? $settings['webmcp_excluded_tools']
+			: array();
+		/** Filter the tool names hidden from in-page (WebMCP) agents. */
+		$excluded = (array) apply_filters( 'corsen_context_webmcp_excluded_tools', $stored );
+		return array_values( array_intersect( Corsen_Context_Tool_Registry::known(), array_map( 'strval', $excluded ) ) );
+	}
+
+	/**
+	 * Optional character budget for one in-page tool result. Chrome's
+	 * secure-tools guidance mentions 1.5K characters per tool output; when a
+	 * site sets a budget through the corsen_context_webmcp_output_budget
+	 * filter, the bridge trims a result's `markdown` field to fit and says so
+	 * (`truncated: true` plus a pointer to get_sections) instead of letting
+	 * the browser cut it silently. 0 (default) leaves results untouched.
+	 */
+	public static function output_budget(): int {
+		return max( 0, (int) apply_filters( 'corsen_context_webmcp_output_budget', 0 ) );
 	}
 
 	/**
@@ -209,6 +267,7 @@ class Corsen_Context_WebMCP {
 				'tools'           => array_values( $tools ),
 				'endpoint'        => $endpoint,
 				'protocolVersion' => Corsen_Context_MCP_Server::protocol_version(),
+				'outputBudget'    => self::output_budget(),
 			),
 			JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES
 		);
@@ -249,8 +308,16 @@ class Corsen_Context_WebMCP {
 			return;
 		}
 
-		$server = new Corsen_Context_MCP_Server();
-		$tools  = $server->get_tool_definitions();
+		$server   = new Corsen_Context_MCP_Server();
+		$excluded = self::excluded_tools();
+		$tools    = array_values(
+			array_filter(
+				$server->get_tool_definitions(),
+				static function ( array $tool ) use ( $excluded ): bool {
+					return ! in_array( (string) $tool['name'], $excluded, true );
+				}
+			)
+		);
 		if ( empty( $tools ) ) {
 			return;
 		}

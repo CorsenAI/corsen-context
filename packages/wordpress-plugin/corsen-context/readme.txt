@@ -44,7 +44,7 @@ To try it: enable WebMCP in Settings > Corsen Context; open the site over HTTPS 
 * **SEO integration** — Reads Yoast SEO and Rank Math metadata for better descriptions.
 * **Request controls** — Rate limiting, strict input validation, same-site content URL checks, defensive MCP response headers, and optional API-key authentication.
 * **Admin settings page** — Choose public post types, exclude paths, set rate limits, toggle surfaces, and select any subset of the tools.
-* **Control Center** (Settings > Corsen Context Control) — one card per surface and tool, honest exposed/needs-config/off badges, what-agents-see preview, and a bounded local audit log with a one-click purge.
+* **Control Center** (Settings > Corsen Context Control) — one card per surface and tool, honest exposed/needs-config/off badges, a per-tool "hide from in-page agents" switch, what-agents-see preview, and a bounded local audit log (transport, outcome, error code, per-tool totals) with a one-click purge.
 * **Dashboard widget** — See your AI context status at a glance.
 * **Bounded generation** — Total item and output-byte limits protect the optional full-content export.
 * **Content safety** — Drafts, private posts, password-protected posts, excluded paths, and content vetoed by the exposure filter are not served.
@@ -139,6 +139,7 @@ Yes. In Settings > Corsen Context you can:
 * Choose which post types to include (pages, posts, products, custom types)
 * Exclude specific URL paths
 * Choose which tools MCP, WebMCP and the Abilities API advertise and allow (extension tools stay off until you enable them)
+* Hide any tool from in-page (WebMCP) agents while keeping it available over MCP, per tool, from the Control Center or the settings page
 * Disable MCP, llms.txt, or the entire plugin
 
 = Does it work with WooCommerce? =

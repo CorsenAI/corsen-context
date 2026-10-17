@@ -74,7 +74,7 @@ class Corsen_Context_Abilities {
 					'input_schema'        => self::normalize_schema( $def['inputSchema'] ),
 					'output_schema'       => self::output_schema( $tool ),
 					'execute_callback'    => static function ( array $input = array() ) use ( $server, $tool ) {
-						$outcome = $server->execute_tool( $tool, $input );
+						$outcome = $server->execute_tool( $tool, $input, 'abilities' );
 						if ( empty( $outcome['ok'] ) ) {
 							return new \WP_Error(
 								'corsen_context_tool_failed',
@@ -132,7 +132,7 @@ class Corsen_Context_Abilities {
 	 * @param string $tool Tool name.
 	 * @return array<string,mixed>
 	 */
-	private static function output_schema( string $tool ): array {
+	public static function output_schema( string $tool ): array {
 		switch ( $tool ) {
 			case 'search_site':
 				return array(

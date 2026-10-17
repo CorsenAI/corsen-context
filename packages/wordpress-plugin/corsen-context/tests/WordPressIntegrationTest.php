@@ -734,6 +734,58 @@ final class WordPressIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Powered by Corsen Context', ( new Corsen_Context_Llms_Generator() )->generate_llms_txt() );
 	}
 
+	public function test_audit_rows_record_transport_and_error_code(): void {
+		$settings                  = (array) get_option( 'corsen_context_settings', array() );
+		$settings['audit_enabled'] = true;
+		update_option( 'corsen_context_settings', $settings );
+		Corsen_Context_Audit::install();
+		Corsen_Context_Audit::purge();
+
+		$this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 81,
+				'method'  => 'tools/call',
+				'params'  => array(
+					'name'      => 'get_page_content',
+					'arguments' => array( 'uri' => home_url( '/nope/' ) ),
+				),
+			),
+			array(
+				'MCP-Protocol-Version' => '2025-11-25',
+				'X-Corsen-Transport'   => 'webmcp',
+			)
+		);
+		$this->mcp_request(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 82,
+				'method'  => 'tools/call',
+				'params'  => array(
+					'name'      => 'get_sitemap',
+					'arguments' => new stdClass(),
+				),
+			),
+			array( 'MCP-Protocol-Version' => '2025-11-25' )
+		);
+
+		$rows = Corsen_Context_Audit::recent();
+		$this->assertCount( 2, $rows );
+		$this->assertSame( 'get_sitemap', $rows[0]->tool );
+		$this->assertSame( 'mcp', $rows[0]->transport );
+		$this->assertSame( 'ok', $rows[0]->status );
+		$this->assertSame( '', $rows[0]->error_code );
+		$this->assertSame( 'get_page_content', $rows[1]->tool );
+		$this->assertSame( 'webmcp', $rows[1]->transport );
+		$this->assertSame( 'error', $rows[1]->status );
+		$this->assertSame( 'not_found', $rows[1]->error_code );
+
+		$summary = Corsen_Context_Audit::summary();
+		$this->assertSame( 1, $summary['transports']['webmcp'] );
+		$this->assertSame( 1, $summary['transports']['mcp'] );
+		Corsen_Context_Audit::purge();
+	}
+
 	private function mcp_request( array $body, array $headers = array() ): WP_REST_Response {
 		return $this->mcp_raw_request( wp_json_encode( $body ), $headers );
 	}
