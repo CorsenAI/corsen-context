@@ -1,6 +1,6 @@
 # Changelog
 
-## WordPress plugin [Unreleased]
+## WordPress plugin [1.5.18] - 2026-10-23
 
 - Listing: `Tested up to` raised to 7.1 after running the plugin on
   WordPress 7.1.3; a Screenshots section and a shorter 1.5.9 upgrade notice
@@ -58,6 +58,18 @@
   `corsen_context_webmcp_output_budget` filter makes the bridge trim a page
   result's markdown to a character budget and say so (`truncated`, pointer
   to `get_sections`) instead of letting a client cut it silently.
+
+## WordPress plugin [1.5.17] - 2026-10-17
+
+- The `/llms.txt` and `/llms-full.txt` rewrite rules are registered only
+  while the corresponding surface is enabled, stale rules are dropped from
+  the generated rule set, and the rules are refreshed when the setting
+  changes. A disabled `/llms.txt` previously kept owning the route and could
+  answer 404 in place of another plugin's `llms.txt`. Reported with a fix by
+  suhakaralar (#10, #11).
+- The readme and the plugin description present WebMCP as one of the three
+  surfaces (static `llms.txt`, MCP endpoint, in-page WebMCP tools) with setup
+  and verification steps; tags updated.
 
 ## Security advisory - examples/directus-cms - 2026-09-04
 
