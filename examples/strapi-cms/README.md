@@ -4,7 +4,7 @@ This is a deployable Node reference bridge, not a Strapi plugin. It reads a
 configured public corpus through Strapi's REST API, publishes `/llms.txt`, and
 exposes four read-only tools through `POST /v1/mcp` and same-origin WebMCP.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-strapi) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/strapi-cms) ·
 [Live demo](https://strapi-webmcp.corsen.ai)
 
 ## Prerequisites
@@ -21,8 +21,8 @@ full-access or write-capable token.
 ## Run locally
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-strapi.git
-cd corsen-context-strapi
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/strapi-cms
 npm ci
 cp .env.example .env
 # Edit STRAPI_URL and, when required, STRAPI_TOKEN.

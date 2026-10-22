@@ -4,7 +4,7 @@ This is a deployable Node reference bridge, not a Wagtail package. It reads a
 configured public page type through Wagtail API v2, publishes `/llms.txt`, and
 exposes four read-only tools through `POST /v1/mcp` and same-origin WebMCP.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-wagtail) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/wagtail-cms) ·
 [Live demo](https://wagtail-webmcp.corsen.ai)
 
 ## Prerequisites
@@ -22,8 +22,8 @@ returns live pages through its public API.
 ## Run locally
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-wagtail.git
-cd corsen-context-wagtail
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/wagtail-cms
 npm ci
 cp .env.example .env
 # Edit WAGTAIL_URL, WAGTAIL_PAGE_TYPE, and WAGTAIL_BODY_FIELD.

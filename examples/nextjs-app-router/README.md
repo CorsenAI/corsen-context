@@ -2,14 +2,14 @@
 
 Minimal working example of Corsen Context with Next.js App Router.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-nextjs) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/nextjs-app-router) ·
 [Live demo](https://nextjs-webmcp.corsen.ai)
 
 ## Setup
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-nextjs.git
-cd corsen-context-nextjs
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/nextjs-app-router
 npm ci
 npm run dev
 ```

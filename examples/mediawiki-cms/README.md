@@ -5,7 +5,7 @@ reads public main-namespace pages through the Action API, publishes
 `/llms.txt`, and exposes four read-only tools through `POST /v1/mcp` and
 same-origin WebMCP.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-mediawiki) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/mediawiki-cms) ·
 [Live demo](https://mediawiki-webmcp.corsen.ai)
 
 ## Prerequisites
@@ -26,8 +26,8 @@ unbounded walk of a large wiki.
 ## Run locally
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-mediawiki.git
-cd corsen-context-mediawiki
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/mediawiki-cms
 npm ci
 cp .env.example .env
 # Edit MW_API_URL and MW_USER_AGENT; review the corpus and cache bounds.

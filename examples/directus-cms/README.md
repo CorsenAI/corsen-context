@@ -5,7 +5,7 @@ reads a configured public corpus through the Directus REST API, publishes
 `/llms.txt`, and exposes four read-only tools through `POST /v1/mcp` and
 same-origin WebMCP.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-directus) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/directus-cms) ·
 [Live demo](https://directus-webmcp.corsen.ai)
 
 ## Prerequisites
@@ -30,8 +30,8 @@ draft, private, staged, or personalized rows.
 ## Run locally
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-directus.git
-cd corsen-context-directus
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/directus-cms
 npm ci
 cp .env.example .env
 # Edit DIRECTUS_URL and, when required, DIRECTUS_TOKEN.
