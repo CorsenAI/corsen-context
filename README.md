@@ -224,7 +224,7 @@ rebuild, redeploy, and purge any CDN copy to complete revocation.
 The plugin source is
 [`packages/wordpress-plugin/corsen-context`](packages/wordpress-plugin/corsen-context).
 It publishes owner-selected public post types, path exclusions, `llms.txt`, an
-MCP endpoint, and opt-in WebMCP. The current plugin release is `1.5.17`.
+MCP endpoint, and opt-in WebMCP. The current plugin release is `1.5.18`.
 Check the version shown on WordPress.org before installation, and read the
 version the flagship site reports in its MCP `initialize` response before
 relying on a specific changelog entry.

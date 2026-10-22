@@ -5,7 +5,7 @@ Tags: ai, mcp, webmcp, llms-txt, ai-agents
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.5.17
+Stable tag: 1.5.18
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -89,10 +89,10 @@ Check the version displayed by WordPress.org before installation. A stable versi
 
 = Manual release installation =
 
-1. Obtain the GitHub release asset for version 1.5.17, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.17`.
+1. Obtain the GitHub release asset for version 1.5.18, or build a ZIP from `packages/wordpress-plugin/corsen-context` in the public repository at tag `v1.5.18`.
 2. The ZIP must contain one top-level `corsen-context` folder with `corsen-context.php`, `includes/`, `uninstall.php`, and `readme.txt`; do not upload the monorepo ZIP.
 3. Go to Plugins > Add New > Upload Plugin, upload that plugin ZIP, and activate it.
-4. Confirm version 1.5.17 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
+4. Confirm version 1.5.18 on the Plugins screen, then review Settings > Corsen Context before enabling WebMCP.
 
 = After Activation =
 
@@ -175,6 +175,17 @@ Not unless you ask for it. The "Powered by Corsen Context" line is off by defaul
 5. The dashboard widget: AI context status, indexed item count, llms.txt link and the canonical MCP endpoint.
 
 == Changelog ==
+
+= 1.5.18 - 2026-10-23 =
+* Listing: tested up to WordPress 7.1 (run on WordPress 7.1.3), a Screenshots section, and a shorter 1.5.9 upgrade notice.
+* The "Powered by Corsen Context" credit line in `/llms.txt` and `/llms-full.txt` is now opt-in and off by default, and the `X-Powered-By` header is gone from plugin responses (plugin directory guideline 10). Existing installs are switched off once; the "Show Credit" checkbox turns the line back on.
+* WebMCP: tool errors reach in-page agents as structured results (error code, message, handoff URL) instead of a bare `OperationError`; the human-only expert tool carries `consequentialHint: true`; every tool has a `title`; the settings page and the Control Center say that WebMCP needs HTTPS and name the Chrome 149 to 156 origin trial.
+* MCP: `tools/list` uses the MCP annotation vocabulary and advertises `outputSchema`; tool errors carry the extension's extra fields in `structuredContent`; the OPTIONS preflight is only answered while MCP is enabled.
+* The WebMCP bridge is a script file enqueued in the footer instead of an inline block: about 10 KB less per page view, and browsers cache it.
+* `llms.txt` reads naturally (no more escaped periods, hyphens or parentheses) and follows the llmstxt.org layout.
+* Caching and queries: consent, analytics and CDN cookies no longer disable the shared llms.txt and tool caches (new `corsen_context_shared_cache_safe` filter); the list, search and sitemap queries are lighter; the settings upgrade check no longer runs on every request.
+* Admin, policy and dashboard strings are translatable; uninstall cleans every site of a multisite network.
+* Governance: the audit log records the transport (`mcp`, `webmcp`, `abilities`) and the error code of every call, with per-transport and per-tool totals in the Control Center; any tool can be hidden from in-page agents while staying on MCP; an optional `corsen_context_webmcp_output_budget` filter bounds in-page page results.
 
 = 1.5.17 - 2026-10-17 =
 * Fix: the `/llms.txt` and `/llms-full.txt` rewrite rules are registered only while the corresponding surface is enabled, stale rules are dropped from the generated rule set, and the rules are refreshed when the setting changes. A disabled `/llms.txt` previously kept owning the route and could answer 404 in place of another plugin's `llms.txt`. Reported with a fix by suhakaralar (#10, #11).
@@ -341,6 +352,9 @@ Not unless you ask for it. The "Powered by Corsen Context" line is off by defaul
 * Clean uninstall (removes all options and transients)
 
 == Upgrade Notice ==
+
+= 1.5.18 =
+The public credit line is now off by default (Settings > Corsen Context > Show Credit turns it back on). In-page agents get readable tool errors, llms.txt reads naturally, and caches survive consent and analytics cookies.
 
 = 1.5.17 =
 Fixes the `/llms.txt` rewrite rule staying registered while the feature is disabled, which could block another plugin's `llms.txt`. The readme now documents WebMCP setup.
