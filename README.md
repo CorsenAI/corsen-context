@@ -134,25 +134,26 @@ MCP, and UCP surfaces without pretending to be a Shopify app or a Corsen
 integration. Confirm supported storefront runtimes against Shopify's current
 documentation. See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md).
 
-### Standalone integration repositories
+### Standalone integrations
 
-Each demonstrated stack also has a cloneable repository with its own license,
-lockfile, setup instructions, and CI. The npm packages remain maintained in
-this canonical monorepo.
+Every demonstrated stack is a self-contained example in this repository:
+clone it, `cd` into the example folder, and run `npm ci` to install the
+published packages. WordPress, the Netlify one-click demo, and the Shopify
+verifier keep their own repositories.
 
-| Stack       | Standalone source and download |
-| ----------- | ------------------------------ |
+| Stack       | Source |
+| ----------- | ------ |
 | WordPress   | [`corsen-context-wordpress`](https://github.com/CorsenAI/corsen-context-wordpress) |
-| Next.js     | [`corsen-context-nextjs`](https://github.com/CorsenAI/corsen-context-nextjs) |
-| Astro       | [`corsen-context-astro`](https://github.com/CorsenAI/corsen-context-astro) |
-| Express     | [`corsen-context-express`](https://github.com/CorsenAI/corsen-context-express) |
-| Static HTML | [`corsen-context-static-html`](https://github.com/CorsenAI/corsen-context-static-html) |
+| Next.js     | [`examples/nextjs-app-router`](examples/nextjs-app-router) |
+| Astro       | [`examples/astro-basic`](examples/astro-basic) |
+| Express     | [`examples/express-basic`](examples/express-basic) |
+| Static HTML | [`examples/static-html`](examples/static-html) |
 | Netlify     | [`corsen-context-netlify`](https://github.com/CorsenAI/corsen-context-netlify) |
-| Ghost       | [`corsen-context-ghost`](https://github.com/CorsenAI/corsen-context-ghost) |
-| Strapi      | [`corsen-context-strapi`](https://github.com/CorsenAI/corsen-context-strapi) |
-| Directus    | [`corsen-context-directus`](https://github.com/CorsenAI/corsen-context-directus) |
-| Wagtail     | [`corsen-context-wagtail`](https://github.com/CorsenAI/corsen-context-wagtail) |
-| MediaWiki   | [`corsen-context-mediawiki`](https://github.com/CorsenAI/corsen-context-mediawiki) |
+| Ghost       | [`examples/ghost-cms`](examples/ghost-cms) |
+| Strapi      | [`examples/strapi-cms`](examples/strapi-cms) |
+| Directus    | [`examples/directus-cms`](examples/directus-cms) |
+| Wagtail     | [`examples/wagtail-cms`](examples/wagtail-cms) |
+| MediaWiki   | [`examples/mediawiki-cms`](examples/mediawiki-cms) |
 | Shopify native verifier | [`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native) |
 
 ## Quick start

@@ -370,7 +370,7 @@ const CX = {
   source: 'The Wagtail API v2',
   rule: 'live pages of one configured page type, exactly as the public API serves them',
   envHint: ', WAGTAIL_URL, WAGTAIL_PAGE_TYPE and WAGTAIL_BODY_FIELD',
-  repo: 'https://github.com/CorsenAI/corsen-context-wagtail',
+  repo: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/wagtail-cms',
   description:
     'A Wagtail site made agent-native with Corsen Context: four read-only tools over MCP, WebMCP and llms.txt.',
 };
@@ -1029,16 +1029,16 @@ ${inner}
   var MAIN_REPO = 'https://github.com/CorsenAI/corsen-context';
   var REPOS = {
     WordPress: 'https://github.com/CorsenAI/corsen-context-wordpress',
-    Express: 'https://github.com/CorsenAI/corsen-context-express',
-    'Next.js': 'https://github.com/CorsenAI/corsen-context-nextjs',
-    Astro: 'https://github.com/CorsenAI/corsen-context-astro',
-    'Static HTML': 'https://github.com/CorsenAI/corsen-context-static-html',
+    Express: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/express-basic',
+    'Next.js': 'https://github.com/CorsenAI/corsen-context/tree/main/examples/nextjs-app-router',
+    Astro: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/astro-basic',
+    'Static HTML': 'https://github.com/CorsenAI/corsen-context/tree/main/examples/static-html',
     Netlify: 'https://github.com/CorsenAI/corsen-context-netlify',
-    Ghost: 'https://github.com/CorsenAI/corsen-context-ghost',
-    Strapi: 'https://github.com/CorsenAI/corsen-context-strapi',
-    Directus: 'https://github.com/CorsenAI/corsen-context-directus',
-    Wagtail: 'https://github.com/CorsenAI/corsen-context-wagtail',
-    MediaWiki: 'https://github.com/CorsenAI/corsen-context-mediawiki',
+    Ghost: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/ghost-cms',
+    Strapi: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/strapi-cms',
+    Directus: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/directus-cms',
+    Wagtail: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/wagtail-cms',
+    MediaWiki: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/mediawiki-cms',
   };
 
   /* Repositories a page may name in data-repository. Any other value falls

@@ -10,7 +10,7 @@ things from Corsen Context:
    `POST /v1/mcp`. The reference server also serves `public/`, so the page,
    `/webmcp.js`, and `/v1/mcp` work from one origin without hidden proxy setup.
 
-[Static/Node repository](https://github.com/CorsenAI/corsen-context-static-html) ·
+[Static/Node source](https://github.com/CorsenAI/corsen-context/tree/main/examples/static-html) ·
 [Netlify one-click repository](https://github.com/CorsenAI/corsen-context-netlify) ·
 [Static live demo](https://html-webmcp.corsen.ai) ·
 [Netlify live demo](https://corsen-context-demo.netlify.app)
@@ -40,8 +40,8 @@ npx @corsenai/corsen-context-cli generate --url https://yoursite.com
 ## Run
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-static-html.git
-cd corsen-context-static-html
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/static-html
 npm ci
 cp .env.example .env
 npm run build

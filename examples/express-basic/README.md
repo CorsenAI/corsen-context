@@ -3,14 +3,14 @@
 Minimal Express server with a bounded MCP 2025-11-25 JSON transport,
 WebMCP, and llms.txt support.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-express) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/express-basic) ·
 [Live demo](https://express-webmcp.corsen.ai)
 
 ## Setup
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-express.git
-cd corsen-context-express
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/express-basic
 npm ci
 npm start
 ```

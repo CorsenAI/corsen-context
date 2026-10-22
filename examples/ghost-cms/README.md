@@ -4,7 +4,7 @@ This is a deployable Node reference bridge, not a native Ghost plugin. It
 reads published posts through Ghost's Content API, publishes `/llms.txt`, and
 exposes four read-only tools through `POST /v1/mcp` and same-origin WebMCP.
 
-[Standalone repository](https://github.com/CorsenAI/corsen-context-ghost) ·
+[Source in the Corsen Context repository](https://github.com/CorsenAI/corsen-context/tree/main/examples/ghost-cms) ·
 [Live demo](https://ghost-webmcp.corsen.ai)
 
 ## Prerequisites
@@ -18,8 +18,8 @@ The Content API key is read-only and remains on the server.
 ## Run locally
 
 ```bash
-git clone https://github.com/CorsenAI/corsen-context-ghost.git
-cd corsen-context-ghost
+git clone https://github.com/CorsenAI/corsen-context.git
+cd corsen-context/examples/ghost-cms
 npm ci
 cp .env.example .env
 # Edit GHOST_CONTENT_KEY in .env.
