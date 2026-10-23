@@ -4,7 +4,7 @@ The WordPress plugin has no runtime Composer dependencies. Build the candidate
 archive from the repository root with a supported Node.js runtime:
 
 ```sh
-pnpm build:wordpress
+node scripts/build-wordpress-zip.mjs
 ```
 
 The builder checks that the main plugin header, runtime version constant, and
@@ -58,7 +58,7 @@ repository can create an isolated database/site, install the candidate, and
 execute the complete receipt automatically:
 
 ```sh
-pnpm verify:wordpress
+bash scripts/verify-wordpress-package.sh
 ```
 
 The script binds both disposable services to the local machine only, uses a
@@ -70,7 +70,7 @@ version.
 To prove the portable Aurora Kits corpus as well as the package, run:
 
 ```sh
-pnpm verify:wordpress:aurora
+bash scripts/verify-wordpress-aurora.sh
 ```
 
 That second receipt installs the official WordPress importer in the disposable

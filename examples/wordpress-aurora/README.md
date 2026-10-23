@@ -63,8 +63,8 @@ From the repository root on Linux, or inside WSL, first build the candidate and
 then run the full import receipt:
 
 ```sh
-pnpm build:wordpress
-pnpm verify:wordpress:aurora
+node scripts/build-wordpress-zip.mjs
+bash scripts/verify-wordpress-aurora.sh
 ```
 
 The verifier requires WP-CLI, MariaDB server binaries, PHP, Node.js, and

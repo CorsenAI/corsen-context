@@ -26,10 +26,10 @@ What actually happens.
 
 ## Environment
 
-- **Package**: (core / nextjs-adapter / cli / wordpress-plugin)
-- **Version**:
-- **Node.js version**:
-- **Framework**: (Next.js / Express / WordPress / Other)
+- **Plugin version**:
+- **WordPress version**:
+- **PHP version**:
+- **Browser / agent client** (for WebMCP):
 - **OS**:
 
 ## Additional Context

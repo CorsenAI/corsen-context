@@ -1,11 +1,11 @@
 version: 2
 updates:
-  - package-ecosystem: 'npm'
-    directory: '/'
+  # Composer tooling of the WordPress plugin: security updates only.
+  - package-ecosystem: 'composer'
+    directory: '/packages/wordpress-plugin/corsen-context'
     schedule:
-      interval: 'daily'
-    open-pull-requests-limit: 10
-    security-updates-only: true
+      interval: 'weekly'
+    open-pull-requests-limit: 0
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:

@@ -167,7 +167,7 @@ final class WebMCPEmitterTest extends TestCase {
 
 	public function test_bridge_completes_the_mcp_lifecycle_before_tool_calls(): void {
 		$bridge = $this->bridge();
-		$this->assertStringContainsString( "Accept: 'application/json, text/event-stream'", $bridge );
+		$this->assertStringContainsString( "'Accept': 'application/json, text/event-stream'", $bridge );
 		$this->assertStringContainsString( "body.method !== 'initialize'", $bridge );
 		$this->assertStringContainsString( "headers['MCP-Protocol-Version'] = protocolVersion", $bridge );
 		$this->assertStringContainsString( "method: 'initialize'", $bridge );
@@ -207,8 +207,8 @@ final class WebMCPEmitterTest extends TestCase {
 
 	public function test_registration_promise_rejections_are_handled(): void {
 		$bridge = $this->bridge();
-		$this->assertMatchesRegularExpression( '/Promise\.resolve\(\s*mc\.registerTool\(\{/', $bridge );
-		$this->assertStringContainsString( ').catch(function (error) {', $bridge );
+		$this->assertStringContainsString( 'Promise.resolve(mc.registerTool({', $bridge );
+		$this->assertStringContainsString( ')).catch(function (error) {', $bridge );
 		$this->assertStringContainsString( 'WebMCP registration failed for', $bridge );
 	}
 
