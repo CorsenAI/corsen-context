@@ -59,8 +59,18 @@ export interface JSONRPCError {
   data?: unknown;
 }
 
+/** MCP `ToolAnnotations` (protocol 2025-11-25): advisory hints for clients. */
+export interface MCPToolAnnotations {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
+
 export interface MCPToolDefinition {
   name: string;
+  /** Human-readable name for client UIs (MCP `BaseMetadata.title`). */
+  title?: string;
   description: string;
   inputSchema: {
     type: 'object';
@@ -68,6 +78,8 @@ export interface MCPToolDefinition {
     required?: string[];
     additionalProperties?: boolean;
   };
+  /** Always present on definitions the server produces; see tool-metadata.ts. */
+  annotations?: MCPToolAnnotations;
 }
 
 export interface MCPResourceDefinition {

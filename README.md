@@ -53,8 +53,8 @@ Owner-selected public content
 
 Within a TypeScript integration, WebMCP forwards execution to that
 integration's MCP endpoint. WordPress implements the same manifest-defined
-contract independently in PHP. Automated parity tests compare tool names,
-descriptions, input schemas, and WebMCP annotations against
+contract independently in PHP. Automated parity tests compare tool names, titles,
+descriptions, input schemas, MCP annotations, and WebMCP annotations against
 [`tools.manifest.json`](tools.manifest.json).
 
 The project can also emit discovery hints in `robots.txt`, `llms.txt`, an HTML
@@ -76,14 +76,15 @@ and out-of-range values produce an MCP tool result with `isError: true` and an
 actionable message. A malformed `tools/call` envelope, including a non-object
 `arguments` member, remains JSON-RPC error `-32602`.
 
-`readOnlyHint` and `untrustedContentHint` are advisory client metadata, not a
-security barrier. The TypeScript core adds them to WebMCP registrations and
-omits them from its MCP `tools/list`; the WordPress flagship also exposes
-annotations on `tools/list`, in the MCP vocabulary (`readOnlyHint`,
-`destructiveHint`, `idempotentHint`, `openWorldHint`), including
-`readOnlyHint: false` for `request_expert_call`, which its WebMCP
-registration additionally marks `consequentialHint: true`. Read-only behavior
-comes from the server implementation and content provider.
+Tool annotations are advisory client metadata, not a security barrier. Both
+runtimes expose a `title` and MCP annotations on `tools/list` (`readOnlyHint`,
+`destructiveHint`, `idempotentHint`, `openWorldHint`; every core tool is
+read-only, idempotent, non-destructive and closed-world) and register the
+WebMCP dictionary (`readOnlyHint`, `untrustedContentHint`) in the page. The
+WordPress flagship additionally exposes `readOnlyHint: false` for
+`request_expert_call`, which its WebMCP registration marks
+`consequentialHint: true`. Read-only behavior comes from the server
+implementation and content provider.
 
 The generated browser bridge registers each manifest-backed tool through the
 WebMCP API. This is the actual registration path, shortened only to keep the
@@ -92,6 +93,7 @@ example focused:
 ```js
 document.modelContext.registerTool({
   name: tool.name,
+  title: tool.title,
   description: tool.description,
   inputSchema: tool.inputSchema,
   annotations: tool.annotations,

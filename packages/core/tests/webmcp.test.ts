@@ -33,9 +33,9 @@ describe('WebMCP annotations', () => {
     }
   });
 
-  it('falls back to the safest annotations for an unknown tool', () => {
+  it('treats an unknown tool as writable, like the MCP defaults do', () => {
     expect(webMCPAnnotationsFor('not_a_tool')).toEqual({
-      readOnlyHint: true,
+      readOnlyHint: false,
       untrustedContentHint: true,
     });
   });
@@ -44,9 +44,16 @@ describe('WebMCP annotations', () => {
     expect(Object.isFrozen(WEBMCP_TOOL_ANNOTATIONS)).toBe(true);
   });
 
-  it('keeps the MCP definitions unchanged', () => {
+  it('replaces the MCP annotations with the WebMCP dictionary and keeps the title', () => {
     const definitions = server.getToolDefinitions();
-    expect(definitions.every((d) => !('annotations' in d))).toBe(true);
+    for (const tool of tools) {
+      const definition = definitions.find((d) => d.name === tool.name);
+      expect(tool.title, tool.name).toBe(definition?.title);
+      expect(Object.keys(tool.annotations).sort()).toEqual([
+        'readOnlyHint',
+        'untrustedContentHint',
+      ]);
+    }
   });
 });
 
@@ -56,6 +63,10 @@ describe('generateWebMCPScript', () => {
   it('registers through document.modelContext and keeps the navigator alias', () => {
     expect(script).toContain('document.modelContext || navigator.modelContext');
     expect(script).toContain('mc.registerTool(');
+  });
+
+  it('passes the tool title to the registration', () => {
+    expect(script).toContain('title: tool.title');
   });
 
   it('refuses to register inside a frame', () => {

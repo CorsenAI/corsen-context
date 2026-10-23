@@ -1,6 +1,6 @@
 {
   "name": "@corsenai/corsen-context-astro",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Astro adapter for owner-controlled MCP, WebMCP, llms.txt, and sitemap surfaces",
   "author": "Corsen AI <contact@corsen.ai>",
   "license": "MIT",

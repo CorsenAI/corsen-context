@@ -86,8 +86,9 @@ messages:
 
 ## Contract changes
 
-`tools.manifest.json` is the language-neutral contract for tool names,
-descriptions, input schemas, and WebMCP annotations. A contract change must:
+`tools.manifest.json` is the language-neutral contract for tool names, titles,
+descriptions, input schemas, MCP annotations, and WebMCP annotations. A
+contract change must:
 
 1. update the manifest;
 2. update the TypeScript implementation and validation;
@@ -98,8 +99,10 @@ descriptions, input schemas, and WebMCP annotations. A contract change must:
 6. update the live verifier and public documentation if observable behavior
    changes.
 
-MCP tool definitions must not include WebMCP-only annotations. The WebMCP
-registration layer attaches those annotations when building the browser tool.
+MCP tool definitions carry the MCP annotation vocabulary and must not include
+WebMCP-only annotations. The WebMCP registration layer replaces them with the
+WebMCP dictionary when building the browser tool and never sends MCP-only
+members, which the browser would drop silently.
 
 ## Adding a framework adapter
 

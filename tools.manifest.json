@@ -2,9 +2,11 @@
   "version": 1,
   "description": "Language-neutral contract for the tools Corsen Context exposes to compatible agents. This file describes the contract only - never the implementation. Every runtime (TypeScript core, PHP WordPress plugin) implements these tools independently and is mechanically checked against this manifest. The callable interfaces are MCP over HTTP (JSON-RPC 2.0) and WebMCP (document.modelContext); llms.txt is a separate discovery and publication surface.",
   "annotationsReference": "https://webmachinelearning.github.io/webmcp/",
+  "mcpAnnotationsReference": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
   "tools": [
     {
       "name": "search_site",
+      "title": "Search site",
       "description": "Search this site's public content by keyword and get matching pages with titles, URLs and text snippets. Use this first when the user asks about something on this site and you do not know which page covers it. Read-only: returns content, never changes anything.",
       "inputSchema": {
         "type": "object",
@@ -29,10 +31,17 @@
       "annotations": {
         "readOnlyHint": true,
         "untrustedContentHint": true
+      },
+      "mcpAnnotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "get_page_content",
+      "title": "Read a page",
       "description": "Read one page of this site in full, as clean markdown with its title, description and dates. Use this after search_site or get_sitemap to read a specific page. Read-only.",
       "inputSchema": {
         "type": "object",
@@ -50,10 +59,17 @@
       "annotations": {
         "readOnlyHint": true,
         "untrustedContentHint": true
+      },
+      "mcpAnnotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "list_content",
+      "title": "List content",
       "description": "Browse this site's public content by type (e.g. page, post, product) with pagination. Use to enumerate what the site publishes when a keyword search is too narrow. Read-only.",
       "inputSchema": {
         "type": "object",
@@ -85,10 +101,17 @@
       "annotations": {
         "readOnlyHint": true,
         "untrustedContentHint": true
+      },
+      "mcpAnnotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "get_sitemap",
+      "title": "Sitemap",
       "description": "Get a bounded structured sitemap of this site's public content, with each exposed URL's title, type and last-modified date, up to the owner's configured content limit. Use for a broad overview of what the site exposes to agents. Read-only.",
       "inputSchema": {
         "type": "object",
@@ -98,6 +121,12 @@
       "annotations": {
         "readOnlyHint": true,
         "untrustedContentHint": true
+      },
+      "mcpAnnotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     }
   ]

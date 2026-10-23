@@ -1,5 +1,11 @@
 # @corsenai/corsen-context
 
+## 2.0.2
+
+### Patch Changes
+
+- MCP `tools/list` now carries a `title` and MCP `ToolAnnotations` (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`) for every tool, from the same table the WebMCP registration uses, so clients no longer apply the protocol defaults (`readOnlyHint: false`, `destructiveHint: true`) and ask for confirmation before each read. The WebMCP registration keeps the WebMCP dictionary (`readOnlyHint`, `untrustedContentHint`) and now passes the tool `title`; an unknown tool is treated as writable on both surfaces.
+
 ## 2.0.1
 
 ## 2.0.0

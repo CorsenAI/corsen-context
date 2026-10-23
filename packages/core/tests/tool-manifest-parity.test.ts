@@ -6,6 +6,7 @@ import { MCPServer } from '../src/mcp-server.js';
 import { resolveConfig } from '../src/config.js';
 import type { ContentProvider } from '../src/types.js';
 import { webMCPAnnotationsFor } from '../src/webmcp.js';
+import { mcpAnnotationsFor, toolTitleFor } from '../src/tool-metadata.js';
 
 /**
  * The tool manifest is the single agent-facing contract. Every runtime
@@ -18,9 +19,16 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
   version: number;
   tools: Array<{
     name: string;
+    title: string;
     description: string;
     inputSchema: unknown;
     annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
+    mcpAnnotations: {
+      readOnlyHint: boolean;
+      destructiveHint: boolean;
+      idempotentHint: boolean;
+      openWorldHint: boolean;
+    };
   }>;
 };
 
@@ -72,6 +80,18 @@ describe('core runtime matches the tool manifest', () => {
       it('matches the manifest input schema', () => {
         const actual = implemented.find((t) => t.name === expected.name);
         expect(actual?.inputSchema).toEqual(expected.inputSchema);
+      });
+
+      it('matches the manifest title', () => {
+        const actual = implemented.find((t) => t.name === expected.name);
+        expect(actual?.title).toBe(expected.title);
+        expect(toolTitleFor(expected.name)).toBe(expected.title);
+      });
+
+      it('matches the manifest MCP annotations', () => {
+        const actual = implemented.find((t) => t.name === expected.name);
+        expect(actual?.annotations).toEqual(expected.mcpAnnotations);
+        expect(mcpAnnotationsFor(expected.name)).toEqual(expected.mcpAnnotations);
       });
     });
   }

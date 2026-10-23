@@ -1,5 +1,12 @@
 # @corsenai/corsen-context-nextjs
 
+## 2.0.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @corsenai/corsen-context@2.0.2
+
 ## 2.0.1
 
 ### Patch Changes

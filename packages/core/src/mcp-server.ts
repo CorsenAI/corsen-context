@@ -27,6 +27,7 @@ import {
 } from './security.js';
 import { MemoryCache } from './cache.js';
 import { getLogger } from './logger.js';
+import { mcpAnnotationsFor, toolTitleFor } from './tool-metadata.js';
 import {
   filterPublicPages,
   filterPublicSearchResults,
@@ -729,7 +730,7 @@ export class MCPServer {
       });
     }
 
-    return tools;
+    return tools.map(withToolMetadata);
   }
 
   getCapabilities(): MCPCapabilities {
@@ -759,4 +760,18 @@ export class MCPServer {
   ): JSONRPCResponse {
     return { jsonrpc: '2.0', error: { code, message }, id };
   }
+}
+
+/**
+ * Title and MCP annotations come from the shared table, never from the tool
+ * body, so `tools/list` and the WebMCP registration cannot drift apart.
+ */
+function withToolMetadata(tool: MCPToolDefinition): MCPToolDefinition {
+  return {
+    name: tool.name,
+    title: toolTitleFor(tool.name),
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    annotations: mcpAnnotationsFor(tool.name),
+  };
 }
