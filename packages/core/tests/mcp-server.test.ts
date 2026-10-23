@@ -171,6 +171,10 @@ describe('MCP Server', () => {
     expect(tools.map((t: any) => t.name)).toContain('get_page_content');
     expect(tools.map((t: any) => t.name)).toContain('list_content');
     expect(tools.map((t: any) => t.name)).toContain('get_sitemap');
+    for (const tool of tools) {
+      expect(tool.title, tool.name).toBeTruthy();
+      expect(tool.annotations.readOnlyHint, tool.name).toBe(true);
+    }
   });
 
   it('short-circuits direct requests when the owner disables MCP', async () => {

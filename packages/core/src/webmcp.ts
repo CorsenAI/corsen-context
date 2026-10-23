@@ -1,5 +1,6 @@
 import type { MCPToolDefinition } from './types.js';
 import { MCP_PROTOCOL_VERSION } from './version.js';
+import { MCP_TOOL_ANNOTATIONS, mcpAnnotationsFor } from './tool-metadata.js';
 
 /**
  * WebMCP exposes the same tools to an agent running inside the page, through
@@ -19,7 +20,12 @@ export interface WebMCPToolAnnotations {
   untrustedContentHint: boolean;
 }
 
-export interface WebMCPTool extends MCPToolDefinition {
+/**
+ * A tool as registered in the page: the MCP definition with the WebMCP
+ * `ToolAnnotations` dictionary in place of the MCP one. MCP-only members such
+ * as `destructiveHint` are never sent; the browser would drop them silently.
+ */
+export interface WebMCPTool extends Omit<MCPToolDefinition, 'annotations'> {
   annotations: WebMCPToolAnnotations;
 }
 
@@ -35,25 +41,25 @@ export interface WebMCPScriptConfig {
 }
 
 /**
- * Every tool Corsen Context exposes reads published site content, so all of
- * them are read-only and all of them return untrusted data: page bodies come
- * from authors, comments and imports, and an agent must treat that output as
- * data rather than as instructions.
+ * WebMCP annotations for a tool, derived from the same table as the MCP ones
+ * (tool-metadata.ts): `readOnlyHint` is shared, and every tool returns
+ * untrusted data, because page bodies come from authors, comments and imports
+ * and an agent must treat that output as data rather than as instructions.
+ * An unknown tool is treated as writable, like the MCP defaults do.
  */
-export const WEBMCP_TOOL_ANNOTATIONS: Readonly<Record<string, WebMCPToolAnnotations>> =
-  Object.freeze({
-    search_site: { readOnlyHint: true, untrustedContentHint: true },
-    get_page_content: { readOnlyHint: true, untrustedContentHint: true },
-    list_content: { readOnlyHint: true, untrustedContentHint: true },
-    get_sitemap: { readOnlyHint: true, untrustedContentHint: true },
-  });
-
-/** Annotations for a tool. Unknown tools fall back to the safest pair. */
 export function webMCPAnnotationsFor(name: string): WebMCPToolAnnotations {
-  return WEBMCP_TOOL_ANNOTATIONS[name] ?? { readOnlyHint: true, untrustedContentHint: true };
+  return { readOnlyHint: mcpAnnotationsFor(name).readOnlyHint, untrustedContentHint: true };
 }
 
-/** Attach WebMCP annotations to MCP tool definitions. */
+/** The WebMCP annotations of every known tool. */
+export const WEBMCP_TOOL_ANNOTATIONS: Readonly<Record<string, WebMCPToolAnnotations>> =
+  Object.freeze(
+    Object.fromEntries(
+      Object.keys(MCP_TOOL_ANNOTATIONS).map((name) => [name, webMCPAnnotationsFor(name)]),
+    ),
+  );
+
+/** Replace the MCP annotations of tool definitions with the WebMCP dictionary. */
 export function toWebMCPTools(tools: MCPToolDefinition[]): WebMCPTool[] {
   return tools.map((tool) => ({ ...tool, annotations: webMCPAnnotationsFor(tool.name) }));
 }
@@ -240,6 +246,7 @@ export function generateWebMCPScript(tools: WebMCPTool[], config: WebMCPScriptCo
     try {
       Promise.resolve(mc.registerTool({
         name: tool.name,
+        title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
         annotations: tool.annotations,

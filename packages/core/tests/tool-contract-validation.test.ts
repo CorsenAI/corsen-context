@@ -105,8 +105,18 @@ describe('generated tool input schemas', () => {
     });
   });
 
-  it('keeps WebMCP annotations out of MCP tools/list definitions', () => {
-    expect(definitions.every((definition) => !('annotations' in definition))).toBe(true);
+  it('carries a title and MCP annotations, never a WebMCP-only member', () => {
+    for (const definition of definitions) {
+      expect(definition.title, definition.name).toBeTruthy();
+      expect(definition.annotations, definition.name).toEqual({
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      });
+      expect(definition.annotations).not.toHaveProperty('untrustedContentHint');
+      expect(definition.annotations).not.toHaveProperty('consequentialHint');
+    }
   });
 });
 

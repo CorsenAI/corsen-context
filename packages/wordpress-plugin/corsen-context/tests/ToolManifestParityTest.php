@@ -99,4 +99,20 @@ final class ToolManifestParityTest extends TestCase {
 			);
 		}
 	}
+
+	/** The plugin titles and MCP annotations must match the manifest too. */
+	public function test_plugin_titles_and_mcp_annotations_match_the_manifest(): void {
+		foreach ( self::$manifest['tools'] as $expected ) {
+			$this->assertSame(
+				$expected['title'],
+				Corsen_Context_Tool_Registry::title( $expected['name'] ),
+				"Title for '{$expected['name']}' drifted from the manifest."
+			);
+			$this->assertSame(
+				$expected['mcpAnnotations'],
+				Corsen_Context_WebMCP::mcp_annotations_for( $expected['name'] ),
+				"MCP annotations for '{$expected['name']}' drifted from the manifest."
+			);
+		}
+	}
 }

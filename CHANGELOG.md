@@ -1,5 +1,19 @@
 # Changelog
 
+## npm packages [2.0.2] - Candidate - 2026-10-23
+
+- MCP `tools/list` now carries a `title` and MCP `ToolAnnotations` for every
+  tool (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`,
+  `openWorldHint: false`), from the same table the WebMCP registration uses.
+  Clients no longer apply the protocol defaults (`readOnlyHint: false`,
+  `destructiveHint: true`) to a site search and stop asking for confirmation
+  before each read. Reported in #22.
+- The WebMCP registration keeps the WebMCP dictionary (`readOnlyHint`,
+  `untrustedContentHint`) and now passes the tool `title`; an unknown tool is
+  treated as writable on both surfaces, as the WordPress plugin already did.
+- `tools.manifest.json` records the title and MCP annotations of every tool;
+  the TypeScript and PHP parity tests check both runtimes against it.
+
 ## WordPress plugin [1.5.18] - 2026-10-23
 
 - Listing: `Tested up to` raised to 7.1 after running the plugin on

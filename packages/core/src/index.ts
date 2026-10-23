@@ -114,6 +114,12 @@ export {
   WEBMCP_TOOL_ANNOTATIONS,
 } from './webmcp.js';
 export type { WebMCPTool, WebMCPToolAnnotations, WebMCPScriptConfig } from './webmcp.js';
+export {
+  mcpAnnotationsFor,
+  toolTitleFor,
+  MCP_TOOL_ANNOTATIONS,
+  TOOL_TITLES,
+} from './tool-metadata.js';
 export { parseSitemap, discoverSitemap } from './sitemap.js';
 export { htmlToMarkdown, extractMetadata } from './converter.js';
 export { MemoryCache } from './cache.js';
@@ -158,6 +164,7 @@ export type {
   SitemapEntry,
   JSONRPCRequest,
   JSONRPCResponse,
+  MCPToolAnnotations,
   MCPToolDefinition,
   MCPResourceDefinition,
   MCPCapabilities,
