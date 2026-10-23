@@ -995,7 +995,8 @@ ${inner}
   var FLAGSHIP = 'https://webmcp.corsen.ai';
   var MAIN_REPO = 'https://github.com/CorsenAI/corsen-context';
   var REPOS = {
-    WordPress: 'https://github.com/CorsenAI/corsen-context/tree/main/packages/wordpress-plugin/corsen-context',
+    WordPress:
+      'https://github.com/CorsenAI/corsen-context/tree/main/packages/wordpress-plugin/corsen-context',
     Express: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/express-basic',
     'Next.js': 'https://github.com/CorsenAI/corsen-context/tree/main/examples/nextjs-app-router',
     Astro: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/astro-basic',

@@ -158,7 +158,9 @@ async function buildArchive(entries) {
 async function main() {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log('Usage: node scripts/build-wordpress-zip.mjs');
-    console.log('Builds a deterministic source-only WordPress plugin ZIP (PHP, readme, license, assets/js) in dist/.');
+    console.log(
+      'Builds a deterministic source-only WordPress plugin ZIP (PHP, readme, license, assets/js) in dist/.',
+    );
     return;
   }
   if (process.argv.length > 2) {

@@ -118,18 +118,18 @@ judges to trust private operator receipts.
 The repository covers ten deployment targets, with deliberately different
 levels of native integration:
 
-| Stack              | What a site owner receives                                      |
-| ------------------ | --------------------------------------------------------------- |
-| WordPress          | public WordPress.org plugin 1.5.16 plus standalone source        |
-| Next.js App Router | published npm 2.0.1 adapter plus reference app                  |
-| Astro              | published npm 2.0.1 adapter plus SSR reference app              |
-| Express            | framework-agnostic core plus reference server                   |
-| Static HTML        | generated static assets plus one same-origin Node endpoint      |
-| Ghost              | reference Node bridge over the Content API                      |
-| Strapi             | reference Node bridge over an explicitly configured collection  |
-| Directus           | reference Node bridge with a published-content filter           |
-| Wagtail            | reference Node bridge adapted to a configured page model        |
-| MediaWiki          | reference Node bridge over the Action API                       |
+| Stack              | What a site owner receives                                     |
+| ------------------ | -------------------------------------------------------------- |
+| WordPress          | public WordPress.org plugin 1.5.16 plus standalone source      |
+| Next.js App Router | published npm 2.0.1 adapter plus reference app                 |
+| Astro              | published npm 2.0.1 adapter plus SSR reference app             |
+| Express            | framework-agnostic core plus reference server                  |
+| Static HTML        | generated static assets plus one same-origin Node endpoint     |
+| Ghost              | reference Node bridge over the Content API                     |
+| Strapi             | reference Node bridge over an explicitly configured collection |
+| Directus           | reference Node bridge with a published-content filter          |
+| Wagtail            | reference Node bridge adapted to a configured page model       |
+| MediaWiki          | reference Node bridge over the Action API                      |
 
 The five CMS bridges are deployable reference services, not native CMS plugins
 or extensions. A site owner must configure a least-privilege CMS role, map the
