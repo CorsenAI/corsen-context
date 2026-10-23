@@ -67,6 +67,12 @@ export function cachePolicyNamespace(config: ResolvedConfig): string {
   return `policy:${createHash('sha256').update(policy).digest('hex').slice(0, 16)}:`;
 }
 
+/** Tool names SHOULD be 1-128 characters (MCP 2025-11-25); never echo more. */
+function displayToolName(name: string): string {
+  const chars = Array.from(name);
+  return chars.length > 128 ? `${chars.slice(0, 128).join('')}\u2026` : name;
+}
+
 function checkJsonDepth(obj: unknown, currentDepth: number = 0): void {
   if (currentDepth > MAX_JSON_DEPTH) {
     throw new Error('JSON nesting too deep');
@@ -367,7 +373,7 @@ export class MCPServer {
       return this.errorResponse(
         id ?? null,
         JSONRPC_ERRORS.INVALID_PARAMS.code,
-        `Tool not found: ${toolName}`,
+        `Tool not found: ${displayToolName(toolName)}`,
       );
     }
 
@@ -406,7 +412,7 @@ export class MCPServer {
           return this.errorResponse(
             id ?? null,
             JSONRPC_ERRORS.INVALID_PARAMS.code,
-            `Unknown tool: ${toolName}`,
+            `Unknown tool: ${displayToolName(toolName)}`,
           );
       }
 

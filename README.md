@@ -340,7 +340,8 @@ stateless JSON transport. They validate `Origin` before parsing, require an
 header when one is sent, rate-limit before optional authentication, and parse
 at most 100 KiB from the actual request body. Malformed JSON returns a bounded
 JSON-RPC parse error; an oversized body returns `413`; valid non-request JSON
-is rejected as an invalid request. `GET` returns `405` with `Allow: POST`, a
+is rejected as an invalid request; a `401` carries a `WWW-Authenticate: Bearer`
+challenge. `GET` returns `405` with `Allow: POST`, a
 valid `OPTIONS` preflight returns `204`, and accepted notifications return
 `202` with an empty body. The transport does not implement SSE, resumability,
 or session identifiers.
@@ -359,7 +360,9 @@ Never embed an API key in `webmcp.js`, HTML, or a public environment variable.
 
 For distributed deployments, supply Redis-compatible cache and rate-limit
 stores. Forwarded client-IP headers must only be trusted behind a proxy you
-control.
+control: enable `security.trustProxy` and name that proxy's header in
+`security.clientIpHeader`. The Next.js handlers have no socket address, so
+without `trustProxy` every client shares one rate-limit bucket.
 
 Every supplied CMS reference bridge caps each upstream fetch at 10 seconds.
 All five keep successful provider results in a process-local memory cache and

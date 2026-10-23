@@ -54,6 +54,37 @@ describe('Config', () => {
     expect(() => resolveConfig({ siteUrl: 'not-a-url' })).toThrow();
   });
 
+  it('requires an http(s) siteUrl without embedded credentials', () => {
+    expect(() => resolveConfig({ siteUrl: 'ftp://example.com' })).toThrow(/http\(s\)/);
+    expect(() => resolveConfig({ siteUrl: 'javascript:alert(1)' })).toThrow();
+    expect(() => resolveConfig({ siteUrl: 'https://user:secret@example.com' })).toThrow(
+      /credentials/,
+    );
+    expect(resolveConfig({ siteUrl: 'http://localhost:3000' }).siteUrl).toBe(
+      'http://localhost:3000',
+    );
+  });
+
+  it('accepts only the three known forwarding headers as clientIpHeader', () => {
+    for (const header of ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'] as const) {
+      const config = resolveConfig({
+        siteUrl: 'https://example.com',
+        security: { trustProxy: true, clientIpHeader: header },
+      });
+      expect(config.security.clientIpHeader).toBe(header);
+    }
+    expect(resolveConfig({ siteUrl: 'https://example.com' }).security.clientIpHeader).toBe(
+      undefined,
+    );
+    expect(() =>
+      resolveConfig({
+        siteUrl: 'https://example.com',
+        // @ts-expect-error unknown header names are rejected at runtime too
+        security: { clientIpHeader: 'x-client-ip' },
+      }),
+    ).toThrow();
+  });
+
   it('rejects negative rate limit', () => {
     expect(() =>
       resolveConfig({ siteUrl: 'https://example.com', security: { rateLimit: -1 } }),

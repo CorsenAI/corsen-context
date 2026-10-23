@@ -11,6 +11,9 @@ import {
   buildRateLimitKey,
   hashApiKey,
   ApiKeyManager,
+  parseBearerToken,
+  extractApiKey,
+  apiKeyChallenge,
 } from '../src/security.js';
 
 describe('SSRF Protection — isPrivateIp (sync)', () => {
@@ -246,6 +249,22 @@ describe('Client IP Extraction', () => {
     ).toBe('4.4.4.4');
   });
 
+  it('consults only the configured clientIpHeader when one is named', () => {
+    const headers = {
+      'cf-connecting-ip': '1.1.1.1',
+      'x-real-ip': '2.2.2.2',
+      'x-forwarded-for': '3.3.3.3, 10.0.0.1',
+    };
+    expect(extractClientIp(headers, '4.4.4.4', true, 'x-forwarded-for')).toBe('3.3.3.3');
+    expect(extractClientIp(headers, '4.4.4.4', true, 'x-real-ip')).toBe('2.2.2.2');
+    // A spoofed CF-Connecting-IP is ignored when the proxy is known to set X-Real-IP.
+    expect(extractClientIp({ 'cf-connecting-ip': '1.1.1.1' }, '4.4.4.4', true, 'x-real-ip')).toBe(
+      '4.4.4.4',
+    );
+    // Without trustProxy the named header is still ignored.
+    expect(extractClientIp(headers, '4.4.4.4', false, 'x-forwarded-for')).toBe('4.4.4.4');
+  });
+
   it('falls back to socket IP', () => {
     expect(extractClientIp({}, '9.9.9.9')).toBe('9.9.9.9');
   });
@@ -313,6 +332,43 @@ describe('Host Validation', () => {
 
   it('rejects missing host', () => {
     expect(validateHost(undefined, 'https://example.com')).toBe(false);
+  });
+
+  it('compares host names case-insensitively, ports exactly', () => {
+    expect(validateHost('EXAMPLE.com', 'https://example.com')).toBe(true);
+    expect(validateHost('example.com:8443', 'https://Example.com:8443')).toBe(true);
+    expect(validateHost('example.com:8443', 'https://example.com')).toBe(false);
+  });
+});
+
+describe('API key transport', () => {
+  it('parses the Bearer scheme case-insensitively and rejects other schemes', () => {
+    expect(parseBearerToken('Bearer abc.def')).toBe('abc.def');
+    expect(parseBearerToken('bearer abc')).toBe('abc');
+    expect(parseBearerToken('  BEARER   abc  ')).toBe('abc');
+    expect(parseBearerToken('Basic abc')).toBeUndefined();
+    expect(parseBearerToken('Bearer')).toBeUndefined();
+    expect(parseBearerToken('Bearer a b')).toBeUndefined();
+    expect(parseBearerToken(undefined)).toBeUndefined();
+    expect(parseBearerToken(null)).toBeUndefined();
+  });
+
+  it('prefers X-MCP-Key and falls back to Authorization: Bearer', () => {
+    const headers: Record<string, string | string[] | undefined> = {
+      'x-mcp-key': 'direct',
+      authorization: 'Bearer from-header',
+    };
+    expect(extractApiKey((name) => headers[name])).toBe('direct');
+    delete headers['x-mcp-key'];
+    expect(extractApiKey((name) => headers[name])).toBe('from-header');
+    headers.authorization = ['Bearer first', 'Bearer second'];
+    expect(extractApiKey((name) => headers[name])).toBe('first');
+    expect(extractApiKey(() => null)).toBeUndefined();
+  });
+
+  it('builds the WWW-Authenticate challenge required by a 401', () => {
+    expect(apiKeyChallenge(false)).toBe('Bearer realm="corsen-context"');
+    expect(apiKeyChallenge(true)).toBe('Bearer realm="corsen-context", error="invalid_token"');
   });
 });
 

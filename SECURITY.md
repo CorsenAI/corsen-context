@@ -91,15 +91,31 @@ edge.
 The WordPress plugin uses its configured per-minute limit and WordPress object
 cache/transients. Rate limiting runs before optional API-key validation.
 
-Forwarded client-IP headers are ignored by default. Set `trustProxy` or
-`CORSEN_CONTEXT_TRUST_PROXY` only when the application is reachable exclusively
-through a proxy that overwrites those headers.
+Forwarded client-IP headers are ignored by default. Set `trustProxy` only when
+the application is reachable exclusively through a proxy you control, and name
+the one header that proxy overwrites in `security.clientIpHeader`
+(`cf-connecting-ip`, `x-real-ip` or `x-forwarded-for`). Without that name the
+limiter consults the three headers in that order, which is only safe behind a
+proxy that rewrites all three: behind nginx or Vercel, a client-supplied
+`CF-Connecting-IP` would otherwise open a fresh bucket per request. The
+WordPress plugin reads the `CORSEN_CONTEXT_TRUST_PROXY` constant instead.
+
+The Next.js handlers see no socket address (Web `Request`), so with
+`trustProxy: false` every client shares one bucket and the limit caps the
+whole endpoint rather than each client. Behind Vercel or another edge that
+overwrites `X-Forwarded-For`, set `trustProxy: true` and
+`clientIpHeader: 'x-forwarded-for'`. The Astro handlers use Astro's
+`clientAddress` and fall back to the shared bucket when the adapter cannot
+supply it.
 
 ### Optional API-key authentication
 
 Server-side MCP clients can authenticate with `X-MCP-Key` or
-`Authorization: Bearer`. Keep keys in server-side environment/configuration and
-rotate them through the hosting platform. Never place a key in HTML,
+`Authorization: Bearer` (the scheme name is matched case-insensitively). A
+rejected request receives `401` with `WWW-Authenticate: Bearer
+realm="corsen-context"`, plus `error="invalid_token"` when a credential was
+presented. Keep keys in server-side environment/configuration and rotate them
+through the hosting platform. Never place a key in HTML,
 `webmcp.js`, a public environment variable, a repository, or a screenshot.
 
 The supplied in-page WebMCP bridge deliberately sends no cookies, visitor

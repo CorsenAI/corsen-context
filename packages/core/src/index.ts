@@ -142,6 +142,10 @@ export {
   searchParamsSchema,
   getPageParamsSchema,
   listContentParamsSchema,
+  parseBearerToken,
+  extractApiKey,
+  apiKeyChallenge,
+  API_KEY_REALM,
 } from './security.js';
 export {
   resolvePublicPageUrl,
@@ -152,8 +156,8 @@ export {
 } from './content-policy.js';
 export { createInMemoryProvider, createSitemapProvider } from './providers.js';
 export { generateRobotsTxt, generateWellKnownMcp, mcpLinkTag } from './discovery.js';
-export { resolveConfig, corsenContextConfigSchema } from './config.js';
-export type { CorsenContextConfig, ResolvedConfig } from './config.js';
+export { resolveConfig, corsenContextConfigSchema, CLIENT_IP_HEADERS } from './config.js';
+export type { CorsenContextConfig, ResolvedConfig, ClientIpHeader } from './config.js';
 export type {
   ContentProvider,
   CacheDriver,

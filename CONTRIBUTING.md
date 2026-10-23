@@ -110,7 +110,9 @@ A new adapter needs more than a route that compiles. It must provide or
 document:
 
 - `POST /v1/mcp` with request-size, validation, rate-limit, authentication, and
-  error behavior equivalent to the existing handlers;
+  error behavior equivalent to the existing handlers, including a
+  `WWW-Authenticate` challenge on `401` and the `security.clientIpHeader`
+  rule for forwarded client addresses;
 - `GET /v1/mcp` as `405` with `Allow: POST`, validated `OPTIONS`, strict
   `Content-Type`/`Accept` negotiation, bounded JSON parsing, and `202` empty
   notification acknowledgements;

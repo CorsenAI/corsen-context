@@ -128,8 +128,11 @@ export default {
     rateLimit: 100,
     burstLimit: 10,
     allowedOrigins: [],
-    // Only trust X-Forwarded-For / X-Real-IP when behind a proxy you control.
+    // Only trust X-Forwarded-For / X-Real-IP when behind a proxy you control,
+    // and name the one header that proxy overwrites, for example
+    // 'x-forwarded-for' on Vercel or 'cf-connecting-ip' behind Cloudflare.
     trustProxy: false,
+    // clientIpHeader: 'x-forwarded-for',
   },
 
   cache: {
@@ -221,6 +224,8 @@ import { Buffer } from 'node:buffer';
 import {
   CorsenContext,
   MCP_PROTOCOL_VERSION,
+  apiKeyChallenge,
+  extractApiKey,
   extractClientIp,
 } from '@corsenai/corsen-context';
 import corsenConfig from '__CORSEN_CONTEXT_CONFIG__';
@@ -330,13 +335,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     req.headers,
     req.socket.remoteAddress,
     cc.getConfig().security.trustProxy,
+    cc.getConfig().security.clientIpHeader,
   );
 
   // Forward the API key so CORSEN_CONTEXT_API_KEY auth works.
-  const apiKey =
-    (req.headers['x-mcp-key'] as string) ||
-    (req.headers['authorization'] as string)?.replace('Bearer ', '') ||
-    undefined;
+  const apiKey = extractApiKey((name) => req.headers[name]);
 
   const rateLimit = await server.checkRateLimit(clientIp, apiKey);
   for (const [key, value] of Object.entries(rateLimit.headers)) {
@@ -348,6 +351,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (!server.checkAuth(apiKey)) {
+    res.setHeader('WWW-Authenticate', apiKeyChallenge(apiKey !== undefined));
     res.status(401).json({
       jsonrpc: '2.0', error: { code: -32000, message: 'Unauthorized' }, id: null,
     });
@@ -493,6 +497,8 @@ const EXPRESS_MIDDLEWARE = `import express from 'express';
 import {
   CorsenContext,
   MCP_PROTOCOL_VERSION,
+  apiKeyChallenge,
+  extractApiKey,
   extractClientIp,
   generateWebMCPScript,
   toWebMCPTools,
@@ -559,10 +565,9 @@ export default function corsenContextRoutes(app) {
         req.headers,
         req.socket.remoteAddress,
         cc.getConfig().security.trustProxy,
+        cc.getConfig().security.clientIpHeader,
       );
-      const apiKey = req.headers['x-mcp-key']?.toString()
-        || req.headers['authorization']?.toString().replace('Bearer ', '')
-        || undefined;
+      const apiKey = extractApiKey((name) => req.headers[name]);
       const rateLimit = await server.checkRateLimit(clientIp, apiKey);
       for (const [key, value] of Object.entries(rateLimit.headers)) res.set(key, value);
       if (!rateLimit.allowed) {
@@ -571,6 +576,7 @@ export default function corsenContextRoutes(app) {
         });
       }
       if (!server.checkAuth(apiKey)) {
+        res.set('WWW-Authenticate', apiKeyChallenge(apiKey !== undefined));
         return res.status(401).json({
           jsonrpc: '2.0', error: { code: -32000, message: 'Unauthorized' }, id: null,
         });
@@ -778,7 +784,7 @@ function scaffoldNextjsApp(cwd: string): void {
 
   console.log('\n  Next steps:');
   console.log('  1. npm install @corsenai/corsen-context @corsenai/corsen-context-nextjs');
-  console.log('  2. Edit lib/corsen-provider.ts with your content source');
+  console.log(`  2. Edit ${relative(cwd, providerPath)} with your content source`);
   console.log('  3. Update siteUrl and owner controls in corsen-context.config.mjs');
   console.log(
     '  4. In app/layout.tsx, load <script src="/webmcp.js" defer /> only when mcp.enabled is true',
@@ -832,7 +838,7 @@ function scaffoldNextjsPages(cwd: string): void {
 
   console.log('\n  Next steps:');
   console.log('  1. npm install @corsenai/corsen-context');
-  console.log('  2. Edit lib/corsen-provider.ts with your content source');
+  console.log(`  2. Edit ${relative(cwd, providerPath)} with your content source`);
   console.log('  3. Update siteUrl and owner controls in corsen-context.config.mjs');
   if (existingNextConfig) {
     console.log(`  4. Merge these rewrites into ${existingNextConfig}:`);
@@ -897,7 +903,7 @@ function scaffoldAstro(cwd: string): void {
   console.log('\n  Next steps:');
   console.log('  1. npm install @corsenai/corsen-context @corsenai/corsen-context-astro');
   console.log('  2. Make sure Astro SSR is enabled (output: "server" or "hybrid" in astro.config)');
-  console.log('  3. Edit the provider in src/lib/corsen-provider.ts with your content source');
+  console.log(`  3. Edit the provider in ${relative(cwd, providerPath)} with your content source`);
   console.log(
     '  4. In your Astro layout, load <script src="/webmcp.js" defer></script> only when mcp.enabled is true',
   );

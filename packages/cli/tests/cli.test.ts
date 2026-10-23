@@ -449,3 +449,56 @@ describe('init transport scaffolds', () => {
     );
   });
 });
+
+describe('init authentication scaffolds', () => {
+  let dir: string;
+  let previousCwd: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'corsen-cli-auth-'));
+    previousCwd = process.cwd();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    process.chdir(previousCwd);
+    rmSync(dir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  async function scaffold(dependencies: Record<string, string>): Promise<void> {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies }));
+    process.chdir(dir);
+    await init();
+    process.chdir(previousCwd);
+  }
+
+  it('challenges a 401 and parses Bearer through the core helpers in both transports', async () => {
+    await scaffold({ express: '5.0.0' });
+    const express = readFileSync(join(dir, 'corsen-context.routes.mjs'), 'utf-8');
+    expect(express).toContain("res.set('WWW-Authenticate', apiKeyChallenge(apiKey !== undefined))");
+    expect(express).toContain('extractApiKey((name) => req.headers[name])');
+    expect(express).toContain('cc.getConfig().security.clientIpHeader');
+    expect(express).not.toContain("replace('Bearer '");
+
+    const config = readFileSync(join(dir, 'corsen-context.config.mjs'), 'utf-8');
+    expect(config).toContain("// clientIpHeader: 'x-forwarded-for',");
+
+    for (const name of [
+      'corsen-context.routes.mjs',
+      'corsen-context.config.mjs',
+      'corsen-context.config.d.mts',
+    ]) {
+      rmSync(join(dir, name));
+    }
+
+    await scaffold({ next: '16.0.0' });
+    const pages = readFileSync(join(dir, 'pages', 'api', 'mcp.ts'), 'utf-8');
+    expect(pages).toContain(
+      "res.setHeader('WWW-Authenticate', apiKeyChallenge(apiKey !== undefined))",
+    );
+    expect(pages).toContain('extractApiKey((name) => req.headers[name])');
+    expect(pages).toContain('cc.getConfig().security.clientIpHeader');
+    expect(pages).not.toContain("replace('Bearer '");
+  });
+});

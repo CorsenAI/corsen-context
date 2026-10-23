@@ -1,7 +1,27 @@
 import { z } from 'zod';
 
+/** Forwarding headers the rate limiter may key on once `trustProxy` is enabled. */
+export const CLIENT_IP_HEADERS = ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'] as const;
+export type ClientIpHeader = (typeof CLIENT_IP_HEADERS)[number];
+
+function isHttpUrlWithoutCredentials(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const corsenContextConfigSchema = z.object({
-  siteUrl: z.string().url(),
+  // The site origin is the same-origin anchor for every exposure check, so it
+  // must be an http(s) URL; any other scheme has a "null" origin that would
+  // silently reject every browser Origin and every provider URL.
+  siteUrl: z.string().url().refine(isHttpUrlWithoutCredentials, {
+    message: 'siteUrl must be an http(s) URL without embedded credentials',
+  }),
   siteName: z.string().optional(),
   description: z.string().optional(),
 
@@ -42,6 +62,11 @@ export const corsenContextConfigSchema = z.object({
       // Left false, the rate limiter keys on the socket address so spoofed
       // forwarding headers cannot each land in a fresh bucket.
       trustProxy: z.boolean().default(false),
+      // With trustProxy, the one forwarding header the proxy in front of this
+      // deployment overwrites. Left unset, the limiter consults CF-Connecting-IP,
+      // X-Real-IP and X-Forwarded-For in that order, which is only safe behind a
+      // proxy that rewrites all three.
+      clientIpHeader: z.enum(CLIENT_IP_HEADERS).optional(),
       // Deprecated compatibility input. MCP requires Implementation.version
       // in initialize results, so this value no longer suppresses it.
       exposeVersion: z.boolean().default(true),

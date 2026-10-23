@@ -456,3 +456,79 @@ describe('createSSEHandler', () => {
     expect(await res.text()).toBe('');
   });
 });
+
+describe('API key challenge and client identity', () => {
+  it('answers 401 with a WWW-Authenticate challenge', async () => {
+    const { POST } = createMCPHandler(
+      { siteUrl: 'https://example.com', security: { apiKey: 'secret' } },
+      provider,
+    );
+    const missing = await POST(
+      req({ jsonrpc: '2.0', method: 'tools/list', id: 1 }, protocolHeaders),
+    );
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get('WWW-Authenticate')).toBe('Bearer realm="corsen-context"');
+
+    const wrong = await POST(
+      req(
+        { jsonrpc: '2.0', method: 'tools/list', id: 2 },
+        { ...protocolHeaders, authorization: 'Bearer nope' },
+      ),
+    );
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get('WWW-Authenticate')).toBe(
+      'Bearer realm="corsen-context", error="invalid_token"',
+    );
+  });
+
+  it('accepts the Bearer scheme case-insensitively and ignores other schemes', async () => {
+    const { POST } = createMCPHandler(
+      { siteUrl: 'https://example.com', security: { apiKey: 'secret' } },
+      provider,
+    );
+    const lower = await POST(
+      req(
+        { jsonrpc: '2.0', method: 'tools/list', id: 1 },
+        { ...protocolHeaders, authorization: 'bearer secret' },
+      ),
+    );
+    expect(lower.status).toBe(200);
+    const basic = await POST(
+      req(
+        { jsonrpc: '2.0', method: 'tools/list', id: 2 },
+        { ...protocolHeaders, authorization: 'Basic secret' },
+      ),
+    );
+    expect(basic.status).toBe(401);
+  });
+
+  it('keys the limiter on the configured header only, so a spoofed CF-Connecting-IP cannot rotate buckets', async () => {
+    const { POST } = createMCPHandler(
+      {
+        siteUrl: 'https://example.com',
+        security: {
+          rateLimit: 2,
+          burstLimit: 100,
+          trustProxy: true,
+          clientIpHeader: 'x-forwarded-for',
+        },
+      },
+      provider,
+    );
+    const statuses: number[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const res = await POST(
+        req(
+          { jsonrpc: '2.0', method: 'ping', id: i },
+          {
+            ...protocolHeaders,
+            'x-forwarded-for': '203.0.113.9',
+            'cf-connecting-ip': `198.51.100.${i}`,
+          },
+        ),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses).toEqual([200, 200, 429]);
+  });
+});

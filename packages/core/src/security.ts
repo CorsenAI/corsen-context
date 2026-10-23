@@ -2,6 +2,7 @@ import { timingSafeEqual, createHash, createHmac, randomBytes } from 'node:crypt
 import dns from 'node:dns/promises';
 import { z } from 'zod';
 import type { RateLimitResult, JSONRPCRequest, RateLimitStore, ApiKeyRecord } from './types.js';
+import { CLIENT_IP_HEADERS, type ClientIpHeader } from './config.js';
 
 // --- SSRF Protection (DNS-aware) ---
 
@@ -406,26 +407,30 @@ export class RateLimiter {
  * proxy that sets them. Otherwise they are attacker-controllable: a client can
  * send a fresh spoofed value per request and land in a new rate-limit bucket
  * every time, defeating the limiter. When untrusted, we key on the socket IP.
+ *
+ * `clientIpHeader` names the one header the trusted proxy overwrites; only that
+ * header is consulted. Without it the three headers are tried in the order
+ * above, which a client can exploit behind any proxy that forwards a header it
+ * does not itself set (a spoofed CF-Connecting-IP behind nginx or Vercel).
  */
 export function extractClientIp(
   headers: Record<string, string | string[] | undefined>,
   socketIp?: string,
   trustProxy: boolean = false,
+  clientIpHeader?: ClientIpHeader,
 ): string {
   if (trustProxy) {
-    // Cloudflare
-    const cfIp = headers['cf-connecting-ip'];
-    if (typeof cfIp === 'string' && cfIp) return cfIp.trim();
-
-    // X-Real-IP (nginx)
-    const realIp = headers['x-real-ip'];
-    if (typeof realIp === 'string' && realIp) return realIp.trim();
-
-    // X-Forwarded-For (first = original client, set by the trusted proxy)
-    const xff = headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff) {
-      const first = xff.split(',')[0]?.trim();
-      if (first) return first;
+    const candidates: readonly ClientIpHeader[] = clientIpHeader
+      ? [clientIpHeader]
+      : CLIENT_IP_HEADERS;
+    for (const name of candidates) {
+      const raw = headers[name];
+      const value = Array.isArray(raw) ? raw[0] : raw;
+      if (typeof value !== 'string') continue;
+      // X-Forwarded-For: first entry = original client, as written by a proxy
+      // that overwrites the header.
+      const candidate = (name === 'x-forwarded-for' ? value.split(',')[0] : value)?.trim();
+      if (candidate) return candidate;
     }
   }
 
@@ -554,7 +559,48 @@ export function validateOrigin(origin: string | undefined, allowed: string[]): b
 export function validateHost(hostHeader: string | undefined, expectedHost: string): boolean {
   if (!hostHeader) return false;
   const expected = new URL(expectedHost).host;
-  return hostHeader === expected;
+  // Host names compare case-insensitively (RFC 9110 §4.2.3).
+  return hostHeader.trim().toLowerCase() === expected.toLowerCase();
+}
+
+// --- API key transport ---
+
+/** Realm advertised in the `WWW-Authenticate` challenge of a 401 response. */
+export const API_KEY_REALM = 'corsen-context';
+
+/**
+ * Credential carried by `Authorization: Bearer <key>`. The scheme name is
+ * case-insensitive (RFC 9110 §11.1); any other scheme yields no key.
+ */
+export function parseBearerToken(authorization: string | null | undefined): string | undefined {
+  if (!authorization) return undefined;
+  const match = /^\s*bearer\s+(\S+)\s*$/i.exec(authorization);
+  return match ? match[1] : undefined;
+}
+
+/**
+ * API key from `X-MCP-Key`, then from `Authorization: Bearer`. The getter is
+ * called with lowercase header names, so both Fetch `Headers.get` and Node's
+ * `IncomingHttpHeaders` fit.
+ */
+export function extractApiKey(
+  getHeader: (name: string) => string | string[] | null | undefined,
+): string | undefined {
+  const first = (value: string | string[] | null | undefined) =>
+    (Array.isArray(value) ? value[0] : value) || undefined;
+  return first(getHeader('x-mcp-key')) || parseBearerToken(first(getHeader('authorization')));
+}
+
+/**
+ * `WWW-Authenticate` challenge for a 401 response, which RFC 9110 §15.5.2
+ * requires. `error="invalid_token"` is added only when a credential was
+ * presented (RFC 6750 §3.1); a request without credentials gets the bare
+ * challenge.
+ */
+export function apiKeyChallenge(credentialPresented: boolean): string {
+  return credentialPresented
+    ? `Bearer realm="${API_KEY_REALM}", error="invalid_token"`
+    : `Bearer realm="${API_KEY_REALM}"`;
 }
 
 // --- API Key Validation ---

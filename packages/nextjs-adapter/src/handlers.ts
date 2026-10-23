@@ -1,10 +1,15 @@
 import {
+  CLIENT_IP_HEADERS,
   CorsenContext,
   MCP_PROTOCOL_VERSION,
   MAX_BODY_SIZE,
   SECURITY_HEADERS,
+  apiKeyChallenge,
+  extractApiKey,
+  extractClientIp,
   generateWebMCPScript,
   toWebMCPTools,
+  type ClientIpHeader,
   type CorsenContextConfig,
   type ContentProvider,
   type CacheDriver,
@@ -80,36 +85,35 @@ async function readBoundedText(request: Request): Promise<string | null> {
   return new TextDecoder().decode(merged);
 }
 
-function getClientIp(request: Request, trustProxy: boolean): string {
+function getClientIp(request: Request, trustProxy: boolean, clientIpHeader?: ClientIpHeader) {
   // Forwarding headers are only trustworthy behind a reverse proxy that sets
   // them. When untrusted, they are attacker-controllable and would let a client
-  // land in a fresh rate-limit bucket per request — so we ignore them.
-  if (trustProxy) {
-    const cfIp = request.headers.get('cf-connecting-ip');
-    if (cfIp) return cfIp.trim();
-
-    const realIp = request.headers.get('x-real-ip');
-    if (realIp) return realIp.trim();
-
-    const xff = request.headers.get('x-forwarded-for');
-    if (xff) {
-      const first = xff.split(',')[0]?.trim();
-      if (first) return first;
-    }
-  }
-
-  // Web `Request` exposes no socket address. A global fallback bucket is
-  // deliberately fail-closed: attacker-controlled headers cannot rotate it.
-  // Production deployments should use a trusted edge proxy and enable
-  // security.trustProxy so legitimate clients receive per-IP buckets.
-  return 'unknown';
+  // land in a fresh rate-limit bucket per request — so they are ignored.
+  //
+  // Web `Request` exposes no socket address, so without a trusted header every
+  // client shares one fail-closed bucket and the limit caps the whole endpoint.
+  // Production deployments behind an edge proxy should enable
+  // security.trustProxy and name the header that proxy overwrites in
+  // security.clientIpHeader so legitimate clients receive per-IP buckets.
+  const headers = Object.fromEntries(
+    CLIENT_IP_HEADERS.map((name) => [name, request.headers.get(name) ?? undefined]),
+  );
+  return extractClientIp(headers, undefined, trustProxy, clientIpHeader);
 }
 
 function getApiKey(request: Request): string | undefined {
-  return (
-    request.headers.get('x-mcp-key') ||
-    request.headers.get('authorization')?.replace('Bearer ', '') ||
-    undefined
+  return extractApiKey((name) => request.headers.get(name));
+}
+
+function unauthorized(headers: Headers, apiKey: string | undefined): Response {
+  headers.set('WWW-Authenticate', apiKeyChallenge(apiKey !== undefined));
+  return new Response(
+    JSON.stringify({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Unauthorized' },
+      id: null,
+    }),
+    { status: 401, headers },
   );
 }
 
@@ -158,7 +162,6 @@ export function createMCPHandler(
   POST: (request: Request) => Promise<Response>;
   OPTIONS: (request: Request) => Promise<Response>;
 } {
-  const trustProxy = config.security?.trustProxy ?? false;
   const getInstance = createInstanceFactory(config, provider, options?.cache);
 
   function createServer(instance: CorsenContext) {
@@ -173,6 +176,7 @@ export function createMCPHandler(
     if (!instance.getConfig().mcp.enabled) {
       return mcpNotFound();
     }
+    const { trustProxy, clientIpHeader } = instance.getConfig().security;
     const server = createServer(instance);
 
     // Security headers
@@ -236,7 +240,7 @@ export function createMCPHandler(
     }
 
     // Extract client identity
-    const clientIp = getClientIp(request, trustProxy);
+    const clientIp = getClientIp(request, trustProxy, clientIpHeader);
     const apiKey = getApiKey(request);
 
     // Rate limit FIRST (before auth) so unauthenticated clients cannot
@@ -258,14 +262,7 @@ export function createMCPHandler(
 
     // Auth check
     if (!server.checkAuth(apiKey)) {
-      return new Response(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          error: { code: -32000, message: 'Unauthorized' },
-          id: null,
-        }),
-        { status: 401, headers },
-      );
+      return unauthorized(headers, apiKey);
     }
 
     // Enforce the body-size cap on actual bytes read (not a spoofable
@@ -395,7 +392,6 @@ export function createSSEHandler(
   provider?: ContentProvider,
   options?: HandlerOptions,
 ) {
-  const trustProxy = config.security?.trustProxy ?? false;
   // A no-op provider is enough to build a server for auth + rate-limit gating
   // when the caller only wants the discovery stream.
   const gateProvider: ContentProvider = provider ?? {
@@ -429,7 +425,8 @@ export function createSSEHandler(
       return new Response('invalid origin', { status: 403, headers: { ...SECURITY_HEADERS } });
     }
     const apiKey = getApiKey(request);
-    const clientIp = getClientIp(request, trustProxy);
+    const { trustProxy, clientIpHeader } = instance.getConfig().security;
+    const clientIp = getClientIp(request, trustProxy, clientIpHeader);
 
     const rl = await server.checkRateLimit(clientIp, apiKey);
     if (!rl.allowed) {
@@ -439,7 +436,10 @@ export function createSSEHandler(
       });
     }
     if (!server.checkAuth(apiKey)) {
-      return new Response('unauthorized', { status: 401, headers: { ...SECURITY_HEADERS } });
+      return new Response('unauthorized', {
+        status: 401,
+        headers: { ...SECURITY_HEADERS, 'WWW-Authenticate': apiKeyChallenge(apiKey !== undefined) },
+      });
     }
 
     const headers = new Headers({

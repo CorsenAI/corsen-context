@@ -1,10 +1,15 @@
 import {
+  CLIENT_IP_HEADERS,
   CorsenContext,
   MCP_PROTOCOL_VERSION,
   MAX_BODY_SIZE,
   SECURITY_HEADERS,
+  apiKeyChallenge,
+  extractApiKey,
+  extractClientIp,
   generateWebMCPScript,
   toWebMCPTools,
+  type ClientIpHeader,
   type CorsenContextConfig,
   type ContentProvider,
   type CacheDriver,
@@ -58,28 +63,32 @@ function isJsonRpcResponse(body: unknown): boolean {
   );
 }
 
-function getClientIp(context: AstroContext, trustProxy: boolean): string {
-  if (trustProxy) {
-    const cfIp = context.request.headers.get('cf-connecting-ip');
-    if (cfIp) return cfIp.trim();
-    const realIp = context.request.headers.get('x-real-ip');
-    if (realIp) return realIp.trim();
-    const xff = context.request.headers.get('x-forwarded-for');
-    if (xff) {
-      const first = xff.split(',')[0]?.trim();
-      if (first) return first;
-    }
+function socketAddress(context: AstroContext): string | undefined {
+  // Astro throws (ClientAddressNotAvailable, PrerenderClientAddressNotAvailable)
+  // when the adapter or a prerendered route cannot supply the peer address. The
+  // limiter then falls back to its shared bucket instead of failing the request.
+  try {
+    return context.clientAddress || undefined;
+  } catch {
+    return undefined;
   }
-  // Astro resolves the real socket address for us.
-  return context.clientAddress || 'unknown';
+}
+
+function getClientIp(
+  context: AstroContext,
+  trustProxy: boolean,
+  clientIpHeader?: ClientIpHeader,
+): string {
+  // Astro resolves the real socket address; forwarding headers are honoured
+  // only behind a trusted proxy, and only the configured one when named.
+  const headers = Object.fromEntries(
+    CLIENT_IP_HEADERS.map((name) => [name, context.request.headers.get(name) ?? undefined]),
+  );
+  return extractClientIp(headers, socketAddress(context), trustProxy, clientIpHeader);
 }
 
 function getApiKey(request: Request): string | undefined {
-  return (
-    request.headers.get('x-mcp-key') ||
-    request.headers.get('authorization')?.replace('Bearer ', '') ||
-    undefined
-  );
+  return extractApiKey((name) => request.headers.get(name));
 }
 
 function hasUnsupportedJsonEncoding(request: Request): boolean {
@@ -147,7 +156,6 @@ export function createMCPHandler(
   POST: (context: AstroContext) => Promise<Response>;
   OPTIONS: (context: AstroContext) => Promise<Response>;
 } {
-  const trustProxy = config.security?.trustProxy ?? false;
   const getInstance = createInstanceFactory(config, provider, options?.cache);
 
   function createServer(instance: CorsenContext) {
@@ -163,6 +171,7 @@ export function createMCPHandler(
     if (!instance.getConfig().mcp.enabled) {
       return mcpNotFound();
     }
+    const { trustProxy, clientIpHeader } = instance.getConfig().security;
     const server = createServer(instance);
 
     const headers = new Headers();
@@ -223,7 +232,7 @@ export function createMCPHandler(
       );
     }
 
-    const clientIp = getClientIp(context, trustProxy);
+    const clientIp = getClientIp(context, trustProxy, clientIpHeader);
     const apiKey = getApiKey(request);
 
     // Rate limit before auth so unauthenticated clients cannot brute-force the
@@ -244,6 +253,7 @@ export function createMCPHandler(
     }
 
     if (!server.checkAuth(apiKey)) {
+      headers.set('WWW-Authenticate', apiKeyChallenge(apiKey !== undefined));
       return new Response(
         JSON.stringify({
           jsonrpc: '2.0',

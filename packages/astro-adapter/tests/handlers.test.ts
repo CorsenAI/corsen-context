@@ -361,3 +361,71 @@ describe('Astro createLlmsTxtHandler', () => {
     expect(await enabled.text()).toContain('Full Content');
   });
 });
+
+describe('Astro client identity and API key challenge', () => {
+  it('keeps serving when clientAddress throws, as Astro does without adapter support', async () => {
+    const { POST } = createMCPHandler({ siteUrl: 'https://example.com' }, provider);
+    const context = {
+      request: new Request('https://example.com/v1/mcp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...protocolHeaders },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'ping', id: 1 }),
+      }),
+      get clientAddress(): string {
+        throw new Error('ClientAddressNotAvailable');
+      },
+    };
+    const res = await POST(context);
+    expect(res.status).toBe(200);
+  });
+
+  it('answers 401 with a WWW-Authenticate challenge', async () => {
+    const { POST } = createMCPHandler(
+      { siteUrl: 'https://example.com', security: { apiKey: 'secret' } },
+      provider,
+    );
+    const missing = await POST(
+      ctx({ jsonrpc: '2.0', method: 'tools/list', id: 1 }, protocolHeaders),
+    );
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get('WWW-Authenticate')).toBe('Bearer realm="corsen-context"');
+
+    const wrong = await POST(
+      ctx(
+        { jsonrpc: '2.0', method: 'tools/list', id: 2 },
+        { ...protocolHeaders, authorization: 'bearer nope' },
+      ),
+    );
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get('WWW-Authenticate')).toBe(
+      'Bearer realm="corsen-context", error="invalid_token"',
+    );
+  });
+
+  it('keys the limiter on the configured header only when trustProxy names it', async () => {
+    const { POST } = createMCPHandler(
+      {
+        siteUrl: 'https://example.com',
+        security: {
+          rateLimit: 2,
+          burstLimit: 100,
+          trustProxy: true,
+          clientIpHeader: 'x-real-ip',
+        },
+      },
+      provider,
+    );
+    const statuses: number[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const res = await POST(
+        ctx(
+          { jsonrpc: '2.0', method: 'ping', id: i },
+          { ...protocolHeaders, 'x-real-ip': '203.0.113.9', 'cf-connecting-ip': `198.51.100.${i}` },
+          `192.0.2.${i}`,
+        ),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses).toEqual([200, 200, 429]);
+  });
+});

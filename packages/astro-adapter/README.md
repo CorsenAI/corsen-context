@@ -1,6 +1,6 @@
 # @corsenai/corsen-context-astro
 
-Astro adapter for **[Corsen Context](https://github.com/CorsenAI/corsen-context)** — drop-in API route handlers for the MCP endpoint and `llms.txt`, with built-in auth, rate limiting, CORS, and security headers. Uses Astro's `clientAddress` for accurate rate limiting.
+Astro adapter for **[Corsen Context](https://github.com/CorsenAI/corsen-context)** — drop-in API route handlers for the MCP endpoint and `llms.txt`, with built-in auth, rate limiting, CORS, and security headers. Uses Astro's `clientAddress` for accurate rate limiting, and falls back to a shared bucket when the adapter cannot supply it.
 
 > Requires Astro SSR (`output: 'server'` or `'hybrid'`).
 
@@ -85,6 +85,8 @@ reads at most 100 KiB from the actual body. Malformed JSON and oversized bodies
 produce bounded JSON errors. `GET` returns `405`, a valid `OPTIONS` returns
 `204`, and accepted notifications return an empty `202`; SSE and resumable
 sessions are not implemented.
+
+Behind a reverse proxy, set `security: { trustProxy: true, clientIpHeader: '<header>' }` with the one header that proxy overwrites (`x-forwarded-for`, `x-real-ip` or `cf-connecting-ip`); only that header is read. A rejected API key answers `401` with a `WWW-Authenticate: Bearer` challenge.
 
 For production (multi-instance), pass a Redis cache and rate-limit store via the third `options` argument (`{ cache, rateLimitStore, logger }`).
 

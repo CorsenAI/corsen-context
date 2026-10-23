@@ -73,6 +73,16 @@ produce bounded JSON errors. `GET` returns `405`, a valid `OPTIONS` returns
 `204`, and accepted notifications return an empty `202`; SSE and resumable
 sessions are not implemented on the MCP endpoint.
 
+**Client identity.** A Web `Request` carries no socket address, so with the
+default `trustProxy: false` every client shares one rate-limit bucket: the
+limit then caps the whole endpoint rather than each client. Behind Vercel or
+another edge that overwrites `X-Forwarded-For`, set
+`security: { trustProxy: true, clientIpHeader: 'x-forwarded-for' }`; behind
+Cloudflare use `'cf-connecting-ip'`. Only the named header is read, so a
+client-supplied `CF-Connecting-IP` cannot open a new bucket behind a proxy that
+does not set it. A rejected API key answers `401` with a `WWW-Authenticate:
+Bearer` challenge; the `Bearer` scheme is matched case-insensitively.
+
 For production (multi-instance / Vercel), install the Upstash SDK and inject
 the same client into both stores:
 
