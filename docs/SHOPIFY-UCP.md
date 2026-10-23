@@ -49,14 +49,9 @@ require `meta.ucp-agent.profile`, pointing to the calling agent's hosted UCP
 profile. Some stores can restrict access, so a successful result must be
 verified against the intended store rather than inferred from discovery alone.
 
-## Corsen verification kit
+## Corsen and Shopify
 
-The standalone
-[`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native)
-repository provides a small command-line verifier and a browser checklist for
-store owners. It installs no app, requests no Admin API scopes, and stores no
-shop credentials.
-
+Corsen publishes no Shopify app and no Shopify verification kit.
 A future Corsen Shopify app would require a separate security and distribution
 review. It must not be represented by an OAuth URL or a documentation-only
 claim.
