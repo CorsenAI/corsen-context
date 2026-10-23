@@ -5,6 +5,7 @@
 ### Owner-controlled public content for MCP and WebMCP
 
 [![CI](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml/badge.svg)](https://github.com/CorsenAI/corsen-context/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/%40corsenai%2Fcorsen-context)](https://www.npmjs.com/package/@corsenai/corsen-context)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-4ade80)](https://modelcontextprotocol.io)
 [![WebMCP](https://img.shields.io/badge/WebMCP-draft-8b5cf6)](https://webmachinelearning.github.io/webmcp/)
@@ -114,8 +115,8 @@ all the same kind of product. A public target is current only when
 | Stack              | Integration delivered to the site owner                            |
 | ------------------ | ------------------------------------------------------------------ |
 | WordPress          | Native PHP plugin                                                  |
-| Next.js App Router | Published npm 2.0.1 adapter plus complete example                  |
-| Astro              | Published npm 2.0.1 adapter plus complete SSR example              |
+| Next.js App Router | Published npm adapter plus complete example                        |
+| Astro              | Published npm adapter plus complete SSR example                    |
 | Express            | Framework-agnostic core plus reference server                      |
 | Static HTML        | Build-time assets plus one same-origin Node endpoint               |
 | Ghost              | Deployable read-only Node bridge over the Content API              |
@@ -162,7 +163,8 @@ the Netlify deployment is `examples/static-html` with its `netlify.toml`.
 
 ### Next.js App Router
 
-The packages are published on npm at `2.0.1`:
+The packages are published on npm under the `@corsenai` scope; the badge above
+shows the current release:
 
 ```bash
 npm install @corsenai/corsen-context @corsenai/corsen-context-nextjs

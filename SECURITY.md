@@ -57,9 +57,8 @@ The core cannot recover permission information that the provider omits.
 ### Tool and JSON-RPC validation
 
 The TypeScript and WordPress runtimes validate the JSON-RPC envelope and tool
-arguments before execution. The npm 2.0.1 and WordPress 1.5.16 source candidates reject
-unknown tool properties, wrong scalar types, fractional integers, and values
-outside the manifest's bounds. Input-schema and business failures return an MCP
+arguments before execution. Both reject unknown tool properties, wrong scalar
+types, fractional integers, and values outside the manifest's bounds. Input-schema and business failures return an MCP
 tool result with `isError: true`; JSON-RPC `-32602` is reserved for a malformed
 call envelope such as a non-object `arguments` member.
 

@@ -15,7 +15,7 @@ npm ci
 npm start
 ```
 
-The lockfile installs the public `@corsenai/corsen-context` 2.0.1 release.
+The lockfile installs the public `@corsenai/corsen-context` 2.0.2 release.
 The local default is `http://localhost:3000`. For deployment, set `SITE_URL`
 to the site's canonical public origin before starting the service. Replace the
 sample `provider` in `server.js` with your own public CMS/database adapter.

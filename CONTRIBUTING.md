@@ -19,8 +19,9 @@ welcome.
 
 Prerequisites:
 
-- Node.js 22.13 or newer;
-- pnpm 11.24 or newer; and
+- Node.js 22.13 or newer (the packages run on 22.12 or newer; the release
+  workflow runs on Node 24 and checks for Node 22.14 and npm 11.5.1 or newer);
+- pnpm 11.24 or newer, as pinned by `packageManager`; and
 - PHP 8.0 plus Composer for the WordPress suite.
 
 ```bash
