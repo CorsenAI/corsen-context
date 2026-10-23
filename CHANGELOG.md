@@ -1,5 +1,15 @@
 # Changelog
 
+## Repository scope - 2026-10-23
+
+- The repository now hosts the WordPress plugin only. The four npm packages
+  (`@corsenai/corsen-context`, `-nextjs`, `-astro`, `-cli`), the reference
+  integrations for other stacks, the demo tooling, and the challenge submission
+  material were retired; their history stays in git.
+- CI covers the plugin alone: PHP 8.0 to 8.5, WordPress integration tests up to
+  7.1.3, a reproducible archive build, and the WordPress.org Plugin Check on the
+  shipped files.
+
 ## npm packages [2.0.2] - Candidate - 2026-10-23
 
 - MCP `tools/list` now carries a `title` and MCP `ToolAnnotations` for every

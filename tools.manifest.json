@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Language-neutral contract for the tools Corsen Context exposes to compatible agents. This file describes the contract only - never the implementation. Every runtime (TypeScript core, PHP WordPress plugin) implements these tools independently and is mechanically checked against this manifest. The callable interfaces are MCP over HTTP (JSON-RPC 2.0) and WebMCP (document.modelContext); llms.txt is a separate discovery and publication surface.",
+  "description": "Contract for the tools the Corsen Context WordPress plugin exposes to compatible agents. This file describes the contract only - never the implementation; the plugin is mechanically checked against it. The callable interfaces are MCP over HTTP (JSON-RPC 2.0) and WebMCP (document.modelContext); llms.txt is a separate discovery and publication surface.",
   "annotationsReference": "https://webmachinelearning.github.io/webmcp/",
   "mcpAnnotationsReference": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
   "tools": [
@@ -25,7 +25,9 @@
             "description": "Maximum number of results to return (1-50, default 10)."
           }
         },
-        "required": ["query"],
+        "required": [
+          "query"
+        ],
         "additionalProperties": false
       },
       "annotations": {
@@ -53,7 +55,9 @@
             "description": "The page's absolute URL on this site, exactly as returned by search_site, list_content or get_sitemap."
           }
         },
-        "required": ["uri"],
+        "required": [
+          "uri"
+        ],
         "additionalProperties": false
       },
       "annotations": {

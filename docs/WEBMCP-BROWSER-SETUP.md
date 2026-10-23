@@ -63,24 +63,17 @@ API credential.
   context. Chrome can expose WebMCP to same-origin frames and to cross-origin
   frames explicitly delegated with `allow="tools"`, but this bridge refuses all
   framed registration.
-- Scripts that populate framework-owned placeholders must not mutate
-  server-rendered DOM before hydration; this is a framework integration rule,
-  not a general WebMCP registration requirement.
 - Resolve the MCP endpoint against the current page and reject invalid,
   credential-bearing, non-HTTP(S), cross-origin, or framed registrations.
 
 ## What a valid receipt looks like
 
-On the nine non-WordPress targets in the ten-stack parity set, a valid receipt
-shows exactly the four shared tools: `search_site`, `get_page_content`,
-`list_content`, and `get_sitemap`. The additional Netlify deployment exposes
-the same four tools but is outside the `10/10` manifest-hash claim.
-
-On the WordPress flagship, a valid receipt shows those four core tools plus
-`get_product`, `get_sections`, `get_structured_data`, `check_agent_access`, and
-`request_expert_call`. Every tool except `request_expert_call` is read-only;
-that tool is explicitly non-read-only and must return `human_only` before any
-business side effect.
+With the default settings, a valid receipt shows exactly the four core tools:
+`search_site`, `get_page_content`, `list_content`, and `get_sitemap`. With the
+extensions enabled, it also shows `get_product`, `get_sections`,
+`get_structured_data`, `check_agent_access`, and `request_expert_call`. Every
+tool except `request_expert_call` is read-only; that tool is explicitly
+non-read-only and must return `human_only` before any business side effect.
 
 For either shape, record:
 
