@@ -1017,7 +1017,7 @@ ${inner}
     'Next.js': 'https://github.com/CorsenAI/corsen-context/tree/main/examples/nextjs-app-router',
     Astro: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/astro-basic',
     'Static HTML': 'https://github.com/CorsenAI/corsen-context/tree/main/examples/static-html',
-    Netlify: 'https://github.com/CorsenAI/corsen-context-netlify',
+    Netlify: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/static-html',
     Ghost: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/ghost-cms',
     Strapi: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/strapi-cms',
     Directus: 'https://github.com/CorsenAI/corsen-context/tree/main/examples/directus-cms',
