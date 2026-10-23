@@ -127,24 +127,24 @@ extensions. They can act as a frontend or run as a same-origin sidecar. See
 [`docs/CMS-BRIDGE-DEPLOYMENT.md`](docs/CMS-BRIDGE-DEPLOYMENT.md) before using
 one on an existing site.
 
-Shopify is deliberately outside Corsen Context's ten-stack claim. The standalone
-[`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native)
-verification kit documents and checks Shopify's own in-page WebMCP, Storefront
-MCP, and UCP surfaces without pretending to be a Shopify app or a Corsen
-integration. Confirm supported storefront runtimes against Shopify's current
-documentation. See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md).
+Shopify is deliberately outside Corsen Context's ten-stack claim.
+[`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md) documents Shopify's own in-page
+WebMCP, Storefront MCP, and UCP surfaces without presenting them as a Shopify
+app or a Corsen integration. Confirm supported storefront runtimes against
+Shopify's current documentation.
 
 ### Standalone integrations
 
 Every demonstrated stack is a self-contained example in this repository:
 clone it, `cd` into the example folder, and run `npm ci` to install the
-published packages. WordPress and the Shopify verifier keep their own
-repositories; the Netlify deployment is `examples/static-html` with its
-`netlify.toml`.
+published packages. The WordPress plugin lives in
+[`packages/wordpress-plugin/corsen-context`](packages/wordpress-plugin/corsen-context)
+and ships through [WordPress.org](https://wordpress.org/plugins/corsen-context/);
+the Netlify deployment is `examples/static-html` with its `netlify.toml`.
 
 | Stack       | Source |
 | ----------- | ------ |
-| WordPress   | [`corsen-context-wordpress`](https://github.com/CorsenAI/corsen-context-wordpress) |
+| WordPress   | [`packages/wordpress-plugin/corsen-context`](packages/wordpress-plugin/corsen-context) · [WordPress.org](https://wordpress.org/plugins/corsen-context/) |
 | Next.js     | [`examples/nextjs-app-router`](examples/nextjs-app-router) |
 | Astro       | [`examples/astro-basic`](examples/astro-basic) |
 | Express     | [`examples/express-basic`](examples/express-basic) |
@@ -155,7 +155,6 @@ repositories; the Netlify deployment is `examples/static-html` with its
 | Directus    | [`examples/directus-cms`](examples/directus-cms) |
 | Wagtail     | [`examples/wagtail-cms`](examples/wagtail-cms) |
 | MediaWiki   | [`examples/mediawiki-cms`](examples/mediawiki-cms) |
-| Shopify native verifier | [`corsen-context-shopify-native`](https://github.com/CorsenAI/corsen-context-shopify-native) |
 
 ## Quick start
 
