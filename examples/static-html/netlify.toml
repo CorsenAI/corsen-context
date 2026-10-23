@@ -5,7 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "22"
-  CORSEN_CONTEXT_REPOSITORY_URL = "https://github.com/CorsenAI/corsen-context-netlify"
+  CORSEN_CONTEXT_REPOSITORY_URL = "https://github.com/CorsenAI/corsen-context/tree/main/examples/static-html"
   CORSEN_CONTEXT_LLMS_FULL_TXT_ENABLED = "false"
 
 [functions]

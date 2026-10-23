@@ -138,8 +138,9 @@ documentation. See [`docs/SHOPIFY-UCP.md`](docs/SHOPIFY-UCP.md).
 
 Every demonstrated stack is a self-contained example in this repository:
 clone it, `cd` into the example folder, and run `npm ci` to install the
-published packages. WordPress, the Netlify one-click demo, and the Shopify
-verifier keep their own repositories.
+published packages. WordPress and the Shopify verifier keep their own
+repositories; the Netlify deployment is `examples/static-html` with its
+`netlify.toml`.
 
 | Stack       | Source |
 | ----------- | ------ |
@@ -148,7 +149,7 @@ verifier keep their own repositories.
 | Astro       | [`examples/astro-basic`](examples/astro-basic) |
 | Express     | [`examples/express-basic`](examples/express-basic) |
 | Static HTML | [`examples/static-html`](examples/static-html) |
-| Netlify     | [`corsen-context-netlify`](https://github.com/CorsenAI/corsen-context-netlify) |
+| Netlify     | [`examples/static-html`](examples/static-html) (`netlify.toml`) |
 | Ghost       | [`examples/ghost-cms`](examples/ghost-cms) |
 | Strapi      | [`examples/strapi-cms`](examples/strapi-cms) |
 | Directus    | [`examples/directus-cms`](examples/directus-cms) |

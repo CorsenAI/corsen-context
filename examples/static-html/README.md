@@ -11,7 +11,7 @@ things from Corsen Context:
    `/webmcp.js`, and `/v1/mcp` work from one origin without hidden proxy setup.
 
 [Static/Node source](https://github.com/CorsenAI/corsen-context/tree/main/examples/static-html) ·
-[Netlify one-click repository](https://github.com/CorsenAI/corsen-context-netlify) ·
+[Deploy to Netlify](https://app.netlify.com/start/deploy?repository=https://github.com/CorsenAI/corsen-context&create_from_path=examples/static-html) ·
 [Static live demo](https://html-webmcp.corsen.ai) ·
 [Netlify live demo](https://corsen-context-demo.netlify.app)
 
@@ -83,7 +83,7 @@ or authenticated content.
 One click deploys this exact example — static site plus a serverless
 `POST /v1/mcp` function — to your own Netlify account:
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/CorsenAI/corsen-context-netlify)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/CorsenAI/corsen-context&create_from_path=examples/static-html)
 
 The `netlify.toml` here sets `publish = "public"` and `functions directory =
 "netlify/functions"`. Netlify bundles `netlify/functions/mcp.mjs` (a translation
