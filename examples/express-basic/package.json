@@ -7,7 +7,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@corsenai/corsen-context": "^2.0.1",
+    "@corsenai/corsen-context": "^2.0.2",
     "express": "^5.0.0"
   },
   "overrides": {

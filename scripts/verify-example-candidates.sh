@@ -253,7 +253,7 @@ smoke_example() {
   (
     cd "$example_dir"
     exec env \
-      "${upstream_environment[@]}" \
+      ${upstream_environment[@]+"${upstream_environment[@]}"} \
       HOST=127.0.0.1 \
       PORT="$port" \
       SITE_URL="$base_url" \
@@ -277,7 +277,7 @@ smoke_example() {
   (
     cd "$example_dir"
     exec env \
-      "${upstream_environment[@]}" \
+      ${upstream_environment[@]+"${upstream_environment[@]}"} \
       HOST=127.0.0.1 \
       PORT="$port" \
       SITE_URL="$base_url" \
@@ -298,7 +298,7 @@ smoke_example() {
   (
     cd "$example_dir"
     exec env \
-      "${upstream_environment[@]}" \
+      ${upstream_environment[@]+"${upstream_environment[@]}"} \
       HOST=127.0.0.1 \
       PORT="$port" \
       SITE_URL="$base_url" \

@@ -1,11 +1,21 @@
+# Security updates only. Version-update pull requests stay off for the
+# package manifests (open-pull-requests-limit: 0); Dependabot security updates
+# are controlled from Settings > Advanced Security. GitHub Actions keep weekly
+# version updates so pinned action SHAs are refreshed.
 version: 2
 updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'daily'
-    open-pull-requests-limit: 10
-    security-updates-only: true
+      interval: 'weekly'
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: 'composer'
+    directory: '/packages/wordpress-plugin/corsen-context'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 0
+
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:

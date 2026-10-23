@@ -127,6 +127,9 @@ const rejectedOrigin = await fetch(endpoint, {
 });
 assert.equal(rejectedOrigin.status, 403, `${label}: cross-origin POST must return 403`);
 
+// A non-form media type: Astro 7.3.6+ answers 403 to form-like media types
+// (text/plain, form submissions) from its own CSRF guard before the adapter
+// runs, so text/plain would measure the framework, not the 415 gate.
 const rejectedContentType = await post(
   {
     jsonrpc: '2.0',
@@ -138,7 +141,7 @@ const rejectedContentType = await post(
       clientInfo: { name: 'candidate-example-smoke', version: '1.0.0' },
     },
   },
-  { 'Content-Type': 'text/plain' },
+  { 'Content-Type': 'application/xml' },
 );
 assert.equal(rejectedContentType.status, 415, `${label}: non-JSON media type must return 415`);
 const rejectedContentTypePayload = await rejectedContentType.json();

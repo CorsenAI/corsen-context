@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@astrojs/node": "^11.1.4",
-    "@corsenai/corsen-context": "^2.0.1",
-    "@corsenai/corsen-context-astro": "^2.0.1",
-    "astro": "^7.2.9"
+    "@corsenai/corsen-context": "^2.0.2",
+    "@corsenai/corsen-context-astro": "^2.0.2",
+    "astro": "~7.3.7"
   },
   "overrides": {
     "@corsenai/corsen-context": {
