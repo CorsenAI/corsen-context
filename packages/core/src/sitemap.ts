@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { SitemapEntry } from './types.js';
 import { safeFetch, isPrivateUrl } from './security.js';
+import { MAX_FETCH_BODY_BYTES, readBoundedText } from './http-body.js';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -20,8 +21,20 @@ interface SitemapXmlIndex {
   lastmod?: string;
 }
 
-/** XML bomb protection: hard cap on sitemap response body (5 MB). */
-const MAX_SITEMAP_SIZE = 5 * 1024 * 1024;
+/** XML bomb protection: hard cap on a sitemap response body (5 MiB). */
+const MAX_SITEMAP_SIZE = MAX_FETCH_BODY_BYTES;
+
+/**
+ * Upper bound on sitemap documents fetched by one parseSitemap() call, index
+ * included. `maxPages` alone does not bound the work: an index listing
+ * thousands of empty child sitemaps would otherwise cost one fetch each
+ * without ever filling the entry budget.
+ */
+export const MAX_SITEMAP_DOCUMENTS = 50;
+
+interface CrawlBudget {
+  documents: number;
+}
 
 export async function parseSitemap(
   sitemapUrl: string,
@@ -33,60 +46,9 @@ export async function parseSitemap(
 
   const entries: SitemapEntry[] = [];
   const seen = new Set<string>();
-  await fetchAndParseSitemap(sitemapUrl, entries, seen, maxPages, 0);
+  const budget: CrawlBudget = { documents: MAX_SITEMAP_DOCUMENTS };
+  await fetchAndParseSitemap(sitemapUrl, entries, seen, maxPages, 0, budget);
   return entries.slice(0, maxPages);
-}
-
-/**
- * Read a response body but abort once MAX_SITEMAP_SIZE bytes have been
- * consumed, so a chunked (Content-Length-less) response can't be buffered
- * unbounded. Returns null when the cap is exceeded.
- */
-async function readBounded(response: Response): Promise<string | null> {
-  const contentLength = response.headers?.get?.('content-length');
-  if (contentLength && parseInt(contentLength, 10) > MAX_SITEMAP_SIZE) {
-    return null;
-  }
-
-  const body = response.body;
-  if (!body || typeof body.getReader !== 'function') {
-    // No stream available (e.g. a mocked Response) — fall back to text() with a
-    // post-read length guard.
-    const text = await response.text();
-    return text.length > MAX_SITEMAP_SIZE ? null : text;
-  }
-
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        total += value.byteLength;
-        if (total > MAX_SITEMAP_SIZE) {
-          await reader.cancel();
-          return null;
-        }
-        chunks.push(value);
-      }
-    }
-  } catch {
-    return null;
-  }
-
-  return new TextDecoder().decode(concatChunks(chunks, total));
-}
-
-function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return out;
 }
 
 async function fetchAndParseSitemap(
@@ -95,8 +57,10 @@ async function fetchAndParseSitemap(
   seen: Set<string>,
   maxPages: number,
   depth: number,
+  budget: CrawlBudget,
 ): Promise<void> {
-  if (depth > 3 || entries.length >= maxPages) return;
+  if (depth > 3 || entries.length >= maxPages || budget.documents <= 0) return;
+  budget.documents -= 1;
 
   let response: Response;
   try {
@@ -110,7 +74,7 @@ async function fetchAndParseSitemap(
 
   if (!response.ok) return;
 
-  const xml = await readBounded(response);
+  const xml = await readBoundedText(response, MAX_SITEMAP_SIZE);
   if (xml === null) return;
   const parsed = parser.parse(xml);
 
@@ -121,9 +85,9 @@ async function fetchAndParseSitemap(
       : [parsed.sitemapindex.sitemap];
 
     for (const sm of sitemaps) {
-      if (entries.length >= maxPages) break;
+      if (entries.length >= maxPages || budget.documents <= 0) break;
       if (sm.loc) {
-        await fetchAndParseSitemap(sm.loc, entries, seen, maxPages, depth + 1);
+        await fetchAndParseSitemap(sm.loc, entries, seen, maxPages, depth + 1, budget);
       }
     }
     return;
@@ -167,7 +131,7 @@ export async function discoverSitemap(siteUrl: string): Promise<string | null> {
     const robotsUrl = `${base}/robots.txt`;
     const res = await safeFetch(robotsUrl, { timeout: 5000 });
     if (res.ok) {
-      const text = await res.text();
+      const text = (await readBoundedText(res)) ?? '';
       const match = text.match(/^Sitemap:\s*(.+)$/im);
       if (match?.[1]) {
         return match[1].trim();

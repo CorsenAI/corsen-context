@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseSitemap, discoverSitemap } from '../src/sitemap.js';
+import { parseSitemap, discoverSitemap, MAX_SITEMAP_DOCUMENTS } from '../src/sitemap.js';
 
 // Mock fetch for controlled testing
 const mockFetch = vi.fn();
@@ -48,6 +48,35 @@ describe('parseSitemap', () => {
 
   it('returns empty on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    const entries = await parseSitemap('https://example.com/sitemap.xml');
+    expect(entries).toHaveLength(0);
+  });
+
+  it('stops fetching after MAX_SITEMAP_DOCUMENTS documents, whatever maxPages allows', async () => {
+    const children = Array.from(
+      { length: MAX_SITEMAP_DOCUMENTS * 2 },
+      (_, i) => `<sitemap><loc>https://example.com/sitemap-${i}.xml</loc></sitemap>`,
+    ).join('');
+    const index = `<?xml version="1.0" encoding="UTF-8"?><sitemapindex>${children}</sitemapindex>`;
+    const empty = `<?xml version="1.0" encoding="UTF-8"?><urlset></urlset>`;
+    mockFetch.mockReset();
+    mockFetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      text: async () => (url.endsWith('/sitemap_index.xml') ? index : empty),
+    }));
+
+    const entries = await parseSitemap('https://example.com/sitemap_index.xml', 5000);
+    expect(entries).toHaveLength(0);
+    expect(mockFetch).toHaveBeenCalledTimes(MAX_SITEMAP_DOCUMENTS);
+    mockFetch.mockReset();
+  });
+
+  it('skips a sitemap document larger than the body budget', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-length': String(6 * 1024 * 1024) }),
+      text: async () => SITEMAP_XML,
+    });
     const entries = await parseSitemap('https://example.com/sitemap.xml');
     expect(entries).toHaveLength(0);
   });

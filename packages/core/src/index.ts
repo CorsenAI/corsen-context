@@ -120,7 +120,8 @@ export {
   MCP_TOOL_ANNOTATIONS,
   TOOL_TITLES,
 } from './tool-metadata.js';
-export { parseSitemap, discoverSitemap } from './sitemap.js';
+export { parseSitemap, discoverSitemap, MAX_SITEMAP_DOCUMENTS } from './sitemap.js';
+export { readBoundedText, MAX_FETCH_BODY_BYTES } from './http-body.js';
 export { htmlToMarkdown, extractMetadata } from './converter.js';
 export { MemoryCache } from './cache.js';
 export { RedisCache } from './redis-cache.js';

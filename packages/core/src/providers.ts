@@ -2,6 +2,7 @@ import type { ContentProvider, ContentListItem, PageContent, SearchResult } from
 import { safeFetch, isPrivateUrl } from './security.js';
 import { discoverSitemap, parseSitemap } from './sitemap.js';
 import { htmlToMarkdown, extractMetadata } from './converter.js';
+import { readBoundedText } from './http-body.js';
 
 /** A page for the in-memory provider — a PageContent plus an optional content type. */
 export interface InMemoryPage extends PageContent {
@@ -63,30 +64,30 @@ export function createInMemoryProvider(pages: InMemoryPage[]): ContentProvider {
 
 /**
  * Provider that fetches a live site's pages via its sitemap and converts each
- * page to clean markdown on demand. SSRF-safe (uses safeFetch + isPrivateUrl).
- * Search is unsupported (returns []) since there is no index to query.
+ * page to clean markdown on demand. SSRF-safe (uses safeFetch + isPrivateUrl),
+ * and every upstream body is read through the shared byte budget, so an
+ * oversized page is skipped rather than buffered. Search is unsupported
+ * (returns []) since there is no index to query.
  */
 export function createSitemapProvider(
   siteUrl: string,
   options?: { maxPages?: number },
 ): ContentProvider {
   const maxPages = options?.maxPages ?? 100;
-  let pagesCache: ContentListItem[] | null = null;
+  let pagesPromise: Promise<ContentListItem[]> | null = null;
 
-  async function loadPages(): Promise<ContentListItem[]> {
-    if (pagesCache) return pagesCache;
+  async function crawl(): Promise<ContentListItem[]> {
     const sitemapUrl = await discoverSitemap(siteUrl);
-    if (!sitemapUrl) {
-      pagesCache = [];
-      return pagesCache;
-    }
+    if (!sitemapUrl) return [];
     const entries = await parseSitemap(sitemapUrl, maxPages);
     const pages: ContentListItem[] = [];
     for (const entry of entries) {
       try {
         const res = await safeFetch(entry.url, { timeout: 10000 });
         if (!res.ok) continue;
-        const meta = extractMetadata(await res.text());
+        const html = await readBoundedText(res);
+        if (html === null) continue;
+        const meta = extractMetadata(html);
         pages.push({
           url: entry.url,
           title: meta.title || entry.url,
@@ -98,8 +99,20 @@ export function createSitemapProvider(
         continue;
       }
     }
-    pagesCache = pages;
     return pages;
+  }
+
+  function loadPages(): Promise<ContentListItem[]> {
+    // One crawl at a time: concurrent callers share the in-flight promise, so a
+    // burst of first requests costs one crawl, and a failed crawl is forgotten
+    // so the next call can retry instead of replaying the rejection.
+    if (!pagesPromise) {
+      pagesPromise = crawl().catch((error: unknown) => {
+        pagesPromise = null;
+        throw error;
+      });
+    }
+    return pagesPromise;
   }
 
   return {
@@ -112,7 +125,8 @@ export function createSitemapProvider(
       try {
         const res = await safeFetch(url, { timeout: 10000 });
         if (!res.ok) return null;
-        const html = await res.text();
+        const html = await readBoundedText(res);
+        if (html === null) return null;
         const meta = extractMetadata(html);
         return {
           url,

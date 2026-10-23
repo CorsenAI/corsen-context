@@ -5,67 +5,101 @@ import type { RateLimitResult, JSONRPCRequest, RateLimitStore, ApiKeyRecord } fr
 
 // --- SSRF Protection (DNS-aware) ---
 
+function parseIpv4(ip: string): number[] | null {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  const octets = parts.map((part) => (/^\d{1,3}$/.test(part) ? Number(part) : NaN));
+  return octets.every((octet) => Number.isInteger(octet) && octet <= 255) ? octets : null;
+}
+
+function isPrivateIpv4(octets: number[]): boolean {
+  const [a, b] = octets;
+  return (
+    a === 0 || // 0.0.0.0/8, "this" network
+    a === 10 || // 10.0.0.0/8
+    a === 127 || // loopback
+    (a === 169 && b === 254) || // link-local, including cloud metadata services
+    (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+    (a === 192 && b === 168) || // 192.168.0.0/16
+    (a === 100 && b >= 64 && b <= 127) || // 100.64.0.0/10, carrier-grade NAT
+    (a === 198 && (b === 18 || b === 19)) || // 198.18.0.0/15, benchmarking
+    a >= 224 // 224.0.0.0/4 multicast and 240.0.0.0/4 reserved, broadcast included
+  );
+}
+
 /**
- * Check if an IP address is private/internal.
- * Sync function — works on resolved IPs, not hostnames.
+ * Expand an IPv6 literal to its eight 16-bit groups. Accepts `::` compression
+ * and a trailing dotted quad (`::ffff:10.0.0.1`, `64:ff9b::10.0.0.1`).
+ */
+function parseIpv6(ip: string): number[] | null {
+  let text = ip;
+  const dotted = /^(.*:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(text);
+  if (dotted) {
+    const v4 = parseIpv4(dotted[2]);
+    if (!v4) return null;
+    const hi = ((v4[0] << 8) | v4[1]).toString(16);
+    const lo = ((v4[2] << 8) | v4[3]).toString(16);
+    text = `${dotted[1]}${hi}:${lo}`;
+  }
+
+  const halves = text.split('::');
+  if (halves.length > 2) return null;
+  const split = (part: string) => (part === '' ? [] : part.split(':'));
+  const head = split(halves[0]);
+  const tail = halves.length === 2 ? split(halves[1]) : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 2 ? missing < 0 : missing !== 0) return null;
+
+  const groups = [...head, ...Array<string>(missing).fill('0'), ...tail];
+  const values = groups.map((group) =>
+    /^[0-9a-f]{1,4}$/i.test(group) ? parseInt(group, 16) : NaN,
+  );
+  return values.length === 8 && values.every((value) => Number.isInteger(value)) ? values : null;
+}
+
+function isPrivateIpv6(groups: number[]): boolean {
+  const [g0, g1, g2, , , g5, g6, g7] = groups;
+  const zero = (from: number, to: number) => groups.slice(from, to).every((group) => group === 0);
+  const embedded = (hi: number, lo: number) => [hi >> 8, hi & 255, lo >> 8, lo & 255];
+
+  if (zero(0, 7) && (g7 === 0 || g7 === 1)) return true; // :: and ::1
+  if (zero(0, 5) && g5 === 0xffff) return isPrivateIpv4(embedded(g6, g7)); // ::ffff:a.b.c.d, IPv4-mapped
+  if (zero(0, 6)) return isPrivateIpv4(embedded(g6, g7)); // ::a.b.c.d, IPv4-compatible (deprecated)
+  // NAT64 well-known (64:ff9b::/96) and local-use (64:ff9b:1::/48) prefixes
+  // carry the IPv4 destination in the last 32 bits.
+  if (g0 === 0x64 && g1 === 0xff9b && (zero(2, 6) || g2 === 1)) {
+    return isPrivateIpv4(embedded(g6, g7));
+  }
+  if (g0 === 0x2002) return isPrivateIpv4(embedded(g1, g2)); // 6to4 embeds the IPv4 in bits 16-47
+  // Teredo (2001:0::/32) stores the client IPv4 inverted in the last 32 bits.
+  if (g0 === 0x2001 && g1 === 0) return isPrivateIpv4(embedded(g6 ^ 0xffff, g7 ^ 0xffff));
+  if ((g0 & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
+  if ((g0 & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((g0 & 0xffc0) === 0xfec0) return true; // fec0::/10 site-local (deprecated, still routed locally)
+  if ((g0 & 0xff00) === 0xff00) return true; // ff00::/8 multicast
+  if (g0 === 0x100 && zero(1, 4)) return true; // 100::/64 discard-only
+  return false;
+}
+
+/**
+ * Check if an IP address is private, local, multicast or an IPv6 transition
+ * form (IPv4-mapped, IPv4-compatible, NAT64, 6to4, Teredo) that embeds such an
+ * IPv4 address. Sync function: works on resolved IPs and literals, not on
+ * hostnames. Anything that is not a parseable IP literal is reported as not
+ * private, so callers must resolve hostnames first.
  */
 export function isPrivateIp(ip: string): boolean {
-  // IPv4 simple prefixes
-  if (
-    ip.startsWith('10.') ||
-    ip.startsWith('127.') ||
-    ip.startsWith('169.254.') ||
-    ip.startsWith('0.') ||
-    ip === '0.0.0.0'
-  ) {
-    return true;
+  const literal = ip
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '')
+    .split('%')[0];
+  const v4 = parseIpv4(literal);
+  if (v4) return isPrivateIpv4(v4);
+  if (literal.includes(':')) {
+    const v6 = parseIpv6(literal);
+    return v6 ? isPrivateIpv6(v6) : false;
   }
-
-  // IPv4 complex ranges
-  const parts = ip.split('.').map(Number);
-  if (parts.length === 4 && parts.every((p) => !isNaN(p) && p >= 0 && p <= 255)) {
-    // 172.16.0.0/12
-    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-    // 192.168.0.0/16
-    if (parts[0] === 192 && parts[1] === 168) return true;
-    // 100.64.0.0/10 (Carrier-grade NAT)
-    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
-    // 198.18.0.0/15 (benchmark testing)
-    if (parts[0] === 198 && (parts[1] === 18 || parts[1] === 19)) return true;
-  }
-
-  // IPv6
-  const lower = ip.toLowerCase();
-  if (lower === '::1' || lower === '::') {
-    return true;
-  }
-  if (lower.startsWith('fc') || lower.startsWith('fd')) {
-    // Unique local addresses fc00::/7
-    return true;
-  }
-  // Link-local fe80::/10 — the first hextet is fe80–febf (top 2 bits of the
-  // 3rd nibble are 10), not just the literal "fe80" prefix.
-  const firstHextet = lower.split(':')[0];
-  if (/^fe[89ab][0-9a-f]?$/.test(firstHextet)) {
-    return true;
-  }
-  // IPv4-mapped in dotted form (::ffff:a.b.c.d) and IPv4-embedded (::a.b.c.d)
-  // — recurse on the trailing dotted-quad so the IPv4 rules above apply.
-  const embeddedIpv4 = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-  if (embeddedIpv4 && lower.includes(':')) {
-    return isPrivateIp(embeddedIpv4[1]);
-  }
-
-  // IPv4-mapped in canonical hex form (::ffff:a9fe:a9fe) — the form Node's URL
-  // parser normalizes ::ffff:169.254.169.254 to. Decode the last two hextets.
-  const mappedHex = lower.match(/::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-  if (mappedHex) {
-    const hi = parseInt(mappedHex[1], 16);
-    const lo = parseInt(mappedHex[2], 16);
-    const dotted = `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
-    return isPrivateIp(dotted);
-  }
-
   return false;
 }
 

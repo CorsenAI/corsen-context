@@ -152,9 +152,18 @@ a narrow rebinding window remains. Deployments that fetch untrusted URLs should
 install `undici` or enforce equivalent egress controls.
 
 Blocked address ranges include loopback, RFC 1918, IPv4 link-local,
-carrier-grade NAT, benchmark networks, IPv6 loopback, IPv6 unique-local,
-IPv6 link-local, and recognized IPv4-mapped/embedded forms. This application
-check should complement, not replace, network egress policy.
+carrier-grade NAT, benchmark networks, multicast and reserved IPv4 space, IPv6
+loopback, unique-local, link-local, site-local and multicast space, and the
+IPv4-mapped, IPv4-compatible, NAT64, 6to4 and Teredo forms that embed an IPv4
+address. This application check should complement, not replace, network egress
+policy.
+
+Every upstream body the core buffers is read through a 5 MiB budget
+(`MAX_FETCH_BODY_BYTES`): sitemaps, `robots.txt`, pages crawled by the sitemap
+provider and the responses the CLI `doctor` inspects. A larger document is
+treated as absent. One `parseSitemap` call fetches at most
+`MAX_SITEMAP_DOCUMENTS` (50) sitemap documents, index included, in addition to
+the `content.maxPages` entry cap.
 
 The five supplied CMS reference bridges apply a 10-second timeout to each
 upstream CMS fetch. Each bridge keeps successful provider results in a

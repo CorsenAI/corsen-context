@@ -1,4 +1,9 @@
-import { isPrivateUrl, MCP_PROTOCOL_VERSION, safeFetch } from '@corsenai/corsen-context';
+import {
+  isPrivateUrl,
+  MCP_PROTOCOL_VERSION,
+  readBoundedText,
+  safeFetch,
+} from '@corsenai/corsen-context';
 
 function parseArgs(args: string[]): { url?: string } {
   const result: { url?: string } = {};
@@ -36,6 +41,19 @@ export function resolveDiscoveredMcpEndpoint(base: string, candidate: string): s
       return null;
     }
     return endpoint.href;
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseJson(text: string | null): Record<string, any> | null {
+  if (text === null) return null;
+  try {
+    const value: unknown = JSON.parse(text);
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
@@ -92,7 +110,7 @@ export async function doctor(args: string[]) {
       message: res.ok ? `Found /llms.txt (${res.status})` : `No /llms.txt found (${res.status})`,
     });
     if (res.ok) {
-      const body = await res.text();
+      const body = (await readBoundedText(res)) ?? '';
       const m = body.match(/^MCP endpoint:\s*(\S+)/im);
       if (m && m[1]) {
         discoveredMcpEndpoint = resolveDiscoveredMcpEndpoint(base, m[1]) || '';
@@ -132,7 +150,7 @@ export async function doctor(args: string[]) {
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) {
-      const text = await res.text();
+      const text = (await readBoundedText(res)) ?? '';
       const match = text.match(/^MCP:\s*(\S+)/im);
       const robotsEndpoint = match?.[1] ? resolveDiscoveredMcpEndpoint(base, match[1]) : null;
       if (!discoveredMcpEndpoint && robotsEndpoint) {
@@ -182,7 +200,7 @@ export async function doctor(args: string[]) {
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) {
-      const data = (await res.json()) as Record<string, any>;
+      const data = parseJson(await readBoundedText(res));
       const protocolVersion = data?.result?.protocolVersion;
       const serverName = data?.result?.serverInfo?.name;
       const serverVersion = data?.result?.serverInfo?.version;
@@ -208,7 +226,8 @@ export async function doctor(args: string[]) {
           }),
           signal: AbortSignal.timeout(10000),
         });
-        lifecycleComplete = acknowledged.status === 202 && (await acknowledged.text()).length === 0;
+        lifecycleComplete =
+          acknowledged.status === 202 && ((await readBoundedText(acknowledged)) ?? '').length === 0;
       }
       results.push({
         name: 'MCP Endpoint',
@@ -235,7 +254,7 @@ export async function doctor(args: string[]) {
   // Check 7: WebMCP bridge on the homepage
   try {
     const res = await safeFetch(base, { signal: AbortSignal.timeout(10000) });
-    const html = res.ok ? await res.text() : '';
+    const html = res.ok ? ((await readBoundedText(res)) ?? '') : '';
     const hasBridge = html.includes('modelContext') || html.includes('/webmcp.js');
     results.push({
       name: 'WebMCP',
