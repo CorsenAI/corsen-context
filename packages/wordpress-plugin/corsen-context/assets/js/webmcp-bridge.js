@@ -20,7 +20,8 @@
   var tools = Array.isArray(config.tools) ? config.tools : [];
   var endpoint = config.endpoint;
   var protocolVersion = config.protocolVersion;
-  var outputBudget = typeof config.outputBudget === 'number' && config.outputBudget > 0 ? config.outputBudget : 0;
+  var outputBudget =
+    typeof config.outputBudget === 'number' && config.outputBudget > 0 ? config.outputBudget : 0;
   if (tools.length === 0 || typeof protocolVersion !== 'string') return;
 
   // Top-level documents only: the Permissions Policy 'tools' feature defaults
@@ -57,7 +58,8 @@
     var out = { ok: false, error_code: code, message: message };
     if (extra && typeof extra === 'object') {
       for (var key in extra) {
-        if (Object.prototype.hasOwnProperty.call(extra, key) && !(key in out)) out[key] = extra[key];
+        if (Object.prototype.hasOwnProperty.call(extra, key) && !(key in out))
+          out[key] = extra[key];
       }
     }
     return out;
@@ -76,7 +78,13 @@
   // Optional owner-set budget: trim a page result's markdown to fit and say
   // so, instead of letting a client cut the output silently.
   function bound(result) {
-    if (!outputBudget || !result || typeof result !== 'object' || typeof result.markdown !== 'string') return result;
+    if (
+      !outputBudget ||
+      !result ||
+      typeof result !== 'object' ||
+      typeof result.markdown !== 'string'
+    )
+      return result;
     var size = JSON.stringify(result).length;
     if (size <= outputBudget) return result;
     var keep = Math.max(0, outputBudget - (size - result.markdown.length) - 200);
@@ -86,7 +94,8 @@
     }
     out.markdown = result.markdown.slice(0, keep);
     out.truncated = true;
-    out.hint = 'Output trimmed to the in-page budget. Call get_sections with this url for the outline, then one section at a time.';
+    out.hint =
+      'Output trimmed to the in-page budget. Call get_sections with this url for the outline, then one section at a time.';
     return out;
   }
 
@@ -95,8 +104,8 @@
     // changes nothing else and the response is the same as for any client.
     var headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream',
-      'X-Corsen-Transport': 'webmcp'
+      Accept: 'application/json, text/event-stream',
+      'X-Corsen-Transport': 'webmcp',
     };
     if (body.method !== 'initialize') {
       headers['MCP-Protocol-Version'] = protocolVersion;
@@ -109,16 +118,20 @@
       credentials: 'omit',
       signal: signal || null,
       headers: headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     })
       .then(function (res) {
         if (isNotification) {
           if (res.status !== 202) {
-            throw rpcError('Corsen Context: MCP notification returned ' + res.status, 'transport_error');
+            throw rpcError(
+              'Corsen Context: MCP notification returned ' + res.status,
+              'transport_error',
+            );
           }
           return null;
         }
-        if (!res.ok) throw rpcError('Corsen Context: MCP endpoint returned ' + res.status, 'transport_error');
+        if (!res.ok)
+          throw rpcError('Corsen Context: MCP endpoint returned ' + res.status, 'transport_error');
         return res.json();
       })
       .then(function (responseBody) {
@@ -138,31 +151,39 @@
         typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
           ? AbortSignal.timeout(8000)
           : null;
-      initializationPromise = request({
-        jsonrpc: '2.0',
-        id: nextRequestId++,
-        method: 'initialize',
-        params: {
-          protocolVersion: protocolVersion,
-          capabilities: {},
-          clientInfo: { name: 'corsen-context-webmcp', version: '1.0.0' }
-        }
-      }, initializationSignal, false)
-      .then(function (body) {
-        var negotiated = body && body.result && body.result.protocolVersion;
-        if (negotiated !== protocolVersion) {
-          throw rpcError('Corsen Context: unsupported negotiated MCP version', 'protocol_error');
-        }
-        return request({
+      initializationPromise = request(
+        {
           jsonrpc: '2.0',
-          method: 'notifications/initialized',
-          params: {}
-        }, initializationSignal, true);
-      })
-      .catch(function (error) {
-        initializationPromise = null;
-        throw error;
-      });
+          id: nextRequestId++,
+          method: 'initialize',
+          params: {
+            protocolVersion: protocolVersion,
+            capabilities: {},
+            clientInfo: { name: 'corsen-context-webmcp', version: '1.0.0' },
+          },
+        },
+        initializationSignal,
+        false,
+      )
+        .then(function (body) {
+          var negotiated = body && body.result && body.result.protocolVersion;
+          if (negotiated !== protocolVersion) {
+            throw rpcError('Corsen Context: unsupported negotiated MCP version', 'protocol_error');
+          }
+          return request(
+            {
+              jsonrpc: '2.0',
+              method: 'notifications/initialized',
+              params: {},
+            },
+            initializationSignal,
+            true,
+          );
+        })
+        .catch(function (error) {
+          initializationPromise = null;
+          throw error;
+        });
     }
     return initializationPromise;
   }
@@ -186,39 +207,50 @@
         reject(new Error('Corsen Context: tool execution aborted'));
       }
       signal.addEventListener('abort', onAbort, { once: true });
-      ready.then(function (value) {
-        cleanup();
-        resolve(value);
-      }, function (error) {
-        cleanup();
-        reject(error);
-      });
+      ready.then(
+        function (value) {
+          cleanup();
+          resolve(value);
+        },
+        function (error) {
+          cleanup();
+          reject(error);
+        },
+      );
     });
   }
 
   function call(name, args, signal) {
     return waitForInitialization(signal)
       .then(function () {
-        return request({
-          jsonrpc: '2.0',
-          id: nextRequestId++,
-          method: 'tools/call',
-          params: { name: name, arguments: args || {} }
-        }, signal, false);
+        return request(
+          {
+            jsonrpc: '2.0',
+            id: nextRequestId++,
+            method: 'tools/call',
+            params: { name: name, arguments: args || {} },
+          },
+          signal,
+          false,
+        );
       })
       .then(function (body) {
         if (body && body.result && body.result.isError) {
           var errorContent = Array.isArray(body.result.content) ? body.result.content : [];
           var errorText = errorContent
-            .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
+            .map(function (part) {
+              return part && typeof part.text === 'string' ? part.text : '';
+            })
             .filter(Boolean)
             .join('\n');
           var machine = body.result.structuredContent;
           if (machine && typeof machine === 'object') {
             return failure(
               typeof machine.error_code === 'string' ? machine.error_code : 'tool_error',
-              typeof machine.message === 'string' ? machine.message : (errorText || 'Corsen Context: tool execution failed'),
-              machine
+              typeof machine.message === 'string'
+                ? machine.message
+                : errorText || 'Corsen Context: tool execution failed',
+              machine,
             );
           }
           return failure('tool_error', errorText || 'Corsen Context: tool execution failed');
@@ -228,14 +260,16 @@
         var content = body && body.result && body.result.content;
         if (!Array.isArray(content)) return '';
         return content
-          .map(function (part) { return part && typeof part.text === 'string' ? part.text : ''; })
+          .map(function (part) {
+            return part && typeof part.text === 'string' ? part.text : '';
+          })
           .join('\n');
       })
       .catch(function (error) {
         if (isAbort(error, signal)) throw error;
         return failure(
           error && error.corsenCode ? error.corsenCode : 'transport_error',
-          (error && error.message) || 'Corsen Context: MCP request failed'
+          (error && error.message) || 'Corsen Context: MCP request failed',
         );
       });
   }
@@ -243,14 +277,18 @@
   // No cross-origin exposure option is ever passed: tools stay visible to this origin only.
   tools.forEach(function (tool) {
     try {
-      Promise.resolve(mc.registerTool({
-        name: tool.name,
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        annotations: tool.annotations,
-        execute: function (input, options) { return call(tool.name, input, options && options.signal); }
-      })).catch(function (error) {
+      Promise.resolve(
+        mc.registerTool({
+          name: tool.name,
+          title: tool.title,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+          annotations: tool.annotations,
+          execute: function (input, options) {
+            return call(tool.name, input, options && options.signal);
+          },
+        }),
+      ).catch(function (error) {
         if (window.console && typeof window.console.warn === 'function') {
           window.console.warn('Corsen Context: WebMCP registration failed for ' + tool.name, error);
         }

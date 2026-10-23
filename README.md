@@ -114,8 +114,8 @@ all the same kind of product. A public target is current only when
 | Stack              | Integration delivered to the site owner                            |
 | ------------------ | ------------------------------------------------------------------ |
 | WordPress          | Native PHP plugin                                                  |
-| Next.js App Router | Published npm 2.0.1 adapter plus complete example                   |
-| Astro              | Published npm 2.0.1 adapter plus complete SSR example               |
+| Next.js App Router | Published npm 2.0.1 adapter plus complete example                  |
+| Astro              | Published npm 2.0.1 adapter plus complete SSR example              |
 | Express            | Framework-agnostic core plus reference server                      |
 | Static HTML        | Build-time assets plus one same-origin Node endpoint               |
 | Ghost              | Deployable read-only Node bridge over the Content API              |
@@ -144,19 +144,19 @@ published packages. The WordPress plugin lives in
 and ships through [WordPress.org](https://wordpress.org/plugins/corsen-context/);
 the Netlify deployment is `examples/static-html` with its `netlify.toml`.
 
-| Stack       | Source |
-| ----------- | ------ |
+| Stack       | Source                                                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WordPress   | [`packages/wordpress-plugin/corsen-context`](packages/wordpress-plugin/corsen-context) · [WordPress.org](https://wordpress.org/plugins/corsen-context/) |
-| Next.js     | [`examples/nextjs-app-router`](examples/nextjs-app-router) |
-| Astro       | [`examples/astro-basic`](examples/astro-basic) |
-| Express     | [`examples/express-basic`](examples/express-basic) |
-| Static HTML | [`examples/static-html`](examples/static-html) |
-| Netlify     | [`examples/static-html`](examples/static-html) (`netlify.toml`) |
-| Ghost       | [`examples/ghost-cms`](examples/ghost-cms) |
-| Strapi      | [`examples/strapi-cms`](examples/strapi-cms) |
-| Directus    | [`examples/directus-cms`](examples/directus-cms) |
-| Wagtail     | [`examples/wagtail-cms`](examples/wagtail-cms) |
-| MediaWiki   | [`examples/mediawiki-cms`](examples/mediawiki-cms) |
+| Next.js     | [`examples/nextjs-app-router`](examples/nextjs-app-router)                                                                                              |
+| Astro       | [`examples/astro-basic`](examples/astro-basic)                                                                                                          |
+| Express     | [`examples/express-basic`](examples/express-basic)                                                                                                      |
+| Static HTML | [`examples/static-html`](examples/static-html)                                                                                                          |
+| Netlify     | [`examples/static-html`](examples/static-html) (`netlify.toml`)                                                                                         |
+| Ghost       | [`examples/ghost-cms`](examples/ghost-cms)                                                                                                              |
+| Strapi      | [`examples/strapi-cms`](examples/strapi-cms)                                                                                                            |
+| Directus    | [`examples/directus-cms`](examples/directus-cms)                                                                                                        |
+| Wagtail     | [`examples/wagtail-cms`](examples/wagtail-cms)                                                                                                          |
+| MediaWiki   | [`examples/mediawiki-cms`](examples/mediawiki-cms)                                                                                                      |
 
 ## Quick start
 
