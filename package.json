@@ -26,6 +26,7 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "check:exports": "attw --pack packages/core && attw --pack packages/nextjs-adapter && attw --pack packages/astro-adapter",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo run build && changeset publish"
